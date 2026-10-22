@@ -518,6 +518,8 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .btn[aria-pressed="true"] { background: var(--raised); border-color: var(--accent); }
 .fin .aviso { padding: 12px 16px; border: 1px solid var(--line2); border-radius: 14px; background: var(--raised); color: var(--soft); font-size: var(--fs-sm); }
 .fin .aviso.erro { border-color: var(--neg); color: var(--neg); }
+.fin .aviso.pergunta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; color: var(--fg); }
+.fin .aviso.pergunta p { margin: 0; }
 .fin .sec { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .fin .sec-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 .fin .sec h2 { font-size: var(--fs-lg); font-weight: 400; }

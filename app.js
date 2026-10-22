@@ -179,6 +179,56 @@
     if (!plan.nomes) plan.nomes = v === 1 ? { brasil: 'Contas no Brasil' } : {};
     return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: x.div || null };
   }
+  /* contas fixas e assinaturas: o mesmo nome (sem os números) cobrado uma vez por mês, com valor parecido,
+     em pelo menos 2 dos últimos 3 meses. keys guarda as descrições exatas, para regras manuais. */
+  function detectarRecorrentes(model) {
+    var ks = model.keys.slice(-3), by = {}, list = [];
+    if (ks.length < 2) return list;
+    model.rows.forEach(function (r) {
+      if (r.kind !== 'gasto' || r.a >= 0 || r.cat === 'brasil' || ks.indexOf(r.m) < 0) return;
+      var k = r.key.replace(/[0-9]+/g, '').replace(/\s+/g, ' ').trim(), o = by[k] || (by[k] = { id: k, m: {}, keys: [], last: null });
+      (o.m[r.m] = o.m[r.m] || []).push(-r.a);
+      if (o.keys.indexOf(r.key) < 0) o.keys.push(r.key);
+      if (!o.last || r.date >= o.last.date) o.last = r;
+    });
+    Object.keys(by).forEach(function (k) {
+      var o = by[k], ms = Object.keys(o.m);
+      if (ms.length < 2 || ms.some(function (m) { return o.m[m].length > 1; })) return;
+      var vs = ms.map(function (m) { return o.m[m][0]; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs);
+      if (mn <= 0 || mx / mn > 1.25) return;
+      o.v = -o.last.a; o.dia = +o.last.date.slice(8); list.push(o);
+    });
+    return list.sort(function (a, b) { return a.dia - b.dia; });
+  }
+  /* o maior pagamento recorrente de começo de mês (até o dia 5) que ainda não está em aluguel */
+  function sugerirAluguel(recs, dispensados) {
+    var best = null;
+    recs.forEach(function (o) {
+      if (o.dia > 5 || o.last.cat === 'aluguel' || (dispensados && dispensados.indexOf(o.id) >= 0)) return;
+      if (!best || o.v > best.v) best = o;
+    });
+    return best;
+  }
+  /* previsão do mês em andamento. Categorias fixas entram pelo maior entre o gasto e a meta; cobranças
+     recorrentes das outras categorias entram pelo valor de sempre (já pagas ou ainda por cair); só o resto
+     segue o ritmo dos dias que passaram. metaCat(id) devolve a meta da categoria. */
+  var FIXAS = ['aluguel', 'assin', 'brasil'];
+  function preverMes(model, metaCat) {
+    var cur = model.partial;
+    if (!cur) return null;
+    var g = model.by[cur], p = cur.split('-').map(Number), dim = new Date(p[0], p[1], 0).getDate(), day = Math.max(1, +model.lastDate.slice(8));
+    var fixo = 0, falFix = 0, vari = 0, rec = 0, pend = [];
+    CATS.forEach(function (c) {
+      var v = g.spend[c.id] || 0;
+      if (FIXAS.indexOf(c.id) >= 0) { var mt = metaCat(c.id); fixo += Math.max(v, mt); falFix += Math.max(0, mt - v); } else vari += v;
+    });
+    detectarRecorrentes(model).forEach(function (o) {
+      if (FIXAS.indexOf(o.last.cat) >= 0) return;
+      if (o.m[cur]) { rec += o.m[cur][0]; vari -= o.m[cur][0]; }
+      else { rec += o.v; falFix += o.v; pend.push(o); }
+    });
+    return { m: cur, day: day, dim: dim, gasto: g.gasto, proj: fixo + rec + Math.max(0, vari) / day * dim, falFix: falFix, pend: pend };
+  }
   /* metas sugeridas: média dos 3 primeiros meses completos (ou dos que houver), em múltiplos de 5 */
   function sugerirMetas(model) {
     var ks = (model.complete.length ? model.complete : model.keys).slice(0, 3);
@@ -221,7 +271,7 @@
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
-  var M = buildModel({}, {}), SUG = null;
+  var M = buildModel({}, {}), SUG = null, RECS = [];
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
   var LS = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
@@ -333,6 +383,7 @@
   function recompute() {
     M = buildModel(S.months, S.over, S.plan && S.plan.titular);
     SUG = sugerirMetas(M);
+    RECS = detectarRecorrentes(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
   }
 
@@ -776,7 +827,6 @@
     { id: 'viagens', nome: 'Viagens pequenas', src: null },
     { id: 'viagem', nome: 'Viagem grande do ano', src: null }
   ];
-  var FIXAS = ['aluguel', 'assin', 'brasil'];
   function pct(v) { return nn.format(v) + '%'; }
   function goalCfg(id) { var g = S.plan && S.plan.goals; return (g && g[id]) || {}; }
   function goalHas(g) {
@@ -822,13 +872,8 @@
   function previsao() {
     var cur = M.partial, h = '<section class="sec"><div class="sec-top"><h2>Previsão do mês</h2>';
     if (!cur) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(M.keys[M.keys.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
-    var g = M.by[cur], p = cur.split('-').map(Number), dim = new Date(p[0], p[1], 0).getDate(), day = Math.max(1, +M.lastDate.slice(8)), left = Math.max(1, dim - day);
-    var fixo = 0, falFix = 0, vari = 0;
-    CATS.forEach(function (c) {
-      var v = g.spend[c.id] || 0;
-      if (FIXAS.indexOf(c.id) >= 0) { var mt = planCat(c.id); fixo += Math.max(v, mt); falFix += Math.max(0, mt - v); } else vari += v;
-    });
-    var proj = fixo + vari / day * dim, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
+    var P = preverMes(M, planCat), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
+    var proj = P.proj, falFix = P.falFix, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
     var mx = Math.max(proj, meta, g.gasto, 1);
     var st = Math.abs(dif) < 0.5 ? '<span class="d ok">deve fechar na meta</span>' : dif > 0 ? '<span class="d bad">▲ deve passar ' + f0(dif) + ' da meta</span>' : '<span class="d good">▼ deve fechar ' + f0(-dif) + ' abaixo da meta</span>';
     return h + '<span class="hint">até dia ' + day + ' de ' + dim + ' · ' + left + ' dias pela frente</span></div><div class="card prv">' +
@@ -836,30 +881,25 @@
       '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (dif > 0.5 ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
       '<p class="s">' + st + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +
-      ' ' + FIXAS.map(function (id) { return catNome(CAT_BY[id]); }).join(', ') + ' entram pelo valor cheio; o resto segue o ritmo dos ' + day + ' primeiros dias.</p></div></section>';
+      ' ' + FIXAS.map(function (id) { return catNome(CAT_BY[id]); }).join(', ') + ' e as contas fixas detectadas abaixo entram pelo valor de sempre; o resto segue o ritmo dos ' + day + ' primeiros dias.</p></div></section>';
+  }
+  /* a pessoa nova não sabe que o aluguel por transferência cai em "outros": pergunta uma vez */
+  function aluguelSugerido() { return sugerirAluguel(RECS, S.plan && S.plan.naoAluguel); }
+  function perguntaAluguel() {
+    var o = aluguelSugerido();
+    if (!o) return '';
+    return '<div class="aviso pergunta"><p>Todo dia ' + o.dia + ' sai ' + f2(o.v) + ' para <b>' + esc(o.last.desc) + '</b>, hoje em ' + esc(catNome(CAT_BY[o.last.cat] || CAT_BY.outros)) + '. <b>Isso é aluguel?</b></p>' +
+      '<div class="grupo"><button class="btn sm pri" type="button" data-aluguel="sim">Sim, é aluguel</button><button class="btn sm" type="button" data-aluguel="nao">Não é</button></div></div>';
   }
   function recorrentes() {
-    var ks = M.keys.slice(-3), by = {}, list = [], tot = 0;
-    if (ks.length < 2) return '';
-    M.rows.forEach(function (r) {
-      if (r.kind !== 'gasto' || r.a >= 0 || r.cat === 'brasil' || ks.indexOf(r.m) < 0) return;
-      var k = r.key.replace(/[0-9]+/g, '').replace(/\s+/g, ' ').trim(), o = by[k] || (by[k] = { m: {}, last: null });
-      (o.m[r.m] = o.m[r.m] || []).push(-r.a);
-      if (!o.last || r.date >= o.last.date) o.last = r;
-    });
-    Object.keys(by).forEach(function (k) {
-      var o = by[k], ms = Object.keys(o.m);
-      if (ms.length < 2 || ms.some(function (m) { return o.m[m].length > 1; })) return;
-      var vs = ms.map(function (m) { return o.m[m][0]; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs);
-      if (mn <= 0 || mx / mn > 1.25) return;
-      o.v = -o.last.a; o.dia = +o.last.date.slice(8); o.prox = addMonth(o.last.date); tot += o.v; list.push(o);
-    });
-    list.sort(function (a, b) { return a.dia - b.dia; });
+    var nk = Math.min(3, M.keys.length), list = RECS, tot = 0;
+    if (nk < 2) return '';
+    list.forEach(function (o) { tot += o.v; });
     var h = '<section class="sec"><div class="sec-top"><h2>Contas fixas e assinaturas</h2><span class="hint">cobranças que se repetem nos últimos meses, com valor parecido</span></div><div class="card">';
     if (!list.length) return h + '<p class="vazio">Ainda não dá para ver repetições. Com dois ou três meses de extrato elas aparecem aqui.</p></div></section>';
     list.forEach(function (o, i) {
       var c = CAT_BY[o.last.cat] || CAT_BY.outros;
-      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + ks.length + ' meses</small></span><span class="rd">dia ' + o.dia + '<small>próxima ' + esc(dFmt(o.prox)) + '</small></span><b class="num">' + f2(o.v) + '</b></div>';
+      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + nk + ' meses</small></span><span class="rd">dia ' + o.dia + '<small>próxima ' + esc(dFmt(addMonth(o.last.date))) + '</small></span><b class="num">' + f2(o.v) + '</b></div>';
     });
     return h + '<div class="rec tot"><span></span><span class="rn">Total fixo por mês</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
   }
@@ -902,7 +942,7 @@
     if (!S.ready) { root.innerHTML = header() + '<p class="passo">Carregando seus dados…</p>'; return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
     if (!M.keys.length) { root.innerHTML = header() + emptyState(); return; }
-    root.innerHTML = header() + cashSummary() + dividas() + kpis() + previsao() + metasPoup() + chart() +
+    root.innerHTML = header() + perguntaAluguel() + cashSummary() + dividas() + kpis() + previsao() + metasPoup() + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>' + table() + review() +
       '<p class="passo">Todo fim de mês: baixe o extrato consolidado do Revolut em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
@@ -937,10 +977,22 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-dpay],[data-ddel]');
+    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-dpay],[data-ddel]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
+    if (t.hasAttribute('data-aluguel')) {
+      var al = aluguelSugerido();
+      if (!al) return;
+      if (t.getAttribute('data-aluguel') === 'sim') {
+        al.keys.forEach(function (k) { S.over[k] = 'aluguel'; });
+        enqueue(saveOver).then(function () { recompute(); render(); toast(al.last.desc + ' agora conta como aluguel. Dá para mudar em Revisar categorias.'); });
+      } else {
+        var pn = Object.assign({}, S.plan || {}, { naoAluguel: ((S.plan && S.plan.naoAluguel) || []).concat(al.id) });
+        enqueue(function () { return savePlan(pn); }).then(function () { render(); });
+      }
+      return;
+    }
     if (t.hasAttribute('data-sel')) { S.sel = t.getAttribute('data-sel'); S.more = 12; hideTip(); render(); return; }
     if (t.hasAttribute('data-all')) { S.sel = S.sel === 'all' ? (M.complete.length ? M.complete[M.complete.length - 1] : M.keys[M.keys.length - 1]) : 'all'; S.more = 12; render(); return; }
     if (t.hasAttribute('data-f')) {

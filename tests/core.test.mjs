@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, sugerirMetas, CATS };')();
+  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS };')();
 }
 function months(api) {
   const m = {};
@@ -117,4 +117,44 @@ test('metas sugeridas pela média dos 3 primeiros meses completos', () => {
   assert.equal(s.cats.outros, 650); // o aluguel ainda cai em "outros" (passo seguinte)
   assert.equal(s.poupar, 150);
   assert.equal(api.sugerirMetas(api.buildModel({}, {}, '')), null);
+});
+
+test('contas fixas detectadas no exemplo', () => {
+  const api = load();
+  const recs = api.detectarRecorrentes(api.buildModel(months(api), {}, 'Maria Silva'));
+  const nomes = recs.map(o => o.last.desc);
+  assert.ok(nomes.includes('To Example Lettings'));
+  assert.ok(nomes.includes('Netflix'));
+  assert.ok(!nomes.includes('Tesco')); // duas vezes por mês: não é conta fixa
+  assert.ok(!nomes.includes('To MARIA SILVA')); // envio para conta própria fica fora
+});
+
+test('"Isso é aluguel?" aponta o maior pagamento recorrente do começo do mês', () => {
+  const api = load();
+  const recs = api.detectarRecorrentes(api.buildModel(months(api), {}, 'Maria Silva'));
+  const o = api.sugerirAluguel(recs);
+  assert.equal(o.last.desc, 'To Example Lettings');
+  assert.equal(o.v, 650);
+  assert.equal(o.dia, 1);
+  assert.equal(api.sugerirAluguel(recs, [o.id]), null); // a pessoa disse que não é
+  const M2 = api.buildModel(months(api), { 'TO EXAMPLE LETTINGS': 'aluguel' }, 'Maria Silva');
+  assert.equal(api.sugerirAluguel(api.detectarRecorrentes(M2)), null); // já é aluguel
+});
+
+test('previsão de outubro do exemplo fica perto da meta (aluguel do dia 1 não é projetado)', () => {
+  const api = load();
+  const M = api.buildModel(months(api), {}, 'Maria Silva');
+  const sug = api.sugerirMetas(M), meta = Object.values(sug.cats).reduce((a, b) => a + b, 0);
+  const P = api.preverMes(M, id => sug.cats[id]);
+  assert.equal(P.m, '2026-10');
+  assert.equal(meta, 1005);
+  // fixas 190 (assin 40 + envios 150) + recorrentes já pagos 701,75 + Boots e Deliveroo por cair 27,80
+  // + Tesco 38,40 no ritmo de 15 de 31 dias (79,36)
+  assert.equal(Math.round(P.proj), 999);
+  assert.deepEqual(P.pend.map(o => o.last.desc), ['Boots', 'Deliveroo']);
+  // depois de responder "sim, é aluguel": continua perto da meta
+  const M2 = api.buildModel(months(api), { 'TO EXAMPLE LETTINGS': 'aluguel' }, 'Maria Silva');
+  const s2 = api.sugerirMetas(M2), P2 = api.preverMes(M2, id => s2.cats[id]);
+  assert.equal(s2.cats.aluguel, 650);
+  assert.equal(Math.round(P2.proj), 999);
 });
