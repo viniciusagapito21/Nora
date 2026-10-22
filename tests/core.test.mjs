@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, CATS };')();
+  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, CATS };')();
 }
 function months(api) {
   const m = {};
@@ -68,4 +68,34 @@ test('totais do mês batem com a conta feita à mão', () => {
 
 test('o núcleo não usa nada do navegador', () => {
   assert.doesNotMatch(core, /\b(window|document|localStorage)\b/);
+});
+
+test('migração v1 → v2 guarda o titular antigo e mantém o resto', () => {
+  const { migrate } = load();
+  const v1 = { months: { '2026-09': [['2026-09-01', 'Tesco', 'Merchant', -1000, 0]] }, over: { TESCO: 'lazer' }, plan: { cats: { mercado: 200 }, poupar: 100 }, summary: null, div: { itens: [] } };
+  const x = migrate(v1, ' MARIA SILVA ');
+  assert.equal(x.v, 2);
+  assert.deepEqual(x.months, v1.months);
+  assert.deepEqual(x.over, v1.over);
+  assert.deepEqual(x.div, v1.div);
+  assert.deepEqual(x.plan, { cats: { mercado: 200 }, poupar: 100, titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: {} });
+  assert.equal(v1.plan.titular, undefined); // não altera o objeto original
+});
+
+test('migração aceita v2 sem mudar nada e completa campos que faltam', () => {
+  const { migrate } = load();
+  const v2 = { v: 2, months: {}, over: {}, plan: { titular: 'Ana', moeda: 'EUR', pais: 'IE', nomes: { brasil: 'Conta em Portugal' } }, summary: null, div: null };
+  assert.deepEqual(migrate(v2, 'IGNORADO'), v2);
+  assert.equal(migrate({ v: 2 }).plan.titular, '');
+  assert.equal(migrate({}).plan.titular, ''); // v1 sem titular antigo
+});
+
+test('migração recusa o que não é do painel', () => {
+  const { migrate } = load();
+  assert.throws(() => migrate(null));
+  assert.throws(() => migrate([]));
+  assert.throws(() => migrate({ v: 3 }), /versão 3/);
+  assert.throws(() => migrate({ months: [] }));
+  assert.throws(() => migrate({ months: { 'setembro': [] } }));
+  assert.throws(() => migrate({ months: { '2026-09': 'x' } }));
 });

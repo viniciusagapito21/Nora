@@ -157,6 +157,28 @@
     r.kind = kind; r.cat = cat;
     return r;
   }
+  /* formato salvo (no navegador e no backup em JSON).
+     v1: { months, over, plan, summary, div }, sem número de versão.
+     v2: { v: 2, ... } com titular, moeda, país e nomes de exibição das categorias dentro de plan.
+     Aceita v1 ou v2 e devolve sempre v2; dados que não são do painel dão erro. */
+  var VERSAO = 2;
+  function migrate(x, titularAntigo) {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
+    var v = x.v == null ? 1 : x.v;
+    if (v !== 1 && v !== VERSAO) throw new Error('versão ' + v + ' desconhecida');
+    var months = x.months || {};
+    if (typeof months !== 'object' || Array.isArray(months)) throw new Error('meses em formato errado');
+    Object.keys(months).forEach(function (m) {
+      if (!/^\d{4}-\d{2}$/.test(m) || !Array.isArray(months[m])) throw new Error('mês ' + m + ' em formato errado');
+    });
+    var plan = Object.assign({}, x.plan || {});
+    /* na v1 o titular ficava numa chave à parte, gravada pelo console */
+    if (plan.titular == null) plan.titular = v === 1 ? String(titularAntigo || '').trim() : '';
+    if (!plan.moeda) plan.moeda = 'EUR';
+    if (!plan.pais) plan.pais = 'IE';
+    if (!plan.nomes) plan.nomes = {};
+    return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: x.div || null };
+  }
   function buildModel(months, over, titular) {
     var rows = [], by = {};
     Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular)); }); });
@@ -192,7 +214,8 @@
   var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {});
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
-  var LS = 'cortex-financas.v1';
+  /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
+  var LS = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
 
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -249,12 +272,19 @@
 
   /* ---------- armazenamento ---------- */
   function localSave() {
-    try { localStorage.setItem(LS, JSON.stringify({ months: S.months, over: S.over, plan: S.plan, summary: S.summary, div: S.div })); } catch (e) { }
+    try { localStorage.setItem(LS, JSON.stringify({ v: VERSAO, months: S.months, over: S.over, plan: S.plan, summary: S.summary, div: S.div })); } catch (e) { }
   }
   function localLoad() {
     try {
-      var x = JSON.parse(localStorage.getItem(LS) || 'null');
-      if (x) { S.months = x.months || {}; S.over = x.over || {}; S.plan = x.plan || null; S.summary = x.summary || null; S.div = x.div || null; }
+      var x = JSON.parse(localStorage.getItem(LS) || 'null'), tit = '', velho = !x;
+      if (velho) {
+        tit = localStorage.getItem(LS_TITULAR) || '';
+        x = JSON.parse(localStorage.getItem(LS_V1) || 'null') || (tit ? {} : null);
+      }
+      if (!x) return;
+      x = migrate(x, tit);
+      S.months = x.months; S.over = x.over; S.plan = x.plan; S.summary = x.summary; S.div = x.div;
+      if (velho) localSave();
     } catch (e) { }
   }
   var chain = Promise.resolve();
@@ -272,7 +302,7 @@
   function savePlan(p) { S.plan = p; localSave(); return Promise.resolve(); }
 
   function recompute() {
-    M = buildModel(S.months, S.over, window.FIN_TITULAR);
+    M = buildModel(S.months, S.over, S.plan && S.plan.titular);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
   }
 
@@ -930,8 +960,7 @@
     }
     if (fid !== 'fin-fmetas') return;
     e.preventDefault();
-    var p = { cats: {}, poupar: Math.max(0, +$('#fin-m-poupar').value || 0) };
-    if (S.plan && S.plan.goals) p.goals = S.plan.goals;
+    var p = Object.assign({}, S.plan || {}, { cats: {}, poupar: Math.max(0, +$('#fin-m-poupar').value || 0) });
     CATS.forEach(function (c) { p.cats[c.id] = Math.max(0, +$('#fin-m-' + c.id).value || 0); });
     S.metasOpen = true;
     enqueue(function () { return savePlan(p); }).then(function () { render(); toast('Metas salvas.'); });
