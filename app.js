@@ -160,12 +160,29 @@
   /* formato salvo (no navegador e no backup em JSON).
      v1: { months, over, plan, summary, div }, sem número de versão.
      v2: { v: 2, ... } com titular, moeda, país e nomes de exibição das categorias dentro de plan.
-     Aceita v1 ou v2 e devolve sempre v2; dados que não são do painel dão erro. */
-  var VERSAO = 2;
+     v3: pagamentos em observação com valor + moeda (antes brl ou eur) e câmbio por moeda.
+     Aceita v1, v2 ou v3 e devolve sempre v3; dados que não são do painel dão erro. */
+  var VERSAO = 3;
+  /* v2 → v3 em div: { items: [{ brl | eur }], cambio: { rate: reais por euro } }
+     vira { items: [{ valor, moeda }], cambios: { BRL: { rate } } }; rate = unidades da moeda por 1 euro */
+  function migrarDiv(d) {
+    if (!d || typeof d !== 'object') return null;
+    var o = Object.assign({}, d);
+    if (Array.isArray(d.items)) o.items = d.items.map(function (it) {
+      var n = Object.assign({}, it);
+      if (n.valor == null) {
+        if (+n.brl > 0) { n.valor = +n.brl; n.moeda = 'BRL'; } else { n.valor = +n.eur || 0; n.moeda = 'EUR'; }
+      }
+      delete n.brl; delete n.eur;
+      return n;
+    });
+    if (d.cambio) { o.cambios = Object.assign({ BRL: d.cambio }, d.cambios || {}); delete o.cambio; }
+    return o;
+  }
   function migrate(x, titularAntigo) {
     if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
     var v = x.v == null ? 1 : x.v;
-    if (v !== 1 && v !== VERSAO) throw new Error('versão ' + v + ' desconhecida');
+    if (v !== 1 && v !== 2 && v !== VERSAO) throw new Error('versão ' + v + ' desconhecida');
     var months = x.months || {};
     if (typeof months !== 'object' || Array.isArray(months)) throw new Error('meses em formato errado');
     Object.keys(months).forEach(function (m) {
@@ -177,7 +194,7 @@
     if (!plan.moeda) plan.moeda = 'EUR';
     if (!plan.pais) plan.pais = 'IE';
     if (!plan.nomes) plan.nomes = v === 1 ? { brasil: 'Contas no Brasil' } : {};
-    return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: x.div || null };
+    return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: v < 3 ? migrarDiv(x.div) : (x.div || null) };
   }
   /* lê dados salvos ou um backup (texto JSON) e devolve sempre a v2; erro com motivo se não der */
   function lerSalvo(texto, titularAntigo) {
@@ -295,7 +312,7 @@
   var M = buildModel({}, {}), SUG = null, RECS = [];
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
-  var LS = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
+  var LS = 'cortex-financas.v3', LS_V2 = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
 
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -381,8 +398,9 @@
     var raw = null, tit = '', velho = false;
     try {
       raw = localStorage.getItem(LS);
+      if (raw == null) { velho = true; raw = localStorage.getItem(LS_V2); }
       if (raw == null) {
-        velho = true; tit = localStorage.getItem(LS_TITULAR) || ''; raw = localStorage.getItem(LS_V1);
+        tit = localStorage.getItem(LS_TITULAR) || ''; raw = localStorage.getItem(LS_V1);
         if (raw == null && tit) raw = '{}';
       }
     } catch (e) { return; }
@@ -819,7 +837,6 @@
 
   /* ---------- dívidas em observação ---------- */
   var nr = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-  function fR(v) { return 'R$ ' + n2.format(v); }
   function todayIso() { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
   function diasAte(iso) { return Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(todayIso() + 'T00:00:00Z')) / 86400000); }
   function vencTxt(iso) {
@@ -833,9 +850,15 @@
     else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
     return parseFloat(s);
   }
+  /* pagamentos em observação: cada um na sua moeda; o câmbio para euro é sempre digitado pela pessoa */
+  var BASE = 'EUR', fmtMoeda = {};
+  function fMoeda(v, cod) {
+    if (!(cod in fmtMoeda)) { try { fmtMoeda[cod] = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cod }); } catch (e) { fmtMoeda[cod] = null; } }
+    return fmtMoeda[cod] ? fmtMoeda[cod].format(v) : cod + ' ' + n2.format(v);
+  }
   function divState() {
     var d = S.div || {};
-    return { items: Array.isArray(d.items) ? d.items : [], cambio: d.cambio && +d.cambio.rate > 0 ? d.cambio : null, margem: d.margem != null && !isNaN(d.margem) ? +d.margem : 2 };
+    return { items: Array.isArray(d.items) ? d.items : [], cambios: d.cambios || {}, margem: d.margem != null && !isNaN(d.margem) ? +d.margem : 2 };
   }
   function divMut(fn) {
     var d = JSON.parse(JSON.stringify(S.div || {}));
@@ -845,20 +868,23 @@
   }
   function dividas() {
     var D = divState(), open = D.items.filter(function (i) { return i.status !== 'paga'; }).sort(function (a, b) { var x = a.venc || '9999', y = b.venc || '9999'; return x < y ? -1 : x > y ? 1 : 0; }), paid = D.items.filter(function (i) { return i.status === 'paga'; });
-    var rate = D.cambio ? +D.cambio.rate : 0, mg = D.margem, tb = 0, tE = 0, te = 0, tr = 0, hasBrl = false;
+    var mg = D.margem, porMoeda = {}, te = 0, tr = 0, falta = [], fora = [];
+    function taxa(cod) { if (cod === BASE) return 1; var c = D.cambios[cod]; return c && +c.rate > 0 ? +c.rate : 0; }
     var h = '<section class="sec" id="fin-dividas"><div class="sec-top"><h2>Em observação</h2><span class="hint">pagamentos para fazer</span></div><div class="card dv">';
     if (!open.length) h += '<p class="vazio dvv">Nenhum pagamento em observação.</p>';
     open.forEach(function (it) {
-      var isE = !(it.brl > 0) && it.eur > 0, eur, partes = [];
-      if (isE) { eur = +it.eur; tE += eur; te += eur; tr += eur; } else { hasBrl = true; eur = rate ? it.brl / rate : null; tb += it.brl; if (eur != null) { te += eur; tr += eur * (1 + mg / 100); } }
-      if (!isE) partes.push(fR(it.brl));
+      var cod = it.moeda || BASE, rt = taxa(cod), eur = rt ? it.valor / rt : null, partes = [];
+      porMoeda[cod] = (porMoeda[cod] || 0) + it.valor;
+      if (cod !== BASE && fora.indexOf(cod) < 0) fora.push(cod);
+      if (eur == null) { if (falta.indexOf(cod) < 0) falta.push(cod); } else { te += eur; tr += cod === BASE ? eur : eur * (1 + mg / 100); }
+      if (cod !== BASE) partes.push(fMoeda(it.valor, cod));
       partes.push(it.venc ? '<span class="' + (diasAte(it.venc) <= 7 ? 'urg' : '') + '">' + esc(vencTxt(it.venc)) + ', ' + esc(dFull(it.venc)) + '</span>' : (it.criada ? 'anotada em ' + esc(dFull(it.criada)) : ''));
       h += '<div class="dvr"><div class="n">' + esc(it.nome) + '<small>' + partes.filter(Boolean).join(' · ') + '</small>' + (it.desc ? '<small>' + esc(it.desc) + '</small>' : '') + '</div>' +
-        '<div class="v">' + (isE ? '<b class="num">' + f0(eur) + '</b><small>pago em euro, sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio abaixo</small>') + '</div>' +
+        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>pago em euro, sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio de ' + esc(cod) + ' abaixo</small>') + '</div>' +
         '<div class="act"><button type="button" class="btn sm" data-dpay="' + esc(it.id) + '" aria-label="Marcar ' + esc(it.nome) + ' como paga">Paguei</button><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
     });
-    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + [tb > 0 ? fR(tb) : '', tE > 0 ? f0(tE) + ' em euro' : ''].filter(Boolean).join(' · ') + '</small></div><div class="v">' + (rate || !hasBrl ? '<b class="num">' + (hasBrl ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
-    if (open.length && (rate || !hasBrl)) {
+    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em euro' : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
+    if (open.length && !falta.length) {
       var cur = M.rows.length ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
       if (cur != null) {
         var msg;
@@ -869,18 +895,26 @@
         h += '<p class="dvn">' + msg + '</p>';
       }
     }
-    h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (D.cambio ? 'Câmbio usado: 1 € = R$ ' + nr.format(rate) + ' · ' + esc(dFull(D.cambio.data || todayIso())) + (D.cambio.fonte ? ' · ' + esc(D.cambio.fonte) : '') : 'Definir câmbio (R$ por €)') + '</summary>' +
-      '<form id="fin-fcamb"><div class="mgrid"><label>Reais por 1 euro<input id="fin-c-rate" type="text" inputmode="decimal" value="' + (rate ? esc(nr.format(rate)) : '') + '" placeholder="5,61"></label>' +
-      '<label>Margem para taxa e câmbio (%)<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">Atualizar câmbio</button></form></details>';
-    h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>Adicionar pagamento</summary><form id="fin-fdiv"><div class="mgrid"><label>Nome<input id="fin-d-nome" type="text" placeholder="Ex.: Banco Itaú ou escola" autocomplete="off"></label>' +
-      '<label>Valor<input id="fin-d-brl" type="text" inputmode="decimal" placeholder="3.700,00" autocomplete="off"></label>' +
-      '<label>Moeda<select id="fin-d-cur"><option value="BRL">Reais (R$)</option><option value="EUR">Euros (€)</option></select></label>' +
+    /* câmbio só das moedas dos pagamentos em aberto; nada é buscado na internet */
+    if (fora.length) {
+      h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (falta.length ? 'Definir câmbio (' + esc(falta.join(', ')) + ')' :
+        'Câmbio: ' + fora.map(function (c) { return '1 € = ' + esc(fMoeda(taxa(c), c)); }).join(' · ') + ' · informado por você') + '</summary>' +
+        '<form id="fin-fcamb"><div class="mgrid">' + fora.map(function (c) {
+          var cb = D.cambios[c];
+          return '<label>Quantos ' + esc(c) + ' valem 1 €' + (cb && cb.data ? ' (' + esc(dFmt(cb.data)) + ')' : '') + '<input id="fin-c-' + esc(c) + '" data-camb="' + esc(c) + '" type="text" inputmode="decimal" value="' + (taxa(c) ? esc(nr.format(taxa(c))) : '') + '" autocomplete="off"></label>';
+        }).join('') +
+        '<label>Margem para taxa e câmbio (%)<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">Atualizar câmbio</button></form></details>';
+    }
+    h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>Adicionar pagamento</summary><form id="fin-fdiv"><div class="mgrid"><label>Nome<input id="fin-d-nome" type="text" placeholder="Ex.: banco ou escola" autocomplete="off"></label>' +
+      '<label>Valor<input id="fin-d-valor" type="text" inputmode="decimal" placeholder="3.700,00" autocomplete="off"></label>' +
+      '<label>Moeda<select id="fin-d-cur">' + opcoes(MOEDAS, BASE) + '<option value="outra">Outra…</option></select></label>' +
+      '<label id="fin-d-outra-l" hidden>Código da moeda<input id="fin-d-outra" type="text" maxlength="3" placeholder="Ex.: CHF" autocomplete="off" autocapitalize="characters"></label>' +
       '<label>Vencimento (opcional)<input id="fin-d-venc" type="date"></label>' +
       '<label>Descrição (opcional)<input id="fin-d-desc" type="text" placeholder="Ex.: Parcela 4/5" autocomplete="off"></label></div><button class="btn sm pri" type="submit">Adicionar</button></form></details>';
     if (paid.length) {
       h += '<details class="metas" id="fin-dpaid"' + (S.dPaid ? ' open' : '') + '><summary>Pagas (' + paid.length + ')</summary>';
       paid.forEach(function (it) {
-        h += '<div class="dvr paga"><div class="n">' + esc(it.nome) + '<small>' + (it.brl > 0 ? fR(it.brl) : f0(it.eur || 0)) + (it.pagaEm ? ' · paga em ' + esc(dFull(it.pagaEm)) : '') + '</small></div><div></div><div class="act"><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
+        h += '<div class="dvr paga"><div class="n">' + esc(it.nome) + '<small>' + ((it.moeda || BASE) === BASE ? f0(it.valor || 0) : fMoeda(it.valor, it.moeda)) + (it.pagaEm ? ' · paga em ' + esc(dFull(it.pagaEm)) : '') + '</small></div><div></div><div class="act"><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
       });
       h += '</details>';
     }
@@ -1150,6 +1184,7 @@
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
+    if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
     if (t.id === 'fin-json') { lerBackup(t.files && t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.hasAttribute && t.hasAttribute('data-ov') && t.closest('#fin-app')) {
       var key = t.getAttribute('data-ov'), v = t.value, autos = {};
@@ -1168,21 +1203,29 @@
     var fid = e.target.id;
     if (fid === 'fin-fdiv') {
       e.preventDefault();
-      var nome = $('#fin-d-nome').value.trim(), brl = parseNum($('#fin-d-brl').value);
-      if (!nome || !(brl > 0)) { toast('Informe o nome e o valor.', true); return; }
+      var nome = $('#fin-d-nome').value.trim(), valor = parseNum($('#fin-d-valor').value);
+      if (!nome || !(valor > 0)) { toast('Informe o nome e o valor.', true); return; }
       var venc = $('#fin-d-venc').value, desc = $('#fin-d-desc').value.trim(), moeda = $('#fin-d-cur').value;
+      if (moeda === 'outra') moeda = $('#fin-d-outra').value.trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(moeda)) { toast('Use o código de 3 letras da moeda (ex.: CHF).', true); return; }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(venc)) venc = '';
       S.dAdd = false;
-      divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso() }; it[moeda === 'EUR' ? 'eur' : 'brl'] = Math.round(brl * 100) / 100; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast('Dívida anotada.'); });
+      divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso(), valor: Math.round(valor * 100) / 100, moeda: moeda }; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast('Pagamento anotado.'); });
       return;
     }
     if (fid === 'fin-fcamb') {
       e.preventDefault();
-      var rt = parseNum($('#fin-c-rate').value), mg = parseNum($('#fin-c-mg').value);
-      if (!(rt > 0.5 && rt < 50)) { toast('Informe quantos reais valem 1 euro (ex.: 5,61).', true); return; }
+      var mg = parseNum($('#fin-c-mg').value), novos = {}, ruim = null;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-camb]'), function (el) {
+        var c = el.getAttribute('data-camb'), v = el.value.trim(), rt = parseNum(v), atual = divState().cambios[c];
+        if (!v) return;
+        if (!(rt > 0)) { ruim = c; return; }
+        if (!atual || +atual.rate !== rt) novos[c] = { rate: rt, data: todayIso(), fonte: 'informado por você' };
+      });
+      if (ruim) { toast('Informe quantos ' + ruim + ' valem 1 euro (ex.: 1,08).', true); return; }
       if (isNaN(mg) || mg < 0 || mg > 20) mg = 2;
       S.dCamb = false;
-      divMut(function (d) { d.cambio = { rate: rt, data: todayIso(), fonte: 'informado por você' }; d.margem = mg; }).then(function () { toast('Câmbio atualizado.'); });
+      divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast('Câmbio atualizado.'); });
       return;
     }
     if (fid === 'fin-fsetup') {
