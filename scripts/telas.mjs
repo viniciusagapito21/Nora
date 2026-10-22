@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 27 telas do painel (14 em 1280px, 13 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 33 telas do painel (17 em 1280px, 16 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -47,6 +47,11 @@ const div = { items: [
   cambios: { BRL: { rate: 5.61, data: '2026-10-01' }, USD: { rate: 1.08, data: '2026-10-01' } }, margem: 2 };
 const comDados = { v: 3, months, over: {}, plan, summary: null, div };
 const D = { 'cortex-financas.v3': JSON.stringify(comDados) };
+// a mesma conta inventada lida como libra (Reino Unido, sem regras próprias) e como real (Brasil, sem regras próprias),
+// para pegar valor ou rótulo preso ao euro; o câmbio de "Em observação" é por 1 da moeda da configuração
+const emOutraMoeda = (moeda, pais, cambios) => ({ 'cortex-financas.v3': JSON.stringify({ ...comDados, plan: { ...plan, moeda, pais }, div: { ...div, cambios } }) });
+const LIBRA = emOutraMoeda('GBP', 'GB', { BRL: { rate: 6.55, data: '2026-10-01' }, USD: { rate: 1.27, data: '2026-10-01' }, EUR: { rate: 1.17, data: '2026-10-01' } });
+const REAL = emOutraMoeda('BRL', 'BR', { USD: { rate: 0.19, data: '2026-10-01' }, EUR: { rate: 0.18, data: '2026-10-01' } });
 
 // ---------- o que roda dentro da página ----------
 // assinatura dos estilos calculados de cada elemento (e de ::before, ::after e ::placeholder): comparação exata, sem ruído de pixel
@@ -133,6 +138,9 @@ for (const w of [1280, 390]) {
   t('11-dados-ilegiveis', { storage: quebrado });
   t('12-aviso-toast', { storage: D, viewport: true, toast: true, prepara: async pg => { await pg.evaluate(() => window.__cortexToast('Mensagem de teste', false, 60000)); } });
   t('13-aviso-erro', { storage: D, viewport: true, toast: true, prepara: async pg => { await pg.evaluate(() => window.__cortexToast('Erro de teste', true, 60000)); } });
+  t('15-painel-libra', { storage: LIBRA });
+  t('16-painel-real', { storage: REAL });
+  t('17-configuracoes-real', { storage: REAL, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });

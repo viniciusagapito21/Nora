@@ -1,4 +1,4 @@
- 1xszoxs 1l2e3g5 1l2e3g5
+ whz1bs 1l2e3g5 1l2e3g5
 head 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
@@ -9,24 +9,23 @@ head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>style 1y599fs 1l2e3g5 1l2e3g5
-body bzzbnd 1ln8j76 1ln8j76
-body>main.wrap pbwssc 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 1u1d3f6 1yytz64 1yytz64
+body eq5gbz 1ln8j76 1ln8j76
+body>main.wrap 1ixb7jc 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 1cjwibw 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top hxtfdx 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div qwqnmy 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca 38a70m 13gxe7u 13gxe7u
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>img 1cihukb 13gxe7u 13gxe7u
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l 6dgjz1 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm iwjzi9 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec gnh3n4 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec imj2wm 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top y0e8na 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>h2 g4rf1k o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>span.hint 1kemqo0 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 1hyy6gr 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 1o0oj2 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p.aviso iab1i8 vnygsh vnygsh
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p.aviso>b 1b057rk 1wyfq5s 1wyfq5s
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p.aviso>b 1b057rk 1wyfq5s 1wyfq5s
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 1w2dkmd 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 11qbv20 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p#fin-s-aviso-pais.aviso 53nybp vnygsh vnygsh
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p#fin-s-aviso-pais.aviso>b 1b4g100 1wyfq5s 1wyfq5s
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset q1o1qk 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend 1wx5hs0 zl0uga zl0uga
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid zsfm4a 1yytz64 1yytz64
@@ -39,12 +38,14 @@ body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-moeda>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-moeda>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-moeda>option oypd0 1n2tj1g 1n2tj1g
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small f494zx o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1vubv93 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais 15ihnv3 4056kx 4056kx
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais>option oypd0 1n2tj1g 1n2tj1g
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small d6wu1x o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1vubv93 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>input#fin-s-nome-brasil 1bej7xu qc0uyc qc0uyc 1x7fiph
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small d6wu1x o2ei29 o2ei29
@@ -86,6 +87,6 @@ body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
-body>input#fin-csv.vh 1hsgek6 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 1hsgek6 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh dpe8k 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh dpe8k 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 1xksmq8 kiu4ug kiu4ug

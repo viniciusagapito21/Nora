@@ -17,7 +17,10 @@
     { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0 }
   ];
     var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
-  var RULES = [
+  /* regras de comerciantes por país (o país vem da configuração); país sem conjunto próprio usa só as marcas
+     internacionais de REGRAS_GERAIS, e a tela avisa para categorizar o resto à mão */
+  var REGRAS_PAIS = {};
+  REGRAS_PAIS.IE = [
     [/BOOTS|^NORMAL$|PHARMACY|HICKEY|LLOYDS|BARBER|\bHAIR|SALON|DENTAL|DENTIST|CLINIC|OPTIC|SPECSAVERS|\bNAILS?\b|BEAUTY|\bSPA\b|WAXING|LASH|BROWS/, 'saude'],
     [/TESCO|LIDL|DUNNES|\bALDI\b|\bSPAR\b|CENTRA|SUPERVALU|BUYMIE|KALABASA|APPLEGREEN|SUMMIT STORES|LONDIS|\bMACE\b|SUPERMARKET/, 'mercado'],
     [/TRANSPORT FOR IRELAND|\bTFI\b|IRISH RAIL|UBER|\bLEAP\b|FREE ?NOW|\bBOLT\b|DUBLIN BUS|\bLUAS\b|BUS [EÉ]IREANN|DART STATION/, 'transporte'],
@@ -26,6 +29,15 @@
     [/BURGER|MCDONALD|DELIVEROO|FIVE GUYS|CARIBOU|TAKEAWAY|COSTA|STARBUCKS|JUST[ -]EAT|SUBWAY|PIZZA|KFC|NANDO'?S\b|COFFEE|CAF[EÉ]|MUG & MINGLE|PIG AND HEIFER|RESTAURANT|ETICKS|TICKETMASTER|^EB |ODEON|CINEMA|CINEWORLD|SAVOY|FIDELITY DUBLIN|ADRIANO|TEMPLE BAR|COPPER FACE|AULD DUBLINER|WILEY FOX|WOOLSHED|MCGUINNESS|GELATO|FORNAIO|\bGRILL\b|PASTEL|SUPERMAC|PADOCA|DOOM SLICE|RESIDENT ADVISOR|\bGENERATOR\b|MADDENS|PYGMALION|WETHERSPOONS|BUFFET|\bPUB\b|TAVERN/, 'lazer'],
     [/REVENUE/, 'outros']
   ];
+  var REGRAS_GERAIS = [
+    [/PHARMACY|FARMACIA|FARMÁCIA|DROGARIA/, 'saude'],
+    [/\bALDI\b|CARREFOUR|SUPERMARKET|SUPERMERCADO/, 'mercado'],
+    [/\bUBER\b|\bBOLT\b|FREE ?NOW|\b99 ?(APP|POP|TAXI)\b/, 'transporte'],
+    [/DISNEY|NETFLIX|SPOTIFY|APPLE|YOUTUBE|OPENAI|ANTHROPIC|ICLOUD|AMAZON PRIME|PRIME VIDEO|\bHBO\b/, 'assin'],
+    [/MCDONALD|BURGER KING|\bKFC\b|STARBUCKS|SUBWAY|DELIVEROO|JUST[ -]EAT|IFOOD|FIVE GUYS|DOMINO'?S/, 'lazer']
+  ];
+  var PAISES_COM_REGRAS = Object.keys(REGRAS_PAIS);
+  function regrasDo(pais) { return REGRAS_PAIS[pais || 'IE'] || REGRAS_GERAIS; }
   var INV = /DIGITAL ASSETS|INVESTMENT ACCOUNT|AVATRADE|REVOLUT SECURITIES|TRADING 212|DEGIRO|ETORO/;
   var EN = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 
@@ -43,8 +55,9 @@
     if (f.length || row.length) { row.push(f); rows.push(row); }
     return rows;
   }
+  /* tira símbolo de moeda, espaços e separador de milhar (vírgula): "€1,234.50", "£-12.00", "1234.50" */
   function cents(s) {
-    var n = parseFloat(String(s).replace(/[€\s,]/g, '').replace(/−/g, '-'));
+    var n = parseFloat(String(s).replace(/−/g, '-').replace(/[^\d.\-]/g, ''));
     return isNaN(n) ? null : Math.round(n * 100);
   }
   function isoDate(s) {
@@ -58,8 +71,9 @@
     m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? m[1] + '-' + m[2] + '-' + m[3] : null;
   }
-  /* devolve [data, descrição, categoria do Revolut, centavos, saldo em centavos] */
-  function extractTx(rows) {
+  /* devolve [data, descrição, categoria do Revolut, centavos, saldo em centavos], só da conta na moeda pedida */
+  function extractTx(rows, moeda) {
+    moeda = moeda || 'EUR';
     var out = [], i, r, c0, inSec = false, mode = null, title = '', d, a, b;
     for (i = 0; i < rows.length; i++) {
       r = rows[i]; c0 = String(r[0] || '').trim();
@@ -67,7 +81,7 @@
       if (inSec) {
         if (c0.indexOf('---') === 0) { inSec = false; mode = null; continue; }
         if (/\(\w{3}\)\s*$/.test(c0) && !r[1]) title = c0;
-        if (c0 === 'Date' && r[1] === 'Description') { mode = (!title || /\(EUR\)/.test(title)) ? 'read' : 'skip'; continue; }
+        if (c0 === 'Date' && r[1] === 'Description') { mode = (!title || title.indexOf('(' + moeda + ')') >= 0) ? 'read' : 'skip'; continue; }
         if (mode === 'read') {
           d = isoDate(c0); a = cents(r[3]); b = cents(r[4]);
           if (d && a !== null) out.push([d, String(r[1] || '').trim(), String(r[2] || '').trim(), a, b === null ? 0 : b]);
@@ -83,7 +97,7 @@
         for (var j = i + 1; j < rows.length; j++) {
           var x = rows[j];
           if (ix.st >= 0 && x[ix.st] && x[ix.st] !== 'COMPLETED') continue;
-          if (ix.cu >= 0 && x[ix.cu] && x[ix.cu] !== 'EUR') continue;
+          if (ix.cu >= 0 && x[ix.cu] && x[ix.cu] !== moeda) continue;
           d = isoDate(x[ix.d]); a = cents(x[ix.a]);
           if (!d || a === null) continue;
           var fee = ix.f >= 0 ? (cents(x[ix.f]) || 0) : 0;
@@ -96,6 +110,24 @@
       }
     }
     return out;
+  }
+  /* as moedas das contas que o extrato traz (para dizer o que existe quando falta a moeda pedida) */
+  function moedasNoExtrato(rows) {
+    var o = {}, i, r, c0, inSec = false, m, ic = -1;
+    for (i = 0; i < rows.length; i++) {
+      r = rows[i]; c0 = String(r[0] || '').trim();
+      if (c0 === 'Current Accounts Transaction Statements') { inSec = true; continue; }
+      if (inSec && c0.indexOf('---') === 0) inSec = false;
+      if (inSec && !r[1] && (m = c0.match(/\((\w{3})\)\s*$/))) o[m[1].toUpperCase()] = 1;
+      if (ic < 0 && r.indexOf('Completed Date') >= 0 && r.indexOf('Currency') >= 0) { ic = r.indexOf('Currency'); continue; }
+      if (ic >= 0 && /^[A-Z]{3}$/.test(String(r[ic] || '').trim())) o[String(r[ic]).trim()] = 1;
+    }
+    return Object.keys(o).sort();
+  }
+  /* com meses salvos, a moeda da configuração não muda: os valores estão na moeda da conta e não seriam
+     convertidos, só passariam a aparecer com outro símbolo */
+  function moedaTravada(months) {
+    return Object.keys(months || {}).some(function (k) { return Array.isArray(months[k]) && months[k].length > 0; });
   }
   function txKey(t) { return t[0] + '|' + t[1] + '|' + t[3] + '|' + t[4]; }
   /* saldos de fechamento de cada conta, do resumo no começo do extrato consolidado */
@@ -117,7 +149,8 @@
   }
 
   function bigCheck(id, a) { if ((id === 'compras' || id === 'assin') && a <= -100) return 'grandes'; return id; }
-  function byRule(D, a, rc) {
+  function byRule(D, a, rc, pais) {
+    var RULES = regrasDo(pais);
     if (/^CARD PAYMENT$/.test(D)) return a <= -100 ? 'grandes' : 'compras';
     var P = /^(TO|TRANSFER TO|TRANSFER FROM|FROM) /.test(D);
     for (var i = 0; i < RULES.length; i++) {
@@ -130,7 +163,7 @@
   }
   /* nome do titular como aparece nas transferências ("To FULANO DE TAL"), no formato da chave da descrição */
   function normTitular(s) { return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
-  function classify(t, over, titular) {
+  function classify(t, over, titular, pais) {
     var OWN = normTitular(titular), a = t[3] / 100, D = String(t[1]).toUpperCase(), rc = t[2], kind, cat = null;
     var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
     if (a > 0) {
@@ -138,13 +171,13 @@
       else if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
       else if (OWN && D.indexOf(OWN) >= 0) kind = 'interno';
       else if (INV.test(D)) kind = 'invest';
-      else if (rc === 'Refund' || rc === 'Merchant') { kind = 'gasto'; cat = byRule(D, a, rc); }
+      else if (rc === 'Refund' || rc === 'Merchant') { kind = 'gasto'; cat = byRule(D, a, rc, pais); }
       else kind = 'outras';
     } else {
       if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
       else if (OWN && D.indexOf(OWN) >= 0) { kind = 'gasto'; cat = 'brasil'; }
       else if (INV.test(D) || rc === 'Exchange') kind = 'invest';
-      else { kind = 'gasto'; cat = byRule(D, a, rc); }
+      else { kind = 'gasto'; cat = byRule(D, a, rc, pais); }
     }
     r.baseKind = kind;
     r.auto = kind === 'gasto' ? cat : kind === 'invest' ? '_invest' : kind === 'interno' ? '_ignore' : '';
@@ -276,9 +309,9 @@
     CATS.forEach(function (c) { o.cats[c.id] = media(function (g) { return g.spend[c.id] || 0; }); });
     return o;
   }
-  function buildModel(months, over, titular) {
+  function buildModel(months, over, titular, pais) {
     var rows = [], by = {};
-    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular)); }); });
+    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular, pais)); }); });
     rows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
     rows.forEach(function (r) {
       var g = by[r.m] || (by[r.m] = { m: r.m, renda: 0, outras: 0, flex: 0, inv: 0, interno: 0, spend: {}, n: 0 });
@@ -316,12 +349,29 @@
 
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  var nf2 = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  var nf0 = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  /* todo valor aparece na moeda da configuração (a conta que o painel lê) */
+  var NOME_MOEDA = { EUR: 'euro', BRL: 'real', GBP: 'libra', USD: 'dólar' };
+  function moeda() { return (S.plan && S.plan.moeda) || 'EUR'; }
+  function nomeMoeda(cod) { cod = cod || moeda(); return NOME_MOEDA[cod] || cod; }
+  var fmtCache = {};
+  function fmtDe(cod, casas) {
+    var k = cod + casas;
+    if (!fmtCache[k]) {
+      try { fmtCache[k] = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cod, minimumFractionDigits: casas, maximumFractionDigits: casas }); }
+      catch (e) { fmtCache[k] = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }); }
+    }
+    return fmtCache[k];
+  }
+  /* o símbolo que o Intl usa para a moeda (€, R$, £, US$), para rótulos como "Meta (R$)" */
+  function simbolo(cod) {
+    cod = cod || moeda();
+    var p = fmtDe(cod, 0).formatToParts(1).filter(function (x) { return x.type === 'currency'; })[0];
+    return p ? p.value : cod;
+  }
   var nn = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
   var n2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  function f2(v) { return nf2.format(v); }
-  function f0(v) { return nf0.format(Math.round(v)).replace('-', '−'); }
+  function f2(v) { return fmtDe(moeda(), 2).format(v); }
+  function f0(v) { return fmtDe(moeda(), 0).format(Math.round(v)).replace('-', '−'); }
   function sgn(v, fn) { return (v < 0 ? '−' : '+') + (fn || f0)(Math.abs(v)); }
   function mLabel(k) { var p = k.split('-'); return MES[+p[1] - 1] + ' de ' + p[0]; }
   function mShort(k) { return MS[+k.slice(5) - 1]; }
@@ -436,7 +486,7 @@
   function savePlan(p) { S.plan = p; localSave(); return Promise.resolve(); }
 
   function recompute() {
-    M = buildModel(S.months, S.over, S.plan && S.plan.titular);
+    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais);
     SUG = sugerirMetas(M);
     RECS = detectarRecorrentes(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
@@ -447,11 +497,11 @@
     var files = Array.prototype.slice.call(list || []);
     if (!files.length) return Promise.resolve();
     if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
-    var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null;
+    var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {};
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
-        var rws = parseCSV(txt), tx = extractTx(rws), sm = extractSummary(rws);
-        if (!tx.length) { bad.push(f.name); return; }
+        var rws = parseCSV(txt), tx = extractTx(rws, moeda()), sm = extractSummary(rws);
+        if (!tx.length) { bad.push(f.name); moedasNoExtrato(rws).forEach(function (c) { outras[c] = 1; }); return; }
         if (sm) {
           var asOf = tx.reduce(function (a, t) { return t[0] > a ? t[0] : a; }, '');
           if (!best || asOf >= best.asOf) { sm.asOf = asOf; best = sm; }
@@ -478,6 +528,7 @@
     }).then(function () {
       recompute(); render();
       if (added) toast('Adicionei ' + added + (added === 1 ? ' movimentação' : ' movimentações') + ' em ' + months + (months === 1 ? ' mês' : ' meses') + (dup ? '. ' + dup + (dup === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.') + (bad.length ? ' Não li: ' + bad.join(', ') + '.' : ''));
+      else if (bad.length && Object.keys(outras).length) toast('Não há conta em ' + moeda() + ' em ' + bad.join(', ') + ': o extrato tem ' + Object.keys(outras).join(', ') + '. Troque a moeda em Configurações ou baixe o extrato da conta em ' + moeda() + '.', true);
       else if (bad.length) toast('Não encontrei movimentações em ' + bad.join(', ') + '. Use o extrato consolidado em CSV do Revolut.', true);
       else toast(dup === 1 ? 'Nada novo: a movimentação desse arquivo já estava salva.' : 'Nada novo: as ' + dup + ' movimentações desse arquivo já estavam salvas.');
     });
@@ -489,21 +540,25 @@
     if (M.keys.length) {
       var n = 0; M.keys.forEach(function (k) { n += M.by[k].n; });
       st = n + ' movimentações · ' + mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4) + ' a ' + mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4) + ' · última em ' + dFull(M.lastDate);
-    } else st = 'Revolut · conta em euro';
+    } else st = 'Revolut · conta em ' + nomeMoeda();
     if (M.keys.length) st = 'Revolut · ' + st;
     return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
       (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
-      (configurado() && !suportado() ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
+      (configurado() && !suportado() && !S.setupOpen ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
   }
   /* ---------- configuração guiada ---------- */
-  /* moeda e país já ficam guardados, mas por enquanto o painel só lê euro e só tem as regras da Irlanda */
+  /* a moeda escolhe a conta que o painel lê no extrato; o país escolhe as regras de comerciantes */
   var MOEDAS = [['EUR', 'Euro (€)'], ['BRL', 'Real (R$)'], ['GBP', 'Libra (£)'], ['USD', 'Dólar (US$)']];
   var PAISES = [['IE', 'Irlanda'], ['PT', 'Portugal'], ['BR', 'Brasil'], ['GB', 'Reino Unido']];
   function configurado() { return !!(S.plan && S.plan.configurado); }
-  function suportado() { return !S.plan || ((S.plan.moeda || 'EUR') === 'EUR' && (S.plan.pais || 'IE') === 'IE'); }
-  function avisoSuporte() {
-    return 'Por enquanto o painel só lê a conta em <b>euro</b> do Revolut e usa as regras de comerciantes da <b>Irlanda</b>. ' +
-      'A moeda e o país que você escolher ficam guardados e passam a valer quando forem suportados.';
+  function temRegras(pais) { return PAISES_COM_REGRAS.indexOf(pais || 'IE') >= 0; }
+  function suportado() { return !S.plan || temRegras(S.plan.pais); }
+  function nomePais(cod) { var p = PAISES.filter(function (x) { return x[0] === cod; })[0]; return p ? p[1] : cod; }
+  function avisoSuporte(pais) {
+    pais = pais || (S.plan && S.plan.pais);
+    return 'Sem regras de comerciantes de <b>' + esc(nomePais(pais)) + '</b>: categorize manualmente em Revisar categorias. ' +
+      'Só marcas internacionais (Netflix, Spotify, Uber…) são reconhecidas sozinhas. Regras completas por enquanto: ' +
+      PAISES_COM_REGRAS.map(nomePais).join(', ') + '.';
   }
   function opcoes(lista, sel) {
     return lista.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === sel ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
@@ -512,16 +567,18 @@
     var p = S.plan || {}, primeira = !configurado();
     return '<section class="sec" id="fin-setup"><div class="sec-top"><h2>' + (primeira ? 'Antes de começar' : 'Configurações') + '</h2>' +
       '<span class="hint">tudo fica só neste navegador</span></div><div class="card"><form id="fin-fsetup" class="ggrid">' +
-      '<p class="aviso">' + avisoSuporte() + '</p>' +
+      '<p class="aviso" id="fin-s-aviso-pais"' + (temRegras(p.pais) ? ' hidden' : '') + '>' + avisoSuporte(p.pais || 'IE') + '</p>' +
       '<fieldset><legend>Você</legend><div class="mgrid">' +
       '<label>Seu nome no extrato<input id="fin-s-titular" type="text" autocomplete="off" spellcheck="false" placeholder="ex.: MARIA SILVA" value="' + esc(p.titular || '') + '">' +
       '<small>Como aparece em transferências para você mesmo (ex.: "To MARIA SILVA"). Serve para reconhecer envios para outra conta sua. Pode deixar em branco.</small></label>' +
-      '<label>Moeda<select id="fin-s-moeda">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select></label>' +
-      '<label>País<select id="fin-s-pais">' + opcoes(PAISES, p.pais || 'IE') + '</select></label>' +
+      (moedaTravada(S.months)
+        ? '<label>Moeda da conta<select id="fin-s-moeda" disabled aria-describedby="fin-s-moeda-trava">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select><small id="fin-s-moeda-trava">Não muda depois que há extratos salvos: os valores estão em ' + esc(nomeMoeda(p.moeda)) + ' e não seriam convertidos. Para usar outra moeda, baixe um backup e apague os dados.</small></label>'
+        : '<label>Moeda da conta<select id="fin-s-moeda">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select><small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small></label>') +
+      '<label>País<select id="fin-s-pais">' + opcoes(PAISES, p.pais || 'IE') + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label>' +
       '<label>Nome para os envios a outra conta sua<input id="fin-s-nome-brasil" type="text" autocomplete="off" maxlength="40" placeholder="' + esc(CAT_BY.brasil.nome) + '" value="' + esc((p.nomes && p.nomes.brasil) || '') + '">' +
       '<small>Ex.: "Contas no Brasil". Em branco fica "' + esc(CAT_BY.brasil.nome) + '".</small></label>' +
       '</div></fieldset>' +
-      '<fieldset><legend>Metas por mês (€)</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
+      '<fieldset><legend>Metas por mês (' + esc(simbolo()) + ')</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
       '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' + secaoDados() +
       '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
@@ -844,14 +901,15 @@
     return n === 0 ? 'vence hoje' : n === 1 ? 'vence amanhã' : n > 1 ? 'vence em ' + n + ' dias' : n === -1 ? 'venceu ontem' : 'venceu há ' + (-n) + ' dias';
   }
   function parseNum(s) {
-    s = String(s == null ? '' : s).replace(/R\$|€|\s/g, '');
+    s = String(s == null ? '' : s).replace(/[^\d,.\-]/g, '');
     if (!s) return NaN;
     if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
     else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
     return parseFloat(s);
   }
-  /* pagamentos em observação: cada um na sua moeda; o câmbio para euro é sempre digitado pela pessoa */
-  var BASE = 'EUR', fmtMoeda = {};
+  /* pagamentos em observação: cada um na sua moeda; o câmbio para a moeda da configuração é sempre digitado
+     pela pessoa (rate = unidades da moeda por 1 da moeda da configuração) */
+  var fmtMoeda = {};
   function fMoeda(v, cod) {
     if (!(cod in fmtMoeda)) { try { fmtMoeda[cod] = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cod }); } catch (e) { fmtMoeda[cod] = null; } }
     return fmtMoeda[cod] ? fmtMoeda[cod].format(v) : cod + ' ' + n2.format(v);
@@ -867,7 +925,7 @@
     return enqueue(function () { return saveDiv(d); }).then(function () { render(); });
   }
   function dividas() {
-    var D = divState(), open = D.items.filter(function (i) { return i.status !== 'paga'; }).sort(function (a, b) { var x = a.venc || '9999', y = b.venc || '9999'; return x < y ? -1 : x > y ? 1 : 0; }), paid = D.items.filter(function (i) { return i.status === 'paga'; });
+    var BASE = moeda(), D = divState(), open = D.items.filter(function (i) { return i.status !== 'paga'; }).sort(function (a, b) { var x = a.venc || '9999', y = b.venc || '9999'; return x < y ? -1 : x > y ? 1 : 0; }), paid = D.items.filter(function (i) { return i.status === 'paga'; });
     var mg = D.margem, porMoeda = {}, te = 0, tr = 0, falta = [], fora = [];
     function taxa(cod) { if (cod === BASE) return 1; var c = D.cambios[cod]; return c && +c.rate > 0 ? +c.rate : 0; }
     var h = '<section class="sec" id="fin-dividas"><div class="sec-top"><h2>Em observação</h2><span class="hint">pagamentos para fazer</span></div><div class="card dv">';
@@ -880,10 +938,10 @@
       if (cod !== BASE) partes.push(fMoeda(it.valor, cod));
       partes.push(it.venc ? '<span class="' + (diasAte(it.venc) <= 7 ? 'urg' : '') + '">' + esc(vencTxt(it.venc)) + ', ' + esc(dFull(it.venc)) + '</span>' : (it.criada ? 'anotada em ' + esc(dFull(it.criada)) : ''));
       h += '<div class="dvr"><div class="n">' + esc(it.nome) + '<small>' + partes.filter(Boolean).join(' · ') + '</small>' + (it.desc ? '<small>' + esc(it.desc) + '</small>' : '') + '</div>' +
-        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>pago em euro, sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio de ' + esc(cod) + ' abaixo</small>') + '</div>' +
+        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>pago em ' + esc(nomeMoeda()) + ', sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio de ' + esc(cod) + ' abaixo</small>') + '</div>' +
         '<div class="act"><button type="button" class="btn sm" data-dpay="' + esc(it.id) + '" aria-label="Marcar ' + esc(it.nome) + ' como paga">Paguei</button><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
     });
-    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em euro' : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
+    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em ' + esc(nomeMoeda()) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
     if (open.length && !falta.length) {
       var cur = M.rows.length ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
       if (cur != null) {
@@ -898,10 +956,10 @@
     /* câmbio só das moedas dos pagamentos em aberto; nada é buscado na internet */
     if (fora.length) {
       h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (falta.length ? 'Definir câmbio (' + esc(falta.join(', ')) + ')' :
-        'Câmbio: ' + fora.map(function (c) { return '1 € = ' + esc(fMoeda(taxa(c), c)); }).join(' · ') + ' · informado por você') + '</summary>' +
+        'Câmbio: ' + fora.map(function (c) { return '1 ' + esc(simbolo()) + ' = ' + esc(fMoeda(taxa(c), c)); }).join(' · ') + ' · informado por você') + '</summary>' +
         '<form id="fin-fcamb"><div class="mgrid">' + fora.map(function (c) {
           var cb = D.cambios[c];
-          return '<label>Quantos ' + esc(c) + ' valem 1 €' + (cb && cb.data ? ' (' + esc(dFmt(cb.data)) + ')' : '') + '<input id="fin-c-' + esc(c) + '" data-camb="' + esc(c) + '" type="text" inputmode="decimal" value="' + (taxa(c) ? esc(nr.format(taxa(c))) : '') + '" autocomplete="off"></label>';
+          return '<label>Quantos ' + esc(c) + ' valem 1 ' + esc(simbolo()) + (cb && cb.data ? ' (' + esc(dFmt(cb.data)) + ')' : '') + '<input id="fin-c-' + esc(c) + '" data-camb="' + esc(c) + '" type="text" inputmode="decimal" value="' + (taxa(c) ? esc(nr.format(taxa(c))) : '') + '" autocomplete="off"></label>';
         }).join('') +
         '<label>Margem para taxa e câmbio (%)<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">Atualizar câmbio</button></form></details>';
     }
@@ -935,7 +993,7 @@
     for (i = 1; i < pts.length; i++) dd += ' L' + X(pts[i].d).toFixed(1) + ' ' + Y(pts[i - 1].b).toFixed(1) + ' L' + X(pts[i].d).toFixed(1) + ' ' + Y(pts[i].b).toFixed(1);
     var yb = Y(0).toFixed(1), area = dd + ' L' + X(pts[pts.length - 1].d).toFixed(1) + ' ' + yb + ' L' + X(pts[0].d).toFixed(1) + ' ' + yb + ' Z';
     var lastp = pts[pts.length - 1], ya = Y(avg).toFixed(1);
-    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + (S.summary ? 'Dinheiro total (conta, Flexible Cash, investimentos e cripto) dia a dia' : 'Saldo da conta dia a dia') + ', de ' + esc(dFull(pts[0].d)) + ' a ' + esc(dFull(lastp.d)) + '. Média ' + nn.format(avg) + ' euros, atual ' + nn.format(lastp.b) + ' euros.">' +
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + (S.summary ? 'Dinheiro total (conta, Flexible Cash, investimentos e cripto) dia a dia' : 'Saldo da conta dia a dia') + ', de ' + esc(dFull(pts[0].d)) + ' a ' + esc(dFull(lastp.d)) + '. Média ' + f0(avg) + ', atual ' + f0(lastp.b) + '.">' +
       '<path d="' + area + '" fill="var(--accent)" fill-opacity=".13"/><path d="' + dd + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round"/>' +
       '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + ya + '" y2="' + ya + '" stroke="var(--muted)" stroke-dasharray="4 4"/>' +
       '<text x="' + (W - R - 2) + '" y="' + (+ya - 6) + '" text-anchor="end" class="a">média ' + nn.format(avg) + '</text>' +
@@ -997,9 +1055,9 @@
     h += '</div><details class="metas" id="fin-gedit"' + (S.gOpen ? ' open' : '') + '><summary>Editar metas de poupança</summary><form id="fin-fgoals"><div class="ggrid">';
     GOALS.forEach(function (g) {
       var c = goalCfg(g.id);
-      h += '<fieldset><legend>' + esc(g.nome) + '</legend><div class="mgrid"><label>Meta (€)<input id="fin-g-' + g.id + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
+      h += '<fieldset><legend>' + esc(g.nome) + '</legend><div class="mgrid"><label>Meta (' + esc(simbolo()) + ')<input id="fin-g-' + g.id + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
         '<label>Prazo<input id="fin-g-' + g.id + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
-        (g.src ? '' : '<label>Já guardado (€)<input id="fin-g-' + g.id + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"></label>') + '</div></fieldset>';
+        (g.src ? '' : '<label>Já guardado (' + esc(simbolo()) + ')<input id="fin-g-' + g.id + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"></label>') + '</div></fieldset>';
     });
     return h + '</div><button class="btn sm pri" type="submit">Salvar metas de poupança</button></form></details></section>';
   }
@@ -1185,6 +1243,7 @@
     var t = e.target;
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
+    if (t.id === 'fin-s-pais') { var av = $('#fin-s-aviso-pais'); av.innerHTML = avisoSuporte(t.value); av.hidden = temRegras(t.value); return; }
     if (t.id === 'fin-json') { lerBackup(t.files && t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.hasAttribute && t.hasAttribute('data-ov') && t.closest('#fin-app')) {
       var key = t.getAttribute('data-ov'), v = t.value, autos = {};
@@ -1205,12 +1264,12 @@
       e.preventDefault();
       var nome = $('#fin-d-nome').value.trim(), valor = parseNum($('#fin-d-valor').value);
       if (!nome || !(valor > 0)) { toast('Informe o nome e o valor.', true); return; }
-      var venc = $('#fin-d-venc').value, desc = $('#fin-d-desc').value.trim(), moeda = $('#fin-d-cur').value;
-      if (moeda === 'outra') moeda = $('#fin-d-outra').value.trim().toUpperCase();
-      if (!/^[A-Z]{3}$/.test(moeda)) { toast('Use o código de 3 letras da moeda (ex.: CHF).', true); return; }
+      var venc = $('#fin-d-venc').value, desc = $('#fin-d-desc').value.trim(), cod = $('#fin-d-cur').value;
+      if (cod === 'outra') cod = $('#fin-d-outra').value.trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(cod)) { toast('Use o código de 3 letras da moeda (ex.: CHF).', true); return; }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(venc)) venc = '';
       S.dAdd = false;
-      divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso(), valor: Math.round(valor * 100) / 100, moeda: moeda }; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast('Pagamento anotado.'); });
+      divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso(), valor: Math.round(valor * 100) / 100, moeda: cod }; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast('Pagamento anotado.'); });
       return;
     }
     if (fid === 'fin-fcamb') {
@@ -1222,7 +1281,7 @@
         if (!(rt > 0)) { ruim = c; return; }
         if (!atual || +atual.rate !== rt) novos[c] = { rate: rt, data: todayIso(), fonte: 'informado por você' };
       });
-      if (ruim) { toast('Informe quantos ' + ruim + ' valem 1 euro (ex.: 1,08).', true); return; }
+      if (ruim) { toast('Informe quantos ' + ruim + ' valem 1 ' + nomeMoeda() + ' (ex.: 1,08).', true); return; }
       if (isNaN(mg) || mg < 0 || mg > 20) mg = 2;
       S.dCamb = false;
       divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast('Câmbio atualizado.'); });
@@ -1233,10 +1292,14 @@
       var nomes = Object.assign({}, (S.plan && S.plan.nomes) || {}), nb = $('#fin-s-nome-brasil').value.trim();
       if (nb) nomes.brasil = nb; else delete nomes.brasil;
       var cfg = Object.assign({}, S.plan || {}, lerMetas('s'), {
-        titular: $('#fin-s-titular').value.trim(), moeda: $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, nomes: nomes, configurado: true
+        titular: $('#fin-s-titular').value.trim(), moeda: moedaTravada(S.months) ? (S.plan.moeda || 'EUR') : $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, nomes: nomes, configurado: true
       });
       S.setupOpen = false;
-      enqueue(function () { return savePlan(cfg); }).then(function () { recompute(); render(); toast('Configuração salva.'); });
+      var trocou = S.plan && S.plan.moeda && S.plan.moeda !== cfg.moeda && S.div && S.div.cambios && Object.keys(S.div.cambios).length;
+      enqueue(function () {
+        if (trocou) { var d = JSON.parse(JSON.stringify(S.div)); d.cambios = {}; return saveDiv(d).then(function () { return savePlan(cfg); }); }
+        return savePlan(cfg);
+      }).then(function () { recompute(); render(); toast(trocou ? 'Configuração salva. A moeda mudou: informe o câmbio de novo em Em observação.' : 'Configuração salva.'); });
       return;
     }
     if (fid === 'fin-fgoals') {

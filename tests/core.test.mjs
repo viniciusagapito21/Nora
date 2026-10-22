@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada };')();
 }
 function months(api) {
   const m = {};
@@ -251,4 +251,75 @@ test('a página não carrega nada de servidor externo, e o nome Nora não trocou
   // as fontes declaradas no CSS existem no projeto
   for (const [, url] of ler('styles.css').matchAll(/url\(([^)]+)\)/g)) assert.ok(readFileSync(new URL('../' + url, import.meta.url)).length > 1000, url);
   assert.match(appJs, /var LS = 'cortex-financas\.v3'/);
+});
+
+// extrato consolidado inventado com duas contas (euro e libra), no formato que o leitor espera:
+// as contas em sequência, cada uma com o título "(MOEDA)", e o bloco termina numa linha de ---
+const consolidado = [
+  'Current Accounts Summaries,,,,',
+  'Current Accounts Transaction Statements,,,,',
+  'Current Account (EUR),,,,',
+  'Date,Description,Category,Amount,Balance',
+  '1 Jul 2026,Payment from Example Cleaning Ltd,Others,"€1,200.00","€1,700.00"',
+  '3 Jul 2026,Tesco,Merchant,-€38.40,"€1,661.60"',
+  'Current Account (GBP),,,,',
+  'Date,Description,Category,Amount,Balance',
+  '2 Jul 2026,Example Books Ltd,Merchant,-£12.00,£188.00',
+  '9 Jul 2026,Payment from Example Shop UK,Others,£50.00,£238.00',
+  '---------,,,,'
+].join('\n');
+
+test('a moeda escolhe a conta lida no extrato consolidado', () => {
+  const api = load(), rows = api.parseCSV(consolidado);
+  assert.deepEqual(api.extractTx(rows).map(t => t[1]), ['Payment from Example Cleaning Ltd', 'Tesco']);
+  assert.deepEqual(api.extractTx(rows, 'GBP'), [
+    ['2026-07-02', 'Example Books Ltd', 'Merchant', -1200, 18800],
+    ['2026-07-09', 'Payment from Example Shop UK', 'Others', 5000, 23800]
+  ]);
+  assert.deepEqual(api.extractTx(rows, 'USD'), []);
+  assert.deepEqual(api.moedasNoExtrato(rows), ['EUR', 'GBP']);
+});
+
+test('no extrato comum, a coluna Currency escolhe as linhas da moeda', () => {
+  const api = load();
+  const rows = api.parseCSV([
+    'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
+    'CARD_PAYMENT,Current,2026-07-03 09:00:00,2026-07-03 09:05:00,Tesco,-38.40,0.00,EUR,COMPLETED,911.60',
+    'CARD_PAYMENT,Current,2026-07-04 09:00:00,2026-07-04 09:05:00,Example Books Ltd,-12.00,0.50,GBP,COMPLETED,188.00'
+  ].join('\n'));
+  assert.deepEqual(api.extractTx(rows, 'GBP'), [['2026-07-04', 'Example Books Ltd', 'Merchant', -1250, 18800]]);
+  assert.equal(api.extractTx(rows).length, 1);
+  assert.deepEqual(api.moedasNoExtrato(rows), ['EUR', 'GBP']);
+  assert.deepEqual(api.moedasNoExtrato(api.parseCSV(csv)), ['EUR']);
+});
+
+test('valores com símbolo de moeda e milhar viram centavos', () => {
+  const api = load();
+  assert.equal(api.cents('£1,234.50'), 123450);
+  assert.equal(api.cents('−12.00'), -1200);
+  assert.equal(api.cents('R$ 7.50'), 750);
+  assert.equal(api.cents('-€38.40'), -3840);
+  assert.equal(api.cents('abc'), null);
+});
+
+test('o país escolhe as regras de comerciantes; sem conjunto próprio, só marcas internacionais', () => {
+  const api = load();
+  const tesco = ['2026-07-03', 'Tesco', 'Merchant', -3840, 0], netflix = ['2026-07-07', 'Netflix', 'Merchant', -1299, 0];
+  assert.deepEqual(api.PAISES_COM_REGRAS, ['IE']);
+  assert.equal(api.classify(tesco, {}, '', 'IE').cat, 'mercado');
+  assert.equal(api.classify(tesco, {}, '').cat, 'mercado', 'sem país vale a Irlanda, como nos dados antigos');
+  assert.equal(api.classify(tesco, {}, '', 'BR').cat, 'compras', 'no Brasil não há regra para Tesco');
+  assert.equal(api.classify(netflix, {}, '', 'BR').cat, 'assin');
+  assert.equal(api.classify(tesco, { TESCO: 'mercado' }, '', 'BR').cat, 'mercado', 'a categoria escolhida à mão vale em qualquer país');
+  const m = api.buildModel(months(api), {}, 'MARIA SILVA', 'BR');
+  assert.equal(m.by['2026-09'].gasto, api.buildModel(months(api), {}, 'MARIA SILVA', 'IE').by['2026-09'].gasto, 'o total gasto não depende do país, só a divisão por categoria');
+  assert.equal(m.by['2026-09'].spend.mercado || 0, 0, 'Tesco e Lidl não são reconhecidos no Brasil: vão para compras');
+});
+
+test('com meses salvos a moeda fica travada (os valores não seriam convertidos)', () => {
+  const api = load();
+  assert.equal(api.moedaTravada({}), false);
+  assert.equal(api.moedaTravada(undefined), false);
+  assert.equal(api.moedaTravada({ '2026-07': [] }), false, 'mês vazio não trava');
+  assert.equal(api.moedaTravada(months(api)), true);
 });
