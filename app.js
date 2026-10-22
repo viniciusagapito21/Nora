@@ -13,7 +13,7 @@
     { id: 'transporte', nome: 'Transporte', slot: 5 },
     { id: 'lazer', nome: 'Comer fora e lazer', slot: 6 },
     { id: 'assin', nome: 'Assinaturas e celular', slot: 7 },
-    { id: 'saude', nome: 'Health', slot: 8 },
+    { id: 'saude', nome: 'Saúde', slot: 8 },
     { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0 }
   ];
     var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
@@ -180,14 +180,19 @@
     return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: x.div || null };
   }
   /* contas fixas e assinaturas: o mesmo nome (sem os números) cobrado uma vez por mês, com valor parecido,
-     em pelo menos 2 dos últimos 3 meses. keys guarda as descrições exatas, para regras manuais. */
+     perto do mesmo dia do mês (3 dias de folga), em pelo menos 2 dos últimos 3 meses.
+     keys guarda as descrições exatas, para regras manuais. No mês em andamento, atrasada marca a conta
+     que já devia ter caído (dia esperado + 3) e ainda não apareceu: continua na previsão, mas a tela avisa. */
+  var FOLGA_DIAS = 3;
+  function distDia(a, b) { var d = Math.abs(a - b); return Math.min(d, 31 - d); }
   function detectarRecorrentes(model) {
-    var ks = model.keys.slice(-3), by = {}, list = [];
+    var ks = model.keys.slice(-3), by = {}, list = [], hoje = model.partial ? +model.lastDate.slice(8) : 0;
     if (ks.length < 2) return list;
     model.rows.forEach(function (r) {
       if (r.kind !== 'gasto' || r.a >= 0 || r.cat === 'brasil' || ks.indexOf(r.m) < 0) return;
-      var k = r.key.replace(/[0-9]+/g, '').replace(/\s+/g, ' ').trim(), o = by[k] || (by[k] = { id: k, m: {}, keys: [], last: null });
+      var k = r.key.replace(/[0-9]+/g, '').replace(/\s+/g, ' ').trim(), o = by[k] || (by[k] = { id: k, m: {}, keys: [], dias: [], last: null });
       (o.m[r.m] = o.m[r.m] || []).push(-r.a);
+      o.dias.push(+r.date.slice(8));
       if (o.keys.indexOf(r.key) < 0) o.keys.push(r.key);
       if (!o.last || r.date >= o.last.date) o.last = r;
     });
@@ -196,7 +201,11 @@
       if (ms.length < 2 || ms.some(function (m) { return o.m[m].length > 1; })) return;
       var vs = ms.map(function (m) { return o.m[m][0]; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs);
       if (mn <= 0 || mx / mn > 1.25) return;
-      o.v = -o.last.a; o.dia = +o.last.date.slice(8); list.push(o);
+      o.dia = +o.last.date.slice(8);
+      if (o.dias.some(function (d) { return distDia(d, o.dia) > FOLGA_DIAS; })) return;
+      o.v = -o.last.a;
+      o.atrasada = !!model.partial && !o.m[model.partial] && hoje > o.dia + FOLGA_DIAS;
+      list.push(o);
     });
     return list.sort(function (a, b) { return a.dia - b.dia; });
   }
@@ -899,7 +908,7 @@
     if (!list.length) return h + '<p class="vazio">Ainda não dá para ver repetições. Com dois ou três meses de extrato elas aparecem aqui.</p></div></section>';
     list.forEach(function (o, i) {
       var c = CAT_BY[o.last.cat] || CAT_BY.outros;
-      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + nk + ' meses</small></span><span class="rd">dia ' + o.dia + '<small>próxima ' + esc(dFmt(addMonth(o.last.date))) + '</small></span><b class="num">' + f2(o.v) + '</b></div>';
+      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + nk + ' meses</small></span><span class="rd">dia ' + o.dia + (o.atrasada ? '<small class="atraso">esperada dia ' + o.dia + ', ainda não apareceu</small>' : '<small>próxima ' + esc(dFmt(addMonth(o.last.date))) + '</small>') + '</span><b class="num">' + f2(o.v) + '</b></div>';
     });
     return h + '<div class="rec tot"><span></span><span class="rn">Total fixo por mês</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
   }

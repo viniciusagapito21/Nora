@@ -158,3 +158,40 @@ test('previsão de outubro do exemplo fica perto da meta (aluguel do dia 1 não 
   assert.equal(s2.cats.aluguel, 650);
   assert.equal(Math.round(P2.proj), 999);
 });
+
+// monta meses a partir de [data, descrição, centavos]; todos como compra no cartão
+function meses(lista) {
+  const m = {};
+  lista.forEach(([d, desc, c]) => { (m[d.slice(0, 7)] = m[d.slice(0, 7)] || []).push([d, desc, 'Merchant', c, 0]); });
+  return m;
+}
+
+test('conta fixa precisa cair perto do mesmo dia do mês (3 dias de folga)', () => {
+  const api = load();
+  const M = api.buildModel(meses([
+    ['2026-07-03', 'Lidl', -3000], ['2026-08-17', 'Lidl', -3100], ['2026-09-28', 'Lidl', -2900], // mercado uma vez por mês, dia variado
+    ['2026-07-07', 'Netflix', -1299], ['2026-08-09', 'Netflix', -1299], ['2026-09-06', 'Netflix', -1299], // até 3 dias de diferença
+    ['2026-07-30', 'Spotify', -1099], ['2026-09-01', 'Spotify', -1099] // virada do mês: 30 e 1 ficam perto
+  ]), {}, '');
+  const nomes = api.detectarRecorrentes(M).map(o => o.last.desc);
+  assert.ok(!nomes.includes('Lidl'));
+  assert.ok(nomes.includes('Netflix'));
+  assert.ok(nomes.includes('Spotify'));
+});
+
+test('conta fixa atrasada continua na previsão e fica marcada', () => {
+  const api = load();
+  const M = api.buildModel(meses([
+    ['2026-08-05', 'Acme Gym', -1500], ['2026-09-05', 'Acme Gym', -1500],
+    ['2026-08-20', 'Book Club', -1000], ['2026-09-20', 'Book Club', -1000],
+    ['2026-10-15', 'Tesco', -3100] // outubro até dia 15, sem Acme Gym (dia 5) nem Book Club (dia 20)
+  ]), {}, '');
+  const por = Object.fromEntries(api.detectarRecorrentes(M).map(o => [o.last.desc, o]));
+  assert.equal(M.partial, '2026-10');
+  assert.equal(por['Acme Gym'].atrasada, true); // 15 > 5 + 3
+  assert.equal(por['Book Club'].atrasada, false); // ainda não chegou o dia
+  const P = api.preverMes(M, () => 0);
+  // as duas continuam como "por cair": 15 + 10, mais o Tesco no ritmo de 15 de 31 dias
+  assert.deepEqual(P.pend.map(o => o.last.desc).sort(), ['Acme Gym', 'Book Club']);
+  assert.equal(P.proj.toFixed(2), (25 + 31 / 15 * 31).toFixed(2));
+});
