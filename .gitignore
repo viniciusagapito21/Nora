@@ -1,3 +1,5 @@
 node_modules/
 .DS_Store
 *.local.csv
+telas/atual/
+telas/diff/

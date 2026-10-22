@@ -1,0 +1,212 @@
+// Comparação de telas: fotografa as 27 telas do painel (14 em 1280px, 13 em 390px) com o extrato de exemplo
+// inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
+// capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
+//
+//   npm run telas            fotografa em telas/atual/, confere e compara; sai com erro se algo mudou
+//   npm run telas:aprovar    fotografa, confere e, se a conferência passar, troca as referências pelas novas
+//
+// Roda num servidor local próprio (127.0.0.1, porta livre); nenhum dado sai da máquina.
+import { chromium } from 'playwright';
+import { PNG } from 'pngjs';
+import { createServer } from 'node:http';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, cpSync, statSync } from 'node:fs';
+import { join, extname, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const RAIZ = fileURLToPath(new URL('..', import.meta.url));
+const ATUAL = join(RAIZ, 'telas/atual'), REF = join(RAIZ, 'telas/referencia'), DIFF = join(RAIZ, 'telas/diff');
+const aprovar = process.argv.includes('--aprovar');
+// a data e o fuso ficam fixos, para "vence em 3 dias" e o mês em andamento não mudarem com o dia em que roda
+const AGORA = new Date('2026-10-22T12:00:00+01:00');
+
+// ---------- servidor estático só para a pasta do projeto ----------
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.csv': 'text/csv', '.json': 'application/json' };
+const servidor = createServer((req, res) => {
+  const p = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
+  const f = join(RAIZ, p || 'index.html');
+  if (!f.startsWith(RAIZ) || !existsSync(f) || statSync(f).isDirectory()) { res.writeHead(404); res.end(); return; }
+  res.writeHead(200, { 'content-type': TIPOS[extname(f)] || 'application/octet-stream' });
+  res.end(readFileSync(f));
+});
+await new Promise(r => servidor.listen(0, '127.0.0.1', r));
+const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
+
+// ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
+const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
+const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
+const api = new Function(core + '; return { parseCSV, extractTx };')();
+const months = {};
+api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
+  .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
+const plan = { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: {}, configurado: true, goals: { viagem: { alvo: 2000, prazo: '2027-06', tem: 300 } } };
+const div = { items: [
+  { id: 'd1', nome: 'Banco', status: 'aberta', criada: '2026-09-01', valor: 3700, moeda: 'BRL', venc: '2026-10-25', desc: 'Parcela 4/5' },
+  { id: 'd2', nome: 'Escola', status: 'aberta', criada: '2026-10-01', valor: 250, moeda: 'USD' },
+  { id: 'd3', nome: 'Seguro', status: 'aberta', criada: '2026-10-02', valor: 90, moeda: 'CHF' },
+  { id: 'd4', nome: 'Curso', status: 'paga', criada: '2026-08-01', valor: 120, moeda: 'EUR', pagaEm: '2026-09-02' }],
+  cambios: { BRL: { rate: 5.61, data: '2026-10-01' }, USD: { rate: 1.08, data: '2026-10-01' } }, margem: 2 };
+const comDados = { v: 3, months, over: {}, plan, summary: null, div };
+const D = { 'cortex-financas.v3': JSON.stringify(comDados) };
+
+// ---------- o que roda dentro da página ----------
+// assinatura dos estilos calculados de cada elemento (e de ::before, ::after e ::placeholder): comparação exata, sem ruído de pixel
+function estilosDaPagina() {
+  // ordenadas: o Chromium lista as variáveis CSS numa ordem que muda de uma rodada para outra
+  const props = Array.from(getComputedStyle(document.documentElement)).sort();
+  const h = t => { let x = 2166136261; for (let i = 0; i < t.length; i++) { x ^= t.charCodeAt(i); x = Math.imul(x, 16777619); } return (x >>> 0).toString(36); };
+  const sig = (el, ps) => { const cs = getComputedStyle(el, ps); return props.map(p => p + ':' + cs.getPropertyValue(p)).join(';'); };
+  const caminho = el => {
+    const p = [];
+    for (; el && el !== document.documentElement; el = el.parentElement) {
+      const cl = typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+      p.unshift(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cl);
+    }
+    return p.join('>');
+  };
+  return Array.from(document.querySelectorAll('*')).map(el => caminho(el) + ' ' + h(sig(el)) + ' ' + h(sig(el, '::before')) + ' ' + h(sig(el, '::after')) +
+    (el.matches('input,textarea') ? ' ' + h(sig(el, '::placeholder')) : '')).join('\n');
+}
+// conferência: elementos além da borda (o CSS usa overflow-x: clip, então o excesso some em vez de rolar),
+// texto cortado e contraste de todo texto visível com o fundo de verdade (fundos em gradiente ficam de fora)
+function conferir() {
+  const rgba = c => { const m = c.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m[3] == null ? 1 : m[3]]; };
+  const mix = (t, b) => [0, 1, 2].map(i => t[i] * t[3] + b[i] * (1 - t[3])).concat(1);
+  const L = c => { const f = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const razao = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  function fundo(el) {
+    const pilha = []; let incerto = false;
+    for (let e = el; e; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.backgroundImage !== 'none' && !/^repeating/.test(cs.backgroundImage)) incerto = true;
+      const c = rgba(cs.backgroundColor); if (c[3] > 0) { pilha.push(c); if (c[3] >= 1) break; }
+    }
+    let cor = [255, 255, 255, 1]; for (let i = pilha.length - 1; i >= 0; i--) cor = mix(pilha[i], cor);
+    return { cor, incerto };
+  }
+  const contraste = [], cortados = [], vistos = new Set();
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (w.nextNode()) {
+    const t = w.currentNode; if (!t.textContent.trim()) continue;
+    const el = t.parentElement; if (vistos.has(el)) continue; vistos.add(el);
+    const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || +cs.opacity === 0 || el.closest('[hidden],.vh,option,svg')) continue;
+    const f = fundo(el), cor = mix(rgba(cs.color), f.cor), cr = razao(cor, f.cor);
+    const px = parseFloat(cs.fontSize), min = px >= 24 || (px >= 18.66 && +cs.fontWeight >= 700) ? 3 : 4.5;
+    const nome = `"${t.textContent.trim().slice(0, 40)}" (${el.tagName.toLowerCase()}.${el.className})`;
+    if (cr < min && !f.incerto) contraste.push(`${cr.toFixed(2)} < ${min} ${nome}`);
+    if ((el.scrollWidth > el.clientWidth + 1 && cs.overflowX !== 'visible' && cs.textOverflow !== 'ellipsis') ||
+        (el.scrollHeight > el.clientHeight + 2 && cs.overflowY === 'hidden' && !/\d/.test(cs.webkitLineClamp || ''))) cortados.push(nome);
+  }
+  const vw = document.documentElement.clientWidth; let fora = Math.max(0, document.documentElement.scrollWidth - vw), ex = '';
+  for (const el of document.querySelectorAll('body *')) {
+    const r = el.getBoundingClientRect(); if (!r.width || r.right <= vw + 1 || el.closest('.cscroll,.tw,[hidden],.vh')) continue;
+    const cs = getComputedStyle(el); if (cs.position === 'fixed' || cs.visibility === 'hidden') continue;
+    if (r.right - vw > fora) { fora = Math.round(r.right - vw); ex = el.tagName.toLowerCase() + '.' + el.className; }
+  }
+  return { fora, ex, contraste: [...new Set(contraste)], cortados: [...new Set(cortados)] };
+}
+
+// ---------- as telas ----------
+const quebrado = { 'cortex-financas.v3': '{"v":3,"months":{"2026-09":[["2026' };
+const TELAS = [];
+for (const w of [1280, 390]) {
+  const t = (nome, opts = {}) => TELAS.push({ w, nome, ...opts });
+  t('01-primeira-abertura');
+  t('02-sem-extrato', { storage: { 'cortex-financas.v3': JSON.stringify({ v: 3, months: {}, over: {}, plan, summary: null, div: null }) } });
+  t('03-painel', { storage: D });
+  t('04-painel-tudo-aberto', { storage: D, prepara: async pg => {
+    await pg.click('.fbtn'); await pg.waitForTimeout(100);
+    await pg.evaluate(() => document.querySelectorAll('#fin-app details').forEach(d => { d.open = true; }));
+  } });
+  t('05-painel-media', { storage: D, prepara: async pg => { await pg.click('[data-all]'); } });
+  t('06-painel-filtro-e-arrasta', { storage: D, prepara: async pg => {
+    await pg.click('.cat >> nth=0'); await pg.evaluate(() => document.getElementById('fin-app').classList.add('arrasta'));
+  } });
+  t('07-configuracoes', { storage: D, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
+  t('08-aviso-pais', { storage: { 'cortex-financas.v3': JSON.stringify({ ...comDados, plan: { ...plan, pais: 'BR' } }) } });
+  t('09-restaurar', { storage: D, prepara: async pg => {
+    await pg.setInputFiles('#fin-json', { name: 'financas-2026-10-22.json', mimeType: 'application/json', buffer: Buffer.from(D['cortex-financas.v3']) });
+    await pg.waitForSelector('[data-restaurar=confirmar]');
+  } });
+  t('10-apagar', { storage: D, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('[data-apagar=pedir]'); } });
+  t('11-dados-ilegiveis', { storage: quebrado });
+  t('12-aviso-toast', { storage: D, viewport: true, toast: true, prepara: async pg => { await pg.evaluate(() => window.__cortexToast('Mensagem de teste', false, 60000)); } });
+  t('13-aviso-erro', { storage: D, viewport: true, toast: true, prepara: async pg => { await pg.evaluate(() => window.__cortexToast('Erro de teste', true, 60000)); } });
+  if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
+    const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  } });
+}
+
+rmSync(ATUAL, { recursive: true, force: true }); mkdirSync(ATUAL, { recursive: true });
+const browser = await chromium.launch();
+const erros = [], problemas = [];
+for (const s of TELAS) {
+  const arq = `${s.w}-${s.nome}`;
+  const ctx = await browser.newContext({ viewport: { width: s.w, height: s.w > 600 ? 900 : 844 }, deviceScaleFactor: 1, locale: 'pt-BR', timezoneId: 'Europe/Dublin', colorScheme: 'light' });
+  const pg = await ctx.newPage();
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push(arq + ': ' + e.message));
+  pg.on('console', m => { if (m.type() === 'error') erros.push(arq + ': ' + m.text()); });
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, s.storage || {});
+  await pg.reload(); await pg.waitForTimeout(150);
+  if (s.prepara) await s.prepara(pg);
+  await pg.evaluate(() => document.fonts.ready);
+  if (!s.toast) await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
+  await pg.mouse.move(0, 0); // nada em hover, a não ser na tela da dica
+  if (s.hover) await s.hover(pg);
+  await pg.waitForTimeout(800);
+  await pg.screenshot({ path: join(ATUAL, arq + '.png'), fullPage: !s.viewport, animations: 'disabled' });
+  writeFileSync(join(ATUAL, arq + '.estilos.txt'), await pg.evaluate(estilosDaPagina));
+  const c = await pg.evaluate(conferir);
+  if (c.fora > 0) problemas.push(`${arq}: passa ${c.fora}px da borda da tela (${c.ex})`);
+  c.contraste.forEach(x => problemas.push(`${arq}: contraste ${x}`));
+  c.cortados.forEach(x => problemas.push(`${arq}: texto cortado ${x}`));
+  await ctx.close();
+}
+await browser.close();
+servidor.close();
+
+console.log(`${TELAS.length} telas fotografadas em telas/atual/`);
+console.log(erros.length ? 'erros no console:\n  ' + erros.join('\n  ') : 'console sem erros');
+console.log(problemas.length ? `conferência: ${problemas.length} problema(s)\n  ` + problemas.join('\n  ') : 'conferência: nada além da borda, nada cortado, contraste AA em todo texto');
+const falhouConferencia = erros.length || problemas.length;
+
+if (aprovar) {
+  if (falhouConferencia) { console.log('\nreferências NÃO trocadas: resolva os problemas acima primeiro'); process.exit(1); }
+  rmSync(REF, { recursive: true, force: true }); cpSync(ATUAL, REF, { recursive: true });
+  console.log('\nreferências trocadas: telas/referencia/ agora tem as capturas novas (faça commit junto com a mudança)');
+  process.exit(0);
+}
+
+// ---------- comparação com as referências ----------
+if (!existsSync(REF)) { console.log('\nsem telas/referencia/: rode npm run telas:aprovar para criar'); process.exit(1); }
+rmSync(DIFF, { recursive: true, force: true }); mkdirSync(DIFF, { recursive: true });
+let mudaram = 0;
+const nomes = new Set([...readdirSync(REF), ...readdirSync(ATUAL)].filter(f => f.endsWith('.png')));
+for (const f of [...nomes].sort()) {
+  if (!existsSync(join(REF, f)) || !existsSync(join(ATUAL, f))) { mudaram++; console.log(`✖ ${f}: ${existsSync(join(REF, f)) ? 'sumiu' : 'tela nova, sem referência'}`); continue; }
+  const A = PNG.sync.read(readFileSync(join(REF, f))), B = PNG.sync.read(readFileSync(join(ATUAL, f)));
+  const ea = readFileSync(join(REF, f.replace('.png', '.estilos.txt')), 'utf8').split('\n');
+  const eb = readFileSync(join(ATUAL, f.replace('.png', '.estilos.txt')), 'utf8').split('\n');
+  const difEst = ea.length !== eb.length ? ['quantidade de elementos: ' + ea.length + ' → ' + eb.length]
+    : ea.map((l, i) => (l === eb[i] ? null : l.split(' ')[0])).filter(Boolean);
+  let n = 0;
+  if (A.width !== B.width || A.height !== B.height) n = -1;
+  else {
+    const d = new PNG({ width: A.width, height: A.height });
+    for (let i = 0; i < A.data.length; i += 4) {
+      // até 2/255 é ruído de antisserrilhado; acima disso conta como pixel diferente
+      const dd = Math.max(Math.abs(A.data[i] - B.data[i]), Math.abs(A.data[i + 1] - B.data[i + 1]), Math.abs(A.data[i + 2] - B.data[i + 2]));
+      if (dd > 2) { n++; d.data[i] = 255; d.data[i + 3] = 255; } else { d.data[i] = d.data[i + 1] = d.data[i + 2] = Math.round(A.data[i] * 0.3 + 179); d.data[i + 3] = 255; }
+    }
+    if (n) writeFileSync(join(DIFF, f), PNG.sync.write(d));
+  }
+  const ok = n === 0 && !difEst.length;
+  if (!ok) mudaram++;
+  console.log(`${ok ? '✔' : '✖'} ${f}: ` + (n < 0 ? `tamanho ${A.width}x${A.height} → ${B.width}x${B.height}` : `${n} pixels diferentes`) +
+    `, estilos ${difEst.length ? 'diferentes em ' + difEst.length + ' elemento(s) (ex.: ' + difEst.slice(0, 2).join(' | ') + ')' : 'iguais'}`);
+}
+console.log(mudaram ? `\n${mudaram} tela(s) mudaram (pixels em vermelho em telas/diff/). Se a mudança foi aprovada: npm run telas:aprovar` : '\nnenhuma tela mudou');
+process.exit(mudaram || falhouConferencia ? 1 : 0);

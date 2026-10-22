@@ -1,12 +1,20 @@
 {
-  "name": "cortex-financas",
+  "name": "nora",
   "version": "0.1.0",
   "private": true,
-  "description": "Painel de finanças pessoais que lê extratos CSV do banco e roda inteiro no navegador.",
+  "description": "Nora: painel de finanças pessoais que lê extratos CSV do banco e roda inteiro no navegador.",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "start": "npx --yes serve@14.2.4 ."
+    "start": "npx --yes serve@14.2.4 .",
+    "telas": "node scripts/telas.mjs",
+    "telas:aprovar": "node scripts/telas.mjs --aprovar"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "pngjs": "7.0.0"
+  }
 }
