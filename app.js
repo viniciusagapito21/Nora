@@ -1,4 +1,4 @@
-/* Painel de finanças pessoais: lê extratos CSV do Revolut, categoriza, mostra metas, previsões e gráficos. Tudo fica no navegador (localStorage). */
+/* Nora, painel de finanças pessoais: lê extratos CSV do Revolut, categoriza, mostra metas, previsões e gráficos. Tudo fica no navegador (localStorage). */
 (function () {
   'use strict';
 
@@ -491,7 +491,7 @@
       st = n + ' movimentações · ' + mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4) + ' a ' + mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4) + ' · última em ' + dFull(M.lastDate);
     } else st = 'Revolut · conta em euro';
     if (M.keys.length) st = 'Revolut · ' + st;
-    return '<div class="view-top"><div><h1>Finanças</h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
+    return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
       (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
       (configurado() && !suportado() ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
   }

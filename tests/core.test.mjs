@@ -242,3 +242,13 @@ test('pagamentos em R$ e em euro da v2 viram valor + moeda na v3, sem perder nad
   assert.deepEqual(migrate(x), x); // rodar de novo não muda nada
   assert.equal(migrate({ v: 2, div: null }).div, null);
 });
+
+test('a página não carrega nada de servidor externo, e o nome Nora não trocou a chave salva', () => {
+  const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+  for (const f of ['index.html', 'styles.css', 'logo.svg', 'icon.svg']) {
+    assert.doesNotMatch(ler(f).replace(/xmlns(:\w+)?="http:\/\/www\.w3\.org\/[^"]*"/g, ''), /(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i, f + ' aponta para fora');
+  }
+  // as fontes declaradas no CSS existem no projeto
+  for (const [, url] of ler('styles.css').matchAll(/url\(([^)]+)\)/g)) assert.ok(readFileSync(new URL('../' + url, import.meta.url)).length > 1000, url);
+  assert.match(appJs, /var LS = 'cortex-financas\.v3'/);
+});

@@ -1,6 +1,6 @@
-# Painel de Finanças
+# Nora
 
-Painel de finanças pessoais que roda inteiro no seu navegador. Você importa o extrato CSV do banco e vê:
+Nora é um painel de finanças pessoais que roda inteiro no seu navegador. Você importa o extrato CSV do banco e vê:
 
 - saldo e para onde foi o dinheiro;
 - gastos por mês e por categoria, com metas;
@@ -25,4 +25,7 @@ Por enquanto só lê extratos do Revolut em euro. Outros bancos e a versão em i
 npm test
 ```
 
-O guia completo do código e o plano de trabalho estão em `CLAUDE.md`.
+O guia completo do código e o plano de trabalho estão em `CLAUDE.md`; o produto e a marca, em `PRODUCT.md`.
+
+As fontes Manrope e Inter ficam em `fonts/` (licença SIL Open Font License, nos arquivos `OFL-*.txt`),
+para a página não depender de nenhum servidor externo.
