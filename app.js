@@ -3,8 +3,6 @@
   'use strict';
 
   /*CORE-START*/
-  /* nome do titular como aparece nas transferências ("To FULANO DE TAL"); vem de config.js / localStorage */
-  var OWN = String((typeof window !== 'undefined' && window.FIN_TITULAR) || '').toUpperCase().replace(/\s+/g, ' ').trim();
   var CATS = [
     { id: 'aluguel', nome: 'Aluguel e contas', slot: 1, meta: 475 },
     { id: 'brasil', nome: 'Contas no Brasil', slot: 2, meta: 250 },
@@ -130,8 +128,10 @@
     if (/^(TO|TRANSFER TO|TRANSFER FROM|FROM) /.test(D) || rc === 'Others') return 'outros';
     return bigCheck('compras', a);
   }
-  function classify(t, over) {
-    var a = t[3] / 100, D = String(t[1]).toUpperCase(), rc = t[2], kind, cat = null;
+  /* nome do titular como aparece nas transferências ("To FULANO DE TAL"), no formato da chave da descrição */
+  function normTitular(s) { return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+  function classify(t, over, titular) {
+    var OWN = normTitular(titular), a = t[3] / 100, D = String(t[1]).toUpperCase(), rc = t[2], kind, cat = null;
     var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
     if (a > 0) {
       if (/^PAYMENT FROM /.test(D) && !(OWN && D.indexOf(OWN) >= 0)) kind = 'renda';
@@ -157,9 +157,9 @@
     r.kind = kind; r.cat = cat;
     return r;
   }
-  function buildModel(months, over) {
+  function buildModel(months, over, titular) {
     var rows = [], by = {};
-    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over)); }); });
+    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular)); }); });
     rows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
     rows.forEach(function (r) {
       var g = by[r.m] || (by[r.m] = { m: r.m, renda: 0, outras: 0, flex: 0, inv: 0, interno: 0, spend: {}, n: 0 });
@@ -272,7 +272,7 @@
   function savePlan(p) { S.plan = p; localSave(); return Promise.resolve(); }
 
   function recompute() {
-    M = buildModel(S.months, S.over);
+    M = buildModel(S.months, S.over, window.FIN_TITULAR);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
   }
 

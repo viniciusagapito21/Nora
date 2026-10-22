@@ -8,12 +8,9 @@ const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
 const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.url), 'utf8');
 
-// carrega o núcleo com um "titular" opcional, como o navegador faria via config.js
-function load(titular) {
-  globalThis.window = titular ? { FIN_TITULAR: titular } : {};
-  const api = new Function(core + '; return { parseCSV, extractTx, classify, buildModel, CATS };')();
-  delete globalThis.window;
-  return api;
+// carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
+function load() {
+  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, CATS };')();
 }
 function months(api) {
   const m = {};
@@ -42,8 +39,8 @@ test('categoriza comerciantes conhecidos', () => {
 });
 
 test('sem titular configurado, nada vira "conta própria" por engano', () => {
-  const { classify } = load('');
-  const r = classify(['2026-09-05', 'To MARIA SILVA', 'Others', -15000, 0], {});
+  const { classify } = load();
+  const r = classify(['2026-09-05', 'To MARIA SILVA', 'Others', -15000, 0], {}, '');
   assert.equal(r.kind, 'gasto');
   assert.notEqual(r.cat, 'brasil');
   const renda = classify(['2026-09-01', 'Payment from Example Cleaning Ltd', 'Others', 120000, 0], {});
@@ -51,15 +48,15 @@ test('sem titular configurado, nada vira "conta própria" por engano', () => {
 });
 
 test('com titular, transferência para si mesmo vai para a categoria de envios', () => {
-  const { classify } = load('Maria Silva');
-  const r = classify(['2026-09-05', 'To MARIA SILVA', 'Others', -15000, 0], {});
+  const { classify } = load();
+  const r = classify(['2026-09-05', 'To MARIA SILVA', 'Others', -15000, 0], {}, 'Maria  Silva ');
   assert.equal(r.kind, 'gasto');
   assert.equal(r.cat, 'brasil');
 });
 
 test('totais do mês batem com a conta feita à mão', () => {
-  const api = load('Maria Silva');
-  const M = api.buildModel(months(api), {});
+  const api = load();
+  const M = api.buildModel(months(api), {}, 'Maria Silva');
   const set = M.by['2026-09'];
   assert.equal(set.entrou, 1200);
   assert.equal(Math.round(set.saved * 100) / 100, 150); // 100 Flexible Cash + 50 cripto
@@ -67,4 +64,8 @@ test('totais do mês batem com a conta feita à mão', () => {
   assert.equal(Math.round(set.spend.mercado * 100) / 100, 107.65); // 38,40 + 27,15 + 42,10
   assert.equal(M.partial, '2026-10'); // outubro só vai até o dia 15
   assert.deepEqual(M.complete, ['2026-07', '2026-08', '2026-09']);
+});
+
+test('o núcleo não usa nada do navegador', () => {
+  assert.doesNotMatch(core, /\b(window|document|localStorage)\b/);
 });
