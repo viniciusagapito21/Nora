@@ -171,9 +171,9 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .aviso.erro { border-color: var(--neg); color: var(--neg); }
 .fin .aviso.pergunta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; color: var(--fg); }
 .fin .aviso.pergunta p { margin: 0; }
-.fin .sec { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.fin .sec { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .fin .sec-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
-.fin .sec h2 { font-size: var(--fs-lg); font-weight: 400; }
+.fin .sec h2 { font-size: var(--fs-xl); font-weight: 700; }
 .fin .sec .hint { font-size: var(--fs-sm); color: var(--muted); }
 .fin .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 20px; min-width: 0; }
 .fin .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -288,8 +288,8 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin legend { padding: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--fg); }
 .fin .prv { display: flex; flex-direction: column; gap: 14px; }
 .fin .prv-n { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.fin .prv-n .l { font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.fin .prv-n .v { font-size: var(--fs-title); font-weight: 300; line-height: 1.15; }
+.fin .prv-n .l { font-size: 13px; font-weight: 600; color: var(--muted); }
+.fin .prv-n .v { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .fin .prv .s, .fin .card > .s { font-size: var(--fs-sm); color: var(--soft); line-height: 1.5; }
 .fin .prv .legend { margin-top: 0; }
 .fin .ptrack { position: relative; height: 14px; border-radius: 7px; background: var(--raised); }
@@ -305,8 +305,10 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .rec small { display: block; font-size: var(--fs-sm); color: var(--muted); font-weight: 400; }
 .fin .rec .rd { text-align: right; font-size: var(--fs-sm); color: var(--soft); white-space: nowrap; }
 .fin .rec small.atraso { color: var(--warn); }
-.fin .rec b { font-weight: 500; text-align: right; white-space: nowrap; }
-.fin .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.fin .rec b { font-weight: 500; text-align: right; white-space: nowrap; min-width: 8ch; font-variant-numeric: tabular-nums; }
+.fin .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+/* os dois cartões lado a lado ficam da mesma altura */
+.fin .two > .sec > .card { flex: 1 1 auto; }
 .fin .vb { display: flex; align-items: flex-end; gap: 6px; height: 160px; border-bottom: 1px solid var(--line2); }
 .fin .vbc { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
 .fin .vbc b { font-size: var(--fs-label); font-weight: 500; color: var(--soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -322,7 +324,7 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
   .fin .gl4, .fin .prv-n { grid-template-columns: minmax(0, 1fr); }
   .fin .rec { grid-template-columns: 10px minmax(0, 1fr) auto; }
   .fin .rec .rd { grid-column: 2; grid-row: 2; text-align: left; }
-  .fin .rec small { display: inline; }
+  .fin .rec .rd small { display: inline; }
   .fin .rec .rd small::before { content: ' · '; }
 }
 .fin .card h3 { font-size: var(--fs-md); font-weight: 500; margin-bottom: 12px; }
@@ -357,7 +359,7 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .cfb { max-width: none; width: 100%; }
 .fin .pz { display: flex; flex-direction: column; gap: 16px; max-width: 820px; }
 .fin .pz .big { font-family: var(--display); font-weight: 700; letter-spacing: -0.035em; font-size: clamp(48px, 7vw, 76px); line-height: 1; margin-top: 4px; }
-.fin .pz .l { font-size: var(--fs-label); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fin .pz .l { font-size: 13px; font-weight: 600; color: var(--muted); }
 .fin .pz .pos { color: var(--pos); }
 .fin .pz .neg { color: var(--neg); }
 .fin .sec-top .rt { display: inline-flex; align-items: center; gap: 12px; }
@@ -373,7 +375,6 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
   .fin .vazio-grande { padding: 20px; }
 }
 .fin .vazio { border-top: 0; }
-.fin .sec h2 { font-weight: 500; }
 .fin details.brd > summary::after { content: none; }
 .fin details.metas > summary { gap: var(--sp-8); }
 .fin .view-top .grupo { align-self: flex-end; }
@@ -443,6 +444,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .fin .kpi .v { font-family: var(--display); font-weight: 700; letter-spacing: -0.03em; font-size: 28px; }
 .fin .cfm .big { font-family: var(--display); font-weight: 700; letter-spacing: -0.035em; font-size: clamp(48px, 7vw, 76px); line-height: 1; }
 .fin .card { padding: 22px; }
+/* ritmo: mais espaço acima de um título de seção do que entre ele e o conteúdo */
+.fin.view > :is(.sec, .two):has(> .sec-top, > .sec) { margin-top: 16px; }
+@media (max-width: 600px) { .fin.view > :is(.sec, .two):has(> .sec-top, > .sec) { margin-top: 8px; } }
 .fin .card h3 { font-family: var(--display); font-weight: 700; letter-spacing: -0.01em; }
 .fin .stack { border-radius: 6px 6px 0 0; }
 /* o Chromium põe align-items: flex-start em todo <button>; sem isto a coluna do mês fica com largura 0 e as barras somem */
