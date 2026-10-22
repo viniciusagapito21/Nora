@@ -632,6 +632,8 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .gbar { display: block; height: 8px; border-radius: 4px; background: var(--raised); overflow: hidden; margin: 4px 0; }
 .fin .gbar i { display: block; height: 100%; min-width: 2px; border-radius: 4px; background: var(--accent); }
 .fin .ggrid { display: flex; flex-direction: column; gap: 4px; }
+.fin .card.ggrid { gap: 12px; }
+.fin .card.ggrid p { margin: 0; }
 .fin fieldset { margin: 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
 .fin legend { padding: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--fg); }
 .fin .prv { display: flex; flex-direction: column; gap: 14px; }

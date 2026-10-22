@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS };')();
+  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS };')();
 }
 function months(api) {
   const m = {};
@@ -194,4 +194,21 @@ test('conta fixa atrasada continua na previsão e fica marcada', () => {
   // as duas continuam como "por cair": 15 + 10, mais o Tesco no ritmo de 15 de 31 dias
   assert.deepEqual(P.pend.map(o => o.last.desc).sort(), ['Acme Gym', 'Book Club']);
   assert.equal(P.proj.toFixed(2), (25 + 31 / 15 * 31).toFixed(2));
+});
+
+test('backup: o que o painel exporta volta igual ao restaurar', () => {
+  const api = load();
+  const dados = { v: 2, months: months(api), over: { TESCO: 'lazer' }, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: {}, configurado: true }, summary: null, div: null };
+  const texto = JSON.stringify({ ...dados, exportadoEm: '2026-10-22T10:00:00.000Z' }, null, 1);
+  assert.deepEqual(api.lerSalvo(texto, ''), dados);
+  assert.deepEqual(api.resumoDados(dados), { meses: 4, de: '2026-07', ate: '2026-10', mov: 56 });
+  assert.deepEqual(api.resumoDados({ months: {} }), { meses: 0, de: null, ate: null, mov: 0 });
+});
+
+test('dados corrompidos ou de versão desconhecida dão erro com motivo (para não gravar por cima)', () => {
+  const { lerSalvo } = load();
+  assert.throws(() => lerSalvo('{"months": {"2026-09": [', ''), /não é JSON válido/);
+  assert.throws(() => lerSalvo('{"v": 3, "months": {}}', ''), /versão 3 desconhecida/);
+  assert.throws(() => lerSalvo('"texto qualquer"', ''), /não são dados do painel/);
+  assert.equal(lerSalvo('{"months": {}}', 'ANA').plan.titular, 'ANA'); // v1 vazia ainda é válida
 });

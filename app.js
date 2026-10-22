@@ -179,6 +179,18 @@
     if (!plan.nomes) plan.nomes = v === 1 ? { brasil: 'Contas no Brasil' } : {};
     return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: x.div || null };
   }
+  /* lê dados salvos ou um backup (texto JSON) e devolve sempre a v2; erro com motivo se não der */
+  function lerSalvo(texto, titularAntigo) {
+    var x;
+    try { x = JSON.parse(texto); } catch (e) { throw new Error('o conteúdo não é JSON válido'); }
+    return migrate(x, titularAntigo);
+  }
+  /* resumo para confirmar antes de restaurar ou apagar: quantos meses, de quando a quando */
+  function resumoDados(x) {
+    var ks = Object.keys((x && x.months) || {}).sort(), mov = 0;
+    ks.forEach(function (k) { mov += x.months[k].length; });
+    return { meses: ks.length, de: ks[0] || null, ate: ks[ks.length - 1] || null, mov: mov };
+  }
   /* contas fixas e assinaturas: o mesmo nome (sem os números) cobrado uma vez por mês, com valor parecido,
      perto do mesmo dia do mês (3 dias de folga), em pelo menos 2 dos últimos 3 meses.
      keys guarda as descrições exatas, para regras manuais. No mês em andamento, atrasada marca a conta
@@ -279,7 +291,7 @@
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
+  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {}), SUG = null, RECS = [];
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
@@ -359,21 +371,37 @@
   }
 
   /* ---------- armazenamento ---------- */
+  function dadosAtuais() { return { v: VERSAO, months: S.months, over: S.over, plan: S.plan, summary: S.summary, div: S.div }; }
+  /* com dados ilegíveis (S.bloqueado), nada é gravado por cima até a pessoa decidir o que fazer */
   function localSave() {
-    try { localStorage.setItem(LS, JSON.stringify({ v: VERSAO, months: S.months, over: S.over, plan: S.plan, summary: S.summary, div: S.div })); } catch (e) { }
+    if (S.bloqueado) return;
+    try { localStorage.setItem(LS, JSON.stringify(dadosAtuais())); } catch (e) { }
   }
   function localLoad() {
+    var raw = null, tit = '', velho = false;
     try {
-      var x = JSON.parse(localStorage.getItem(LS) || 'null'), tit = '', velho = !x;
-      if (velho) {
-        tit = localStorage.getItem(LS_TITULAR) || '';
-        x = JSON.parse(localStorage.getItem(LS_V1) || 'null') || (tit ? {} : null);
+      raw = localStorage.getItem(LS);
+      if (raw == null) {
+        velho = true; tit = localStorage.getItem(LS_TITULAR) || ''; raw = localStorage.getItem(LS_V1);
+        if (raw == null && tit) raw = '{}';
       }
-      if (!x) return;
-      x = migrate(x, tit);
+    } catch (e) { return; }
+    if (raw == null) return;
+    try {
+      var x = lerSalvo(raw, tit);
       S.months = x.months; S.over = x.over; S.plan = x.plan; S.summary = x.summary; S.div = x.div;
       if (velho) localSave();
+    } catch (e) {
+      S.bloqueado = { motivo: e.message, bruto: raw };
+    }
+  }
+  function apagarTudo() {
+    try {
+      var ks = [];
+      for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('cortex-financas.') === 0) ks.push(k); }
+      ks.forEach(function (k) { localStorage.removeItem(k); });
     } catch (e) { }
+    S.months = {}; S.over = {}; S.plan = null; S.summary = null; S.div = null; S.bloqueado = null; S.setupOpen = false;
   }
   var chain = Promise.resolve();
   function enqueue(fn) {
@@ -400,6 +428,7 @@
   function handleFiles(list) {
     var files = Array.prototype.slice.call(list || []);
     if (!files.length) return Promise.resolve();
+    if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
     var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null;
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
@@ -475,10 +504,72 @@
       '<small>Ex.: "Contas no Brasil". Em branco fica "' + esc(CAT_BY.brasil.nome) + '".</small></label>' +
       '</div></fieldset>' +
       '<fieldset><legend>Metas por mês (€)</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
-      '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' +
+      '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' + secaoDados() +
       '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
       '</form></div></section>';
+  }
+  /* ---------- seus dados: backup, restaurar, apagar ---------- */
+  function baixar(nome, texto, tipo) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([texto], { type: tipo }));
+    a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  function baixarBackup() {
+    var x = Object.assign(dadosAtuais(), { exportadoEm: new Date().toISOString() });
+    baixar('financas-' + todayIso() + '.json', JSON.stringify(x, null, 1), 'application/json');
+  }
+  function baixarCopiaIlegivel() {
+    var json = true; try { JSON.parse(S.bloqueado.bruto); } catch (e) { json = false; }
+    baixar('financas-copia-' + todayIso() + (json ? '.json' : '.txt'), S.bloqueado.bruto, json ? 'application/json' : 'text/plain');
+  }
+  function lerBackup(file) {
+    if (!file) return Promise.resolve();
+    return file.text().then(function (txt) {
+      S.restaurar = { nome: file.name, dados: lerSalvo(txt, '') }; render();
+    }).catch(function (e) { toast('Esse arquivo não é um backup do painel: ' + ((e && e.message) || e) + '.', true); });
+  }
+  function resumoTxt(x) {
+    var r = resumoDados(x);
+    if (!r.meses) return 'nenhum extrato';
+    return r.meses + (r.meses === 1 ? ' mês' : ' meses') + ', ' + (r.meses === 1 ? 'de ' + mLabel(r.de) : 'de ' + mLabel(r.de) + ' a ' + mLabel(r.ate)) + ' (' + r.mov + ' movimentações)';
+  }
+  function temDados() { return !!(Object.keys(S.months).length || S.plan); }
+  function secaoDados() {
+    return '<fieldset><legend>Seus dados</legend><p class="passo">' + (temDados()
+      ? 'Ficam só neste navegador. Se ele for limpo, somem: baixe um backup de vez em quando.'
+      : 'Já usou o painel em outro navegador? Restaure o backup que você baixou lá.') + '</p><div class="grupo">' +
+      (temDados() ? '<button class="btn" type="button" data-backup="baixar">Baixar backup</button>' : '') +
+      '<button class="btn" type="button" data-backup="restaurar">Restaurar backup</button>' +
+      (temDados() ? '<button class="pill perigo" type="button" data-apagar="pedir">Apagar meus dados</button>' : '') +
+      '</div></fieldset>';
+  }
+  function telaRestaurar() {
+    var R = S.restaurar, atual = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : (temDados() ? 'o que está salvo neste navegador: ' + resumoTxt(dadosAtuais()) : '');
+    return '<section class="sec"><div class="sec-top"><h2>Restaurar backup</h2><span class="hint">' + esc(R.nome) + '</span></div><div class="card ggrid">' +
+      '<p>No arquivo: <b>' + esc(resumoTxt(R.dados)) + '</b>' + (R.dados.plan && R.dados.plan.titular ? ', titular ' + esc(R.dados.plan.titular) : '') + '.</p>' +
+      (atual ? '<p class="aviso">Isso substitui ' + esc(atual) + '. Não dá para desfazer.</p>' : '') +
+      '<div class="grupo"><button class="btn pri" type="button" data-restaurar="confirmar">' + (atual ? 'Substituir pelos dados do backup' : 'Restaurar') + '</button>' +
+      (temDados() && !S.bloqueado ? '<button class="btn" type="button" data-backup="baixar">Baixar backup dos dados atuais antes</button>' : '') +
+      '<button class="btn" type="button" data-restaurar="cancelar">Cancelar</button></div></div></section>';
+  }
+  function telaApagar() {
+    var o = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : resumoTxt(dadosAtuais()) + ', suas metas, categorias escolhidas e configuração';
+    return '<section class="sec"><div class="sec-top"><h2>Apagar meus dados</h2></div><div class="card ggrid">' +
+      '<p class="aviso erro">Isso apaga deste navegador: ' + esc(o) + '. Não dá para desfazer.</p>' +
+      '<div class="grupo"><button class="pill perigo" type="button" data-apagar="confirmar">Apagar tudo</button>' +
+      (S.bloqueado ? '<button class="btn" type="button" data-backup="copia">Baixar cópia antes</button>' : '<button class="btn" type="button" data-backup="baixar">Baixar backup antes</button>') +
+      '<button class="btn" type="button" data-apagar="cancelar">Cancelar</button></div></div></section>';
+  }
+  function telaBloqueio() {
+    return '<section class="sec"><div class="sec-top"><h2>Não consegui ler seus dados</h2></div><div class="card ggrid">' +
+      '<p class="aviso erro">Os dados salvos neste navegador estão corrompidos ou são de uma versão do painel que esta não conhece (' + esc(S.bloqueado.motivo) + '). ' +
+      'Para não perder nada, o painel não vai gravar por cima.</p>' +
+      '<p class="passo">Baixe uma cópia do que existe, restaure um backup ou, se não precisar mais desses dados, apague e comece do zero.</p>' +
+      '<div class="grupo"><button class="btn pri" type="button" data-backup="copia">Baixar cópia do que existe</button>' +
+      '<button class="btn" type="button" data-backup="restaurar">Restaurar backup</button>' +
+      '<button class="pill perigo" type="button" data-apagar="pedir">Apagar e começar do zero</button></div></div></section>';
   }
   function emptyState() {
     return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
@@ -949,6 +1040,9 @@
     var root = $('#fin-app'), sc = $('.fin .cscroll'), keep = sc ? sc.scrollLeft : null;
     if (!root) return;
     if (!S.ready) { root.innerHTML = header() + '<p class="passo">Carregando seus dados…</p>'; return; }
+    if (S.restaurar) { root.innerHTML = header() + telaRestaurar(); return; }
+    if (S.apagar) { root.innerHTML = header() + telaApagar(); return; }
+    if (S.bloqueado) { root.innerHTML = header() + telaBloqueio(); return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
     if (!M.keys.length) { root.innerHTML = header() + emptyState(); return; }
     root.innerHTML = header() + perguntaAluguel() + cashSummary() + dividas() + kpis() + previsao() + metasPoup() + chart() +
@@ -986,10 +1080,32 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-dpay],[data-ddel]');
+    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
+    if (t.hasAttribute('data-backup')) {
+      var bk = t.getAttribute('data-backup');
+      if (bk === 'baixar') { baixarBackup(); toast('Backup baixado.'); }
+      else if (bk === 'copia') { baixarCopiaIlegivel(); toast('Cópia baixada.'); }
+      else $('#fin-json').click();
+      return;
+    }
+    if (t.hasAttribute('data-restaurar')) {
+      if (t.getAttribute('data-restaurar') === 'confirmar') {
+        var x = S.restaurar.dados;
+        S.months = x.months; S.over = x.over; S.plan = x.plan; S.summary = x.summary; S.div = x.div;
+        S.bloqueado = null; S.restaurar = null; S.setupOpen = false; localSave(); recompute(); render();
+        toast('Backup restaurado: ' + resumoTxt(x) + '.');
+      } else { S.restaurar = null; render(); }
+      return;
+    }
+    if (t.hasAttribute('data-apagar')) {
+      var ap = t.getAttribute('data-apagar');
+      if (ap === 'confirmar') { apagarTudo(); S.apagar = false; recompute(); render(); toast('Seus dados foram apagados deste navegador.'); }
+      else { S.apagar = ap === 'pedir'; render(); }
+      return;
+    }
     if (t.hasAttribute('data-aluguel')) {
       var al = aluguelSugerido();
       if (!al) return;
@@ -1034,6 +1150,7 @@
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
+    if (t.id === 'fin-json') { lerBackup(t.files && t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.hasAttribute && t.hasAttribute('data-ov') && t.closest('#fin-app')) {
       var key = t.getAttribute('data-ov'), v = t.value, autos = {};
       if (!v) return;
@@ -1124,7 +1241,7 @@
     localLoad(); S.ready = true; recompute(); render(); cartao();
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
-  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,text/csv" multiple tabindex="-1" aria-label="Escolher extrato CSV"><div id="fin-tip" class="fin-tip" hidden></div>');
+  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,text/csv" multiple tabindex="-1" aria-label="Escolher extrato CSV"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');
   window.__cortexFin = { montar: function () { render(); }, cartao: cartao };
   render();
   start();
