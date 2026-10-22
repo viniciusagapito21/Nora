@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor };')();
 }
 function months(api) {
   const m = {};
@@ -71,7 +71,7 @@ test('o núcleo não usa nada do navegador', () => {
 });
 
 test('migração v1 → v3 guarda o titular antigo e mantém o resto', () => {
-  const { migrate } = load();
+  const { migrarAteV3: migrate } = load();
   const v1 = { months: { '2026-09': [['2026-09-01', 'Tesco', 'Merchant', -1000, 0]] }, over: { TESCO: 'lazer' }, plan: { cats: { mercado: 200 }, poupar: 100 }, summary: null, div: { itens: [] } };
   const x = migrate(v1, ' MARIA SILVA ');
   assert.equal(x.v, 3);
@@ -84,7 +84,7 @@ test('migração v1 → v3 guarda o titular antigo e mantém o resto', () => {
 });
 
 test('migração aceita v3 sem mudar nada e completa campos que faltam', () => {
-  const { migrate } = load();
+  const { migrarAteV3: migrate } = load();
   const v3 = { v: 3, months: {}, over: {}, plan: { titular: 'Ana', moeda: 'EUR', pais: 'IE', nomes: { brasil: 'Conta em Portugal' } }, summary: null, div: { items: [{ id: 'd1', nome: 'Escola', status: 'aberta', valor: 200, moeda: 'USD' }], cambios: { USD: { rate: 1.08 } }, margem: 2 } };
   assert.deepEqual(migrate(v3, 'IGNORADO'), v3);
   assert.equal(migrate({ v: 2 }).plan.titular, '');
@@ -96,7 +96,7 @@ test('migração recusa o que não é do painel', () => {
   const { migrate } = load();
   assert.throws(() => migrate(null));
   assert.throws(() => migrate([]));
-  assert.throws(() => migrate({ v: 4 }), /versão 4/);
+  assert.throws(() => migrate({ v: 5 }), /versão 5/);
   assert.throws(() => migrate({ v: '3' }), /versão 3/); // versão em texto não vale
   assert.throws(() => migrate({ months: [] }));
   assert.throws(() => migrate({ months: { 'setembro': [] } }));
@@ -201,21 +201,25 @@ test('backup: o que o painel exporta volta igual ao restaurar', () => {
   const api = load();
   const dados = { v: 3, months: months(api), over: { TESCO: 'lazer' }, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: {}, configurado: true }, summary: null, div: null };
   const texto = JSON.stringify({ ...dados, exportadoEm: '2026-10-22T10:00:00.000Z' }, null, 1);
-  assert.deepEqual(api.lerSalvo(texto, ''), dados);
+  const v4 = api.lerSalvo(texto, '');
+  const { v, ...semVersao } = dados;
+  assert.deepEqual(api.compor(v4), semVersao, 'backup v3 restaurado mostra exatamente os mesmos dados');
+  assert.deepEqual(api.lerSalvo(JSON.stringify({ ...v4, exportadoEm: '2026-10-22T10:00:00.000Z' })), v4, 'backup v4 volta igual');
   assert.deepEqual(api.resumoDados(dados), { meses: 4, de: '2026-07', ate: '2026-10', mov: 56 });
+  assert.deepEqual(api.resumoDados(v4), { meses: 4, de: '2026-07', ate: '2026-10', mov: 56 });
   assert.deepEqual(api.resumoDados({ months: {} }), { meses: 0, de: null, ate: null, mov: 0 });
 });
 
 test('dados corrompidos ou de versão desconhecida dão erro com motivo (para não gravar por cima)', () => {
   const { lerSalvo } = load();
   assert.throws(() => lerSalvo('{"months": {"2026-09": [', ''), /não é JSON válido/);
-  assert.throws(() => lerSalvo('{"v": 4, "months": {}}', ''), /versão 4 desconhecida/);
+  assert.throws(() => lerSalvo('{"v": 5, "carteiras": []}', ''), /versão 5 desconhecida/);
   assert.throws(() => lerSalvo('"texto qualquer"', ''), /não são dados do painel/);
-  assert.equal(lerSalvo('{"months": {}}', 'ANA').plan.titular, 'ANA'); // v1 vazia ainda é válida
+  assert.equal(lerSalvo('{"months": {}}', 'ANA').config.titular, 'ANA'); // v1 vazia ainda é válida
 });
 
 test('pagamentos em R$ e em euro da v2 viram valor + moeda na v3, sem perder nada', () => {
-  const { migrate } = load();
+  const { migrarAteV3: migrate } = load();
   const v2 = {
     v: 2, months: {}, over: {}, plan: { titular: '', moeda: 'EUR', pais: 'IE', nomes: {} }, summary: null,
     div: {
@@ -250,7 +254,7 @@ test('a página não carrega nada de servidor externo, e o nome Nora não trocou
   }
   // as fontes declaradas no CSS existem no projeto
   for (const [, url] of ler('styles.css').matchAll(/url\(([^)]+)\)/g)) assert.ok(readFileSync(new URL('../' + url, import.meta.url)).length > 1000, url);
-  assert.match(appJs, /var LS = 'cortex-financas\.v3'/);
+  assert.match(appJs, /var LS = 'cortex-financas\.v4', LS_V3 = 'cortex-financas\.v3'/, 'a v4 grava numa chave nova e a v3 continua sendo lida');
 });
 
 // extrato consolidado inventado com duas contas (euro e libra), no formato que o leitor espera:
@@ -394,9 +398,11 @@ test('os campos novos de categorias e metas passam pela migração e pelo backup
   const api = load();
   const plan = { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: { mercado: 'Supermercado' }, ocultas: ['saude'], fixas: ['aluguel'],
     proprias: [{ id: 'u1', nome: 'Educação', slot: 8 }], metasPoupanca: [{ id: 'm1', nome: 'Carro', src: null }], goals: { m1: { alvo: 5000, tem: 200 } } };
-  const x = api.migrate({ v: 3, months: {}, over: { BOOTS: 'u1' }, plan, summary: null, div: null });
+  const x = api.migrarAteV3({ v: 3, months: {}, over: { BOOTS: 'u1' }, plan, summary: null, div: null });
   assert.deepEqual(x.plan, plan);
-  assert.deepEqual(api.lerSalvo(JSON.stringify(x)), x);
+  const v4 = api.lerSalvo(JSON.stringify(x));
+  assert.deepEqual(api.compor(v4).plan, plan);
+  assert.deepEqual(api.lerSalvo(JSON.stringify(v4)), v4);
 });
 
 test('conta fixa com meta vazia ou zero entra pelo valor recorrente; sem recorrente, avisa', () => {
@@ -424,4 +430,86 @@ test('conta fixa com meta vazia ou zero entra pelo valor recorrente; sem recorre
   assert.deepEqual(p3.semBase, ['mercado']);
   // de fábrica, nenhuma categoria fixa fica sem base no extrato de exemplo (nada de aviso à toa)
   assert.deepEqual(api.preverMes(m, id => sug[id] || 0, api.montarCats({})).semBase, []);
+});
+
+// ---------- passo 9.1: formato v4 (carteiras) ----------
+// v3 completo e inventado: meses, regras manuais, resumo de saldos, categorias e metas editadas, pagamentos em
+// observação com câmbio, pergunta do aluguel respondida e um campo que o painel não conhece (não pode sumir)
+function v3Completo(api) {
+  return {
+    v: 3, months: months(api), over: { TESCO: 'lazer', 'COSTA COFFEE': 'u1' },
+    plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', configurado: true, cats: { mercado: 120, brasil: 150 }, poupar: 200,
+      nomes: { mercado: 'Supermercado' }, ocultas: ['saude'], fixas: ['aluguel', 'assin'], proprias: [{ id: 'u1', nome: 'Cafés', slot: 8 }],
+      metasPoupanca: [{ id: 'reserva', nome: 'Reserva', src: 'flex' }, { id: 'm1', nome: 'Carro', src: null }],
+      goals: { reserva: { alvo: 3000 }, m1: { alvo: 5000, tem: 1200, prazo: '2027-12' } }, naoAluguel: ['TO EXAMPLE LETTINGS'], campoFuturo: { x: 1 } },
+    summary: { conta: 82400, flex: 40000, asOf: '2026-10-15' },
+    div: { items: [{ id: 'd1', nome: 'Banco', status: 'aberta', criada: '2026-09-01', valor: 3700, moeda: 'BRL', venc: '2026-10-25' }],
+      cambios: { BRL: { rate: 5.61, data: '2026-10-01', fonte: 'informado por você' } }, margem: 2 }
+  };
+}
+
+test('ida e volta: v1, v2 e v3 → v4 → v3 devolvem exatamente o que a v3 tinha', () => {
+  const api = load();
+  const v1 = { months: { '2026-09': [['2026-09-01', 'Tesco', 'Merchant', -1000, 0]] }, over: { TESCO: 'lazer' }, plan: { cats: { mercado: 200 }, poupar: 100 }, summary: null };
+  const v2 = { v: 2, months: {}, over: {}, plan: { titular: 'ANA', moeda: 'EUR', pais: 'IE', nomes: {} }, summary: null,
+    div: { items: [{ id: 'd1', nome: 'Banco', status: 'aberta', brl: 3700 }], cambio: { rate: 5.61, data: '2026-10-01' }, margem: 3 } };
+  for (const [nome, x, tit] of [['v1', v1, 'MARIA SILVA'], ['v2', v2, ''], ['v3', v3Completo(api), ''], ['v3 mínima', { v: 3, months: {}, over: {}, plan: {}, summary: null, div: null }, '']]) {
+    const antes = JSON.stringify(x);
+    const v4 = api.migrate(x, tit);
+    assert.equal(v4.v, 4, nome);
+    assert.deepEqual(api.paraV3(v4), api.migrarAteV3(x, tit), nome + ': nada se perde na ida e volta');
+    assert.deepEqual(api.paraV3(api.lerSalvo(JSON.stringify(v4))), api.migrarAteV3(x, tit), nome + ': nem passando pelo JSON salvo');
+    assert.equal(JSON.stringify(x), antes, nome + ': o objeto original não muda');
+  }
+});
+
+test('v3 vira uma carteira única "Revolut" na moeda e no país da configuração', () => {
+  const api = load(), v3 = v3Completo(api), x = api.migrate(v3);
+  assert.deepEqual(Object.keys(x).sort(), ['ativa', 'cambios', 'carteiras', 'config', 'div', 'v']);
+  assert.equal(x.carteiras.length, 1);
+  const c = x.carteiras[0];
+  assert.deepEqual({ id: c.id, nome: c.nome, moeda: c.moeda, pais: c.pais, banco: c.banco }, { id: 'c1', nome: 'Revolut', moeda: 'EUR', pais: 'IE', banco: 'revolut' });
+  assert.equal(x.ativa, 'c1');
+  assert.deepEqual(c.months, v3.months);
+  assert.deepEqual(c.over, v3.over);
+  assert.deepEqual(c.summary, v3.summary);
+  assert.deepEqual(c.metas, { cats: { mercado: 120, brasil: 150 }, poupar: 200 });
+  assert.deepEqual(c.naoAluguel, ['TO EXAMPLE LETTINGS']);
+  assert.deepEqual(c.transf, {});
+  assert.deepEqual(c.sugDispensadas, []);
+  assert.equal(x.config.moedaPrincipal, 'EUR');
+  assert.equal(x.config.titular, 'MARIA SILVA');
+  assert.deepEqual(x.config.campoFuturo, { x: 1 }, 'campo desconhecido continua guardado');
+  assert.ok(!('moeda' in x.config) && !('pais' in x.config) && !('cats' in x.config), 'o que é da carteira sai da configuração');
+  assert.deepEqual(x.cambios, v3.div.cambios, 'o câmbio sai de Em observação e vale para tudo');
+  assert.deepEqual(x.div, { items: v3.div.items, margem: 2 });
+  assert.deepEqual(api.migrate(x), x, 'v4 lida de novo não muda');
+});
+
+test('o painel recebe da v4 exatamente o que recebia da v3 (compor) e grava de volta sem perda (decompor)', () => {
+  const api = load(), v3 = v3Completo(api), x = api.migrate(v3), vis = api.compor(x);
+  assert.deepEqual(vis, { months: v3.months, over: v3.over, plan: v3.plan, summary: v3.summary, div: v3.div });
+  assert.deepEqual(api.decompor(x, vis), x);
+  // mudar algo pela tela vai para o lugar certo da v4
+  const novo = api.decompor(x, { ...vis, plan: { ...vis.plan, cats: { mercado: 90 }, titular: 'ANA' }, over: { LIDL: 'lazer' } });
+  assert.deepEqual(novo.carteiras[0].metas.cats, { mercado: 90 });
+  assert.equal(novo.config.titular, 'ANA');
+  assert.deepEqual(novo.carteiras[0].over, { LIDL: 'lazer' });
+  assert.deepEqual(x.carteiras[0].over, v3.over, 'decompor não altera a v4 de entrada');
+  // com uma carteira só, trocar a moeda (sem extrato) leva a moeda principal junto
+  const vazia = api.migrate({ v: 3, months: {}, over: {}, plan: { moeda: 'EUR' }, summary: null, div: null });
+  const gbp = api.decompor(vazia, { ...api.compor(vazia), plan: { ...api.compor(vazia).plan, moeda: 'GBP' } });
+  assert.equal(gbp.carteiras[0].moeda, 'GBP');
+  assert.equal(gbp.config.moedaPrincipal, 'GBP');
+});
+
+test('v4 inválida é recusada com motivo', () => {
+  const api = load(), ok = api.migrate(v3Completo(api));
+  assert.throws(() => api.migrate({ ...ok, carteiras: [] }), /carteira/);
+  assert.throws(() => api.migrate({ ...ok, carteiras: Array.from({ length: 6 }, (_, i) => ({ ...ok.carteiras[0], id: 'c' + i })) }), /5 carteiras/);
+  assert.throws(() => api.migrate({ ...ok, carteiras: [{ ...ok.carteiras[0], months: { setembro: [] } }] }), /mês setembro/);
+  assert.throws(() => api.migrate({ ...ok, carteiras: [{ ...ok.carteiras[0], moeda: 'euro' }] }), /moeda/);
+  assert.throws(() => api.migrate({ ...ok, carteiras: [ok.carteiras[0], ok.carteiras[0]] }), /repetid/);
+  assert.equal(api.migrate({ ...ok, ativa: 'nao-existe' }).ativa, 'c1', 'ativa inválida volta para a primeira');
+  assert.throws(() => api.paraV3({ ...ok, carteiras: [ok.carteiras[0], { ...ok.carteiras[0], id: 'c2' }] }), /mais de uma carteira/);
 });

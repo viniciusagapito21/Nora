@@ -246,8 +246,14 @@
      v1: { months, over, plan, summary, div }, sem número de versão.
      v2: { v: 2, ... } com titular, moeda, país e nomes de exibição das categorias dentro de plan.
      v3: pagamentos em observação com valor + moeda (antes brl ou eur) e câmbio por moeda.
-     Aceita v1, v2 ou v3 e devolve sempre v3; dados que não são do painel dão erro. */
-  var VERSAO = 3;
+     v4: carteiras (até 5). { v: 4, config, carteiras: [{ id, nome, moeda, pais, banco, months, over, summary,
+         metas: { cats, poupar }, naoAluguel, transf, sugDispensadas }], ativa, cambios, div: { items, margem } }.
+         config é o que vale para todas (titular, moedaPrincipal, categorias, metas de poupança, campos que o
+         painel não conhece); cambios é por 1 da moeda principal.
+     Aceita v1 a v4 e devolve sempre v4; dados que não são do painel dão erro. */
+  var VERSAO = 4, MAX_CARTEIRAS = 5;
+  /* o que em plan pertence a cada carteira (na v3 tudo ficava em plan) */
+  var DA_CARTEIRA = ['moeda', 'pais', 'cats', 'poupar', 'naoAluguel'];
   /* v2 → v3 em div: { items: [{ brl | eur }], cambio: { rate: reais por euro } }
      vira { items: [{ valor, moeda }], cambios: { BRL: { rate } } }; rate = unidades da moeda por 1 euro */
   function migrarDiv(d) {
@@ -264,33 +270,126 @@
     if (d.cambio) { o.cambios = Object.assign({ BRL: d.cambio }, d.cambios || {}); delete o.cambio; }
     return o;
   }
-  function migrate(x, titularAntigo) {
-    if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
-    var v = x.v == null ? 1 : x.v;
-    if (v !== 1 && v !== 2 && v !== VERSAO) throw new Error('versão ' + v + ' desconhecida');
-    var months = x.months || {};
-    if (typeof months !== 'object' || Array.isArray(months)) throw new Error('meses em formato errado');
+  function checarMeses(months) {
+    if (!months || typeof months !== 'object' || Array.isArray(months)) throw new Error('meses em formato errado');
     Object.keys(months).forEach(function (m) {
       if (!/^\d{4}-\d{2}$/.test(m) || !Array.isArray(months[m])) throw new Error('mês ' + m + ' em formato errado');
     });
+    return months;
+  }
+  /* v1, v2 ou v3 → v3 (o passo antigo, mantido para a migração e para o teste de ida e volta) */
+  function migrarAteV3(x, titularAntigo) {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
+    var v = x.v == null ? 1 : x.v;
+    if (v !== 1 && v !== 2 && v !== 3) throw new Error('versão ' + v + ' desconhecida');
+    var months = checarMeses(x.months || {});
     var plan = Object.assign({}, x.plan || {});
     /* na v1 o titular ficava numa chave à parte, gravada pelo console */
     if (plan.titular == null) plan.titular = v === 1 ? String(titularAntigo || '').trim() : '';
     if (!plan.moeda) plan.moeda = 'EUR';
     if (!plan.pais) plan.pais = 'IE';
     if (!plan.nomes) plan.nomes = v === 1 ? { brasil: 'Contas no Brasil' } : {};
-    return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: v < 3 ? migrarDiv(x.div) : (x.div || null) };
+    return { v: 3, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: v < 3 ? migrarDiv(x.div) : (x.div || null) };
   }
-  /* lê dados salvos ou um backup (texto JSON) e devolve sempre a v2; erro com motivo se não der */
+  /* separa o plan da v3 no que é da carteira e no que vale para todas */
+  function partirPlan(plan) {
+    var config = {}, cart = { metas: {} };
+    Object.keys(plan || {}).forEach(function (k) {
+      if (k === 'cats' || k === 'poupar') cart.metas[k] = plan[k];
+      else if (DA_CARTEIRA.indexOf(k) >= 0) cart[k] = plan[k];
+      else config[k] = plan[k];
+    });
+    return { config: config, cart: cart };
+  }
+  /* o plan como o painel enxerga (formato da v3) para uma carteira */
+  function juntarPlan(config, w) {
+    var plan = {};
+    Object.keys(config).forEach(function (k) { if (k !== 'moedaPrincipal') plan[k] = config[k]; });
+    plan.moeda = w.moeda; plan.pais = w.pais;
+    Object.keys(w.metas || {}).forEach(function (k) { plan[k] = w.metas[k]; });
+    if (w.naoAluguel !== undefined) plan.naoAluguel = w.naoAluguel;
+    return plan;
+  }
+  /* Em observação na v3 tinha o câmbio dentro; na v4 o câmbio fica fora e vale para tudo */
+  function divV3(div, cambios) {
+    var temCambio = cambios && Object.keys(cambios).length;
+    if (div == null && !temCambio) return null;
+    var d = Object.assign({}, div || {});
+    if (temCambio) d.cambios = cambios;
+    return d;
+  }
+  function paraV4(v3) {
+    var pp = partirPlan(v3.plan), w = pp.cart;
+    var cart = { id: 'c1', nome: 'Revolut', moeda: w.moeda || 'EUR', pais: w.pais || 'IE', banco: 'revolut',
+      months: v3.months, over: v3.over, summary: v3.summary, metas: w.metas, transf: {}, sugDispensadas: [] };
+    if (w.naoAluguel !== undefined) cart.naoAluguel = w.naoAluguel;
+    var config = pp.config; config.moedaPrincipal = cart.moeda;
+    var div = null;
+    if (v3.div) { div = Object.assign({}, v3.div); delete div.cambios; }
+    return { v: 4, config: config, carteiras: [cart], ativa: 'c1', cambios: (v3.div && v3.div.cambios) || {}, div: div };
+  }
+  /* confere e completa uma v4; devolve uma cópia (nunca a mesma referência de cima) */
+  function validarV4(x) {
+    if (!Array.isArray(x.carteiras) || !x.carteiras.length) throw new Error('nenhuma carteira');
+    if (x.carteiras.length > MAX_CARTEIRAS) throw new Error('mais de ' + MAX_CARTEIRAS + ' carteiras');
+    var ids = {};
+    var carteiras = x.carteiras.map(function (c) {
+      if (!c || typeof c !== 'object') throw new Error('carteira em formato errado');
+      if (typeof c.id !== 'string' || !c.id) throw new Error('carteira sem id');
+      if (ids[c.id]) throw new Error('carteira ' + c.id + ' repetida');
+      ids[c.id] = 1;
+      if (!/^[A-Z]{3}$/.test(c.moeda || '')) throw new Error('moeda ' + c.moeda + ' inválida na carteira ' + c.id);
+      return Object.assign({}, c, { nome: String(c.nome || 'Carteira'), pais: c.pais || 'IE', banco: c.banco || 'revolut', months: checarMeses(c.months || {}),
+        over: c.over || {}, summary: c.summary || null, metas: c.metas || {}, transf: c.transf || {}, sugDispensadas: c.sugDispensadas || [] });
+    });
+    var config = Object.assign({}, x.config || {});
+    if (!config.moedaPrincipal) config.moedaPrincipal = carteiras[0].moeda;
+    return { v: 4, config: config, carteiras: carteiras, ativa: ids[x.ativa] ? x.ativa : carteiras[0].id, cambios: x.cambios || {}, div: x.div || null };
+  }
+  function migrate(x, titularAntigo) {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
+    if (x.v === 4) return validarV4(x);
+    return paraV4(migrarAteV3(x, titularAntigo));
+  }
+  /* v4 → v3, só com uma carteira: para voltar atrás e para provar que a migração não perde nada */
+  function paraV3(x) {
+    if (x.carteiras.length > 1) throw new Error('mais de uma carteira: não cabe na v3');
+    var w = x.carteiras[0];
+    return { v: 3, months: w.months, over: w.over, plan: juntarPlan(x.config, w), summary: w.summary, div: divV3(x.div, x.cambios) };
+  }
+  function carteiraAtiva(x) { return x.carteiras.filter(function (c) { return c.id === x.ativa; })[0] || x.carteiras[0]; }
+  /* o que o painel usa (o formato da v3) para a carteira ativa */
+  function compor(x) {
+    var w = carteiraAtiva(x);
+    return { months: w.months, over: w.over, plan: juntarPlan(x.config, w), summary: w.summary, div: divV3(x.div, x.cambios) };
+  }
+  /* grava de volta na v4 o que o painel mudou (vis = { months, over, plan, summary, div }); não altera x */
+  function decompor(x, vis) {
+    var pp = partirPlan(vis.plan), w0 = carteiraAtiva(x);
+    var w = Object.assign({}, w0, { months: vis.months, over: vis.over, summary: vis.summary, metas: pp.cart.metas });
+    if (pp.cart.moeda) w.moeda = pp.cart.moeda;
+    if (pp.cart.pais) w.pais = pp.cart.pais;
+    if (pp.cart.naoAluguel !== undefined) w.naoAluguel = pp.cart.naoAluguel; else delete w.naoAluguel;
+    var config = pp.config;
+    /* com uma carteira só, a moeda principal acompanha a dela (o câmbio é por 1 dessa moeda) */
+    config.moedaPrincipal = x.carteiras.length === 1 ? w.moeda : x.config.moedaPrincipal;
+    var div = null, cambios = x.cambios;
+    if (vis.div) { div = Object.assign({}, vis.div); cambios = vis.div.cambios || {}; delete div.cambios; }
+    return { v: 4, config: config, carteiras: x.carteiras.map(function (c) { return c.id === w.id ? w : c; }), ativa: x.ativa, cambios: cambios, div: div };
+  }
+  /* lê dados salvos ou um backup (texto JSON) e devolve sempre a v4; erro com motivo se não der */
   function lerSalvo(texto, titularAntigo) {
     var x;
     try { x = JSON.parse(texto); } catch (e) { throw new Error('o conteúdo não é JSON válido'); }
     return migrate(x, titularAntigo);
   }
-  /* resumo para confirmar antes de restaurar ou apagar: quantos meses, de quando a quando */
+  /* resumo para confirmar antes de restaurar ou apagar: quantos meses, de quando a quando (v3 ou v4, todas as carteiras) */
   function resumoDados(x) {
-    var ks = Object.keys((x && x.months) || {}).sort(), mov = 0;
-    ks.forEach(function (k) { mov += x.months[k].length; });
+    var meses = {}, mov = 0;
+    ((x && x.carteiras) || [x || {}]).forEach(function (c) {
+      Object.keys(c.months || {}).forEach(function (k) { meses[k] = 1; mov += c.months[k].length; });
+    });
+    var ks = Object.keys(meses).sort();
     return { meses: ks.length, de: ks[0] || null, ate: ks[ks.length - 1] || null, mov: mov };
   }
   /* contas fixas e assinaturas: o mesmo nome (sem os números) cobrado uma vez por mês, com valor parecido,
@@ -403,13 +502,14 @@
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
+  var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {}), SUG = null, RECS = [];
   /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
   var CATST = montarCats(null), CATSV = CATST, CPOR = {};
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
-  var LS = 'cortex-financas.v3', LS_V2 = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
+  /* a v4 grava numa chave nova; as anteriores ficam como estão, para dar para voltar atrás */
+  var LS = 'cortex-financas.v4', LS_V3 = 'cortex-financas.v3', LS_V2 = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
 
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -503,17 +603,28 @@
   }
 
   /* ---------- armazenamento ---------- */
-  function dadosAtuais() { return { v: VERSAO, months: S.months, over: S.over, plan: S.plan, summary: S.summary, div: S.div }; }
+  /* S.dados é a v4 inteira; o painel trabalha com a carteira ativa em S.months, S.over, S.plan, S.summary e S.div
+     (o formato da v3), e compor/decompor fazem a ponte */
+  function dadosAtuais() {
+    var base = S.dados || migrate({ v: 3, months: {}, over: {}, plan: {}, summary: null, div: null });
+    return decompor(base, { months: S.months, over: S.over, plan: S.plan || {}, summary: S.summary, div: S.div });
+  }
+  function usarDados(x) {
+    var vis = compor(x);
+    S.dados = x; S.months = vis.months; S.over = vis.over; S.plan = vis.plan; S.summary = vis.summary; S.div = vis.div;
+  }
   /* com dados ilegíveis (S.bloqueado), nada é gravado por cima até a pessoa decidir o que fazer */
   function localSave() {
     if (S.bloqueado) return;
-    try { localStorage.setItem(LS, JSON.stringify(dadosAtuais())); } catch (e) { }
+    S.dados = dadosAtuais();
+    try { localStorage.setItem(LS, JSON.stringify(S.dados)); } catch (e) { }
   }
   function localLoad() {
     var raw = null, tit = '', velho = false;
     try {
       raw = localStorage.getItem(LS);
-      if (raw == null) { velho = true; raw = localStorage.getItem(LS_V2); }
+      if (raw == null) { velho = true; raw = localStorage.getItem(LS_V3); }
+      if (raw == null) raw = localStorage.getItem(LS_V2);
       if (raw == null) {
         tit = localStorage.getItem(LS_TITULAR) || ''; raw = localStorage.getItem(LS_V1);
         if (raw == null && tit) raw = '{}';
@@ -521,8 +632,7 @@
     } catch (e) { return; }
     if (raw == null) return;
     try {
-      var x = lerSalvo(raw, tit);
-      S.months = x.months; S.over = x.over; S.plan = x.plan; S.summary = x.summary; S.div = x.div;
+      usarDados(lerSalvo(raw, tit));
       if (velho) localSave();
     } catch (e) {
       S.bloqueado = { motivo: e.message, bruto: raw };
@@ -534,7 +644,7 @@
       for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('cortex-financas.') === 0) ks.push(k); }
       ks.forEach(function (k) { localStorage.removeItem(k); });
     } catch (e) { }
-    S.months = {}; S.over = {}; S.plan = null; S.summary = null; S.div = null; S.bloqueado = null; S.setupOpen = false;
+    S.dados = null; S.months = {}; S.over = {}; S.plan = null; S.summary = null; S.div = null; S.bloqueado = null; S.setupOpen = false;
   }
   var chain = Promise.resolve();
   function enqueue(fn) {
@@ -726,7 +836,7 @@
   function telaRestaurar() {
     var R = S.restaurar, atual = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : (temDados() ? 'o que está salvo neste navegador: ' + resumoTxt(dadosAtuais()) : '');
     return '<section class="sec"><div class="sec-top"><h2>Restaurar backup</h2><span class="hint">' + esc(R.nome) + '</span></div><div class="card ggrid">' +
-      '<p>No arquivo: <b>' + esc(resumoTxt(R.dados)) + '</b>' + (R.dados.plan && R.dados.plan.titular ? ', titular ' + esc(R.dados.plan.titular) : '') + '.</p>' +
+      '<p>No arquivo: <b>' + esc(resumoTxt(R.dados)) + '</b>' + (R.dados.config.titular ? ', titular ' + esc(R.dados.config.titular) : '') + '.</p>' +
       (atual ? '<p class="aviso">Isso substitui ' + esc(atual) + '. Não dá para desfazer.</p>' : '') +
       '<div class="grupo"><button class="btn pri" type="button" data-restaurar="confirmar">' + (atual ? 'Substituir pelos dados do backup' : 'Restaurar') + '</button>' +
       (temDados() && !S.bloqueado ? '<button class="btn" type="button" data-backup="baixar">Baixar backup dos dados atuais antes</button>' : '') +
@@ -1297,7 +1407,7 @@
     if (t.hasAttribute('data-restaurar')) {
       if (t.getAttribute('data-restaurar') === 'confirmar') {
         var x = S.restaurar.dados;
-        S.months = x.months; S.over = x.over; S.plan = x.plan; S.summary = x.summary; S.div = x.div;
+        usarDados(x);
         S.bloqueado = null; S.restaurar = null; S.setupOpen = false; localSave(); recompute(); render();
         toast('Backup restaurado: ' + resumoTxt(x) + '.');
       } else { S.restaurar = null; render(); }
