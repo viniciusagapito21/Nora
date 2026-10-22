@@ -189,10 +189,10 @@
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, local: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, model: null, err: '', div: null, dAdd: false, dCamb: false, dPaid: false };
+  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {});
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
-  var DB = null, LS = 'cortex-financas.v1';
+  var LS = 'cortex-financas.v1';
 
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -264,13 +264,12 @@
   }
   function saveMonth(m, tx) {
     S.months[m] = tx;
-    if (DB) return DB.doc('gastosMeses/' + m).set({ tx: tx, n: tx.length, updatedAt: new Date().toISOString() });
     localSave(); return Promise.resolve();
   }
-  function saveOver() { if (DB) return DB.doc('gastosConfig/overrides').set({ map: S.over }); localSave(); return Promise.resolve(); }
-  function saveSummary(x) { S.summary = x; if (DB) return DB.doc('gastosConfig/summary').set(x); localSave(); return Promise.resolve(); }
-  function saveDiv(d) { S.div = d; if (DB) return DB.doc('gastosConfig/dividas').set(d); localSave(); return Promise.resolve(); }
-  function savePlan(p) { S.plan = p; if (DB) return DB.doc('gastosConfig/plan').set(p); localSave(); return Promise.resolve(); }
+  function saveOver() { localSave(); return Promise.resolve(); }
+  function saveSummary(x) { S.summary = x; localSave(); return Promise.resolve(); }
+  function saveDiv(d) { S.div = d; localSave(); return Promise.resolve(); }
+  function savePlan(p) { S.plan = p; localSave(); return Promise.resolve(); }
 
   function recompute() {
     M = buildModel(S.months, S.over);
@@ -327,7 +326,6 @@
     if (M.keys.length) st = 'Revolut · ' + st;
     return '<div class="view-top"><div><h1>Finanças</h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
       '<div class="grupo"><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div></div>' +
-      (S.err ? '<p class="aviso erro" role="alert">' + esc(S.err) + '</p>' : '') +
       '';
   }
   function emptyState() {
@@ -947,18 +945,11 @@
   var rsz; window.addEventListener('resize', function () { clearTimeout(rsz); rsz = setTimeout(drawBal, 150); });
 
   /* ---------- início ---------- */
-  var got = { m: false, o: false, p: false, s: false, d: false };
-  function became() {
-    if (S.ready || !(got.m && got.o && got.p && got.s && got.d)) return;
-    S.ready = true;
-  }
-  function refresh() { became(); if (S.ready) { recompute(); render(); cartao(); } }
   /* o cartão de Finanças no mapa: quanto saiu no mês e as barras dos últimos seis meses */
   function cartao() {
     var el = document.getElementById('cartao-fin');
     if (!el || !S.ready) return;
     var tag = '<span class="tag">Finanças</span>';
-    if (S.err) { el.innerHTML = tag + '<span class="txt">Sem acesso aos dados</span><span class="pe">abra a aba Finanças</span>'; return; }
     if (!M.keys.length) { el.innerHTML = tag + '<span class="txt">Nenhum extrato ainda</span><span class="pe">adicione o CSV do Revolut</span>'; return; }
     var ks = M.keys.slice(-6), cur = ks[ks.length - 1], mx = 1;
     ks.forEach(function (k) { mx = Math.max(mx, M.by[k].gasto || 0); });
@@ -966,27 +957,12 @@
     el.title = 'Gasto em ' + mLabel(cur) + (M.partial === cur ? ', até agora' : '');
     el.innerHTML = tag + '<span class="fin-l"><span class="txt">' + f0(M.by[cur].gasto || 0) + ' <small>em ' + mShort(cur) + '</small></span><span class="mini" aria-hidden="true">' + bars + '</span></span><span class="pe">meta ' + f0(planTotal()) + ' por mês</span>';
   }
-  function fail(e) { S.err = (e && (e.code === 'not_granted' || e.code === 'permission_denied')) ? 'Os dados de finanças só abrem para o dono do Córtex.' : 'Não consegui ler os dados salvos (' + ((e && (e.code || e.message)) || 'erro') + ').'; got.m = got.o = got.p = got.s = got.d = true; refresh(); }
-  function start(db) {
-    DB = db;
-    if (!db) { S.local = true; localLoad(); S.ready = true; recompute(); render(); cartao(); return; }
-    db.collection('gastosMeses').onSnapshot(function (q) {
-      var m = {};
-      q.docs.forEach(function (d) { var x = d.data(); if (x && Array.isArray(x.tx)) m[d.id] = x.tx; });
-      S.months = m;
-      if (!(q.metadata && q.metadata.fromCache && q.empty)) got.m = true;
-      refresh();
-    }, fail);
-    db.doc('gastosConfig/overrides').onSnapshot(function (s) { S.over = (s.exists && s.data().map) || {}; got.o = true; refresh(); }, fail);
-    db.doc('gastosConfig/summary').onSnapshot(function (s) { S.summary = s.exists ? s.data() : null; got.s = true; refresh(); }, fail);
-    db.doc('gastosConfig/dividas').onSnapshot(function (s) { S.div = s.exists ? s.data() : null; got.d = true; refresh(); }, fail);
-    db.doc('gastosConfig/plan').onSnapshot(function (s) { S.plan = s.exists ? s.data() : null; got.p = true; refresh(); }, fail);
-    setTimeout(function () { if (!S.ready) { got.m = got.o = got.p = got.s = got.d = true; refresh(); } }, 5000);
+  function start() {
+    localLoad(); S.ready = true; recompute(); render(); cartao();
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
   document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,text/csv" multiple tabindex="-1" aria-label="Escolher extrato CSV"><div id="fin-tip" class="fin-tip" hidden></div>');
   window.__cortexFin = { montar: function () { render(); }, cartao: cartao };
   render();
-  var use = window.claude && window.claude.use ? window.claude.use('db') : Promise.resolve(null);
-  Promise.resolve(use).then(start, function () { start(null); });
+  start();
 })();
