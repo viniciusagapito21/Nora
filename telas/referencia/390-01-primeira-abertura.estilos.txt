@@ -1,4 +1,4 @@
- 1h9qcnu 1l2e3g5 1l2e3g5
+ 15ycxri 1l2e3g5 1l2e3g5
 head 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
@@ -9,26 +9,26 @@ head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>style 1y599fs 1l2e3g5 1l2e3g5
-body 3baaij 1ln8j76 1ln8j76
-body>main.wrap a9d7aq 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 1x0wito 1yytz64 1yytz64
+body u9s2l7 1ln8j76 1ln8j76
+body>main.wrap 7zw16a 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 1ibrl64 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top om1fu9 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div 10mwsgy 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca 1rp9kmp 1af5xs7 1af5xs7
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>img xqo98o 1af5xs7 1af5xs7
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l eb7lf7 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm iwjzi9 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec 7894oq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec 1q6xkci 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top 12ld5ik 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>h2 g4rf1k o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>span.hint 1kemqo0 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 3vb913 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 1nc4mk8 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card ibisfj 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 1uy58sm 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p#fin-s-aviso-pais.aviso 53nybp vnygsh vnygsh
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>p#fin-s-aviso-pais.aviso>b 1b4g100 1wyfq5s 1wyfq5s
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1lzzrfw 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 5xiebk 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend 1wx5hs0 zl0uga zl0uga
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid 1u7xdpz 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid qbr51s 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1hx3cnx 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>input#fin-s-titular 1dkb5me qc0uyc qc0uyc nzzihh
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small b6dl0t o2ei29 o2ei29
@@ -46,9 +46,125 @@ body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-s-pais>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small 1hkxh7p o2ei29 o2ei29
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1cs5hyj 15snphz 15snphz
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>input#fin-s-nome-brasil 1dkb5me qc0uyc qc0uyc nzzihh
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small dvcdfn o2ei29 o2ei29
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 11h6m4o 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend 1a78blu zl0uga zl0uga
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas 8ok57s 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>summary 1vlkvfq 15u02fs 1ff9t1g
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>p.passo achxod 4eerhl 4eerhl
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista 1ow4y9m 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow nh509e 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw 1rgaasf ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 1xb25e4 fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-aluguel-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-aluguel-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-aluguel-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw wk9x7m ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 1guizg8 fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-brasil-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-brasil-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-brasil-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw 12j9lpe ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 1l09yr8 fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-mercado-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-mercado-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-mercado-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw qxq7fn ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 2i7938 fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-compras-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-compras-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-compras-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw rhnf36 ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh zizb2g fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-grandes-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-grandes-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-grandes-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw 588yio ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 1bwjxcg fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-transporte-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-transporte-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-transporte-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw 1qgkqp5 ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 1j2ui0k fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-lazer-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-lazer-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-lazer-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw vz4x9u ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh titg0g fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-assin-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-assin-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-assin-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw 1vdtzin ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh 6rt9ts fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-saude-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-saude-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk zndmgr 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-saude-oculta 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow 1i3vysq 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>i.sw 1oss9xb ybpzrp ybpzrp
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome u2g2x3 xxv5f2 xxv5f2
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>span.vh qwx5tk fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.cnome>input#fin-k-outros-nome 27k9vd jth2h5 jth2h5 1kzkhhr
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk kv8la8 1yq3n54 1yq3n54
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>label.chk>input#fin-k-outros-fixa 17wt67d fe49ye fe49ye 1x0a3vb
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>span 19y7pzz 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.clista>div.crow>small p93jy6 1ecx3at 1ecx3at
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.mgrid 1jfoxz6 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.mgrid>label 1cs5hyj 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.mgrid>label>input#fin-k-nova 1dkb5me qc0uyc qc0uyc nzzihh
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-kedit.metas>div.mgrid>label>small#fin-k-nova-d dvcdfn o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1qs6cy4 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend w5qsjb zl0uga zl0uga
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>p.passo 1q1uu4r 4eerhl 4eerhl
@@ -87,6 +203,6 @@ body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
-body>input#fin-csv.vh 129yy7q 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 129yy7q 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh 1eetro2 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh 1eetro2 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug

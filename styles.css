@@ -464,6 +464,29 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .fin .mov .am { font-weight: 600; }
 .fin .vazio-grande { border-style: solid; }
 .fin .bal text { font-family: var(--ui); }
+/* editor de categorias: cor, nome, conta fixa, esconder, excluir e quantos movimentos */
+.fin .clista { display: flex; flex-direction: column; margin: 4px 0 12px; }
+.fin .crow { display: grid; grid-template-columns: 10px minmax(0, 1fr) 118px 108px 88px 116px; gap: 4px 14px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.fin .crow:first-child { border-top: 0; }
+.fin .crow input[type="text"] { width: 100%; min-height: 40px; padding: 0 12px; background: var(--field); border: 1px solid var(--field-line); border-radius: var(--r-sm); color: var(--fg); font: inherit; }
+.fin .crow input[type="text"]::placeholder { color: var(--placeholder); }
+.fin .crow small { font-size: var(--fs-sm); color: var(--muted); text-align: right; white-space: nowrap; }
+.fin .crow.oculta .sw { opacity: .35; }
+.fin .crow.oculta input[type="text"] { color: var(--muted); }
+.fin .chk { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; min-height: 40px; font-size: var(--fs-sm); color: var(--soft); white-space: nowrap; cursor: pointer; }
+.fin .chk input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-strong); }
+/* dentro da grade de campos, a caixa de seleção não herda o tamanho dos campos de texto */
+.fin .mgrid label.chk { flex-direction: row; align-items: center; align-self: end; gap: 8px; }
+.fin .mgrid label.chk input { width: 18px; min-height: 0; height: 18px; padding: 0; }
+@media (pointer: coarse) { .fin .crow input[type="text"], .fin .chk { min-height: 44px; } }
+/* no celular: cor e nome numa linha; as opções e a contagem quebram embaixo, alinhadas com o nome */
+@media (max-width: 640px) {
+  .fin .crow { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; padding: 10px 0; }
+  .fin .crow .cnome { flex: 1 1 calc(100% - 26px); min-width: 0; }
+  .fin .crow > .chk:first-of-type, .fin .crow > .cnome + .chk { margin-left: 26px; }
+  .fin .crow > span:empty { display: none; }
+  .fin .crow small { flex-basis: 100%; margin-left: 26px; text-align: left; }
+}
 
 /* mais contraste quando o sistema pede */
 @media (prefers-contrast: more) {

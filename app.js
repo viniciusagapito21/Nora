@@ -16,7 +16,54 @@
     { id: 'saude', nome: 'Saúde', slot: 8 },
     { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0 }
   ];
-    var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
+  var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
+  /* categorias da pessoa (campos opcionais em plan, ainda na v3): nomes { id: nome }, ocultas [ids],
+     fixas [ids] (sem o campo valem as de fábrica) e proprias [{ id, nome, slot }]. Só há 8 cores (slots 1 a 8)
+     e "Outros" (slot 0): uma categoria nova pega a cor de uma escondida. "Outros" não se esconde. */
+  var FIXAS_PADRAO = ['aluguel', 'assin', 'brasil'];
+  var MAX_CORES = 8;
+  function montarCats(plan) {
+    var p = plan || {}, nomes = p.nomes || {}, ocultas = p.ocultas || [], fixas = Array.isArray(p.fixas) ? p.fixas : FIXAS_PADRAO;
+    var lista = CATS.filter(function (c) { return c.id !== 'outros'; }).map(function (c) { return Object.assign({}, c); });
+    (p.proprias || []).forEach(function (c) { lista.push({ id: c.id, nome: c.nome, slot: c.slot, propria: true }); });
+    lista.push(Object.assign({}, CAT_BY.outros));
+    return lista.map(function (c) {
+      return Object.assign(c, { padrao: c.propria ? c.nome : CAT_BY[c.id].nome, nome: (!c.propria && nomes[c.id]) || c.nome,
+        oculta: c.id !== 'outros' && ocultas.indexOf(c.id) >= 0, fixa: fixas.indexOf(c.id) >= 0 });
+    });
+  }
+  /* cores livres: os slots que nenhuma categoria visível usa (Compras e Compras grandes dividem o 4) */
+  function slotsLivres(plan) {
+    var usados = {};
+    montarCats(plan).forEach(function (c) { if (!c.oculta && c.slot) usados[c.slot] = 1; });
+    var o = []; for (var i = 1; i <= MAX_CORES; i++) if (!usados[i]) o.push(i);
+    return o;
+  }
+  /* devolve um plan novo com a categoria criada, ou erro se não houver cor livre */
+  function criarCategoria(plan, nome) {
+    nome = String(nome || '').trim().slice(0, 40);
+    if (!nome) throw new Error('a categoria precisa de um nome');
+    var livres = slotsLivres(plan);
+    if (!livres.length) throw new Error('as 8 cores estão em uso: esconda uma categoria para liberar a cor dela');
+    var p = Object.assign({}, plan || {}), pr = (p.proprias || []).slice(), n = 1;
+    while (pr.some(function (c) { return c.id === 'u' + n; })) n++;
+    pr.push({ id: 'u' + n, nome: nome, slot: livres[0] });
+    p.proprias = pr;
+    return p;
+  }
+  /* metas de poupança: sem lista na configuração, valem as quatro de fábrica.
+     origem: null (a pessoa digita quanto já guardou), 'flex' (saldo do Flexible Cash) ou 'invest' (investimentos e cripto) */
+  var METAS_POUP_PADRAO = [
+    { id: 'reserva', nome: 'Reserva de emergência', src: 'flex' },
+    { id: 'invest', nome: 'Investimentos', src: 'invest' },
+    { id: 'viagens', nome: 'Viagens pequenas', src: null },
+    { id: 'viagem', nome: 'Viagem grande do ano', src: null }
+  ];
+  var MAX_METAS_POUP = 6;
+  function listaMetasPoupanca(plan) {
+    var l = plan && Array.isArray(plan.metasPoupanca) ? plan.metasPoupanca : METAS_POUP_PADRAO;
+    return l.slice(0, MAX_METAS_POUP).map(function (g) { return { id: g.id, nome: g.nome, src: g.src === 'flex' || g.src === 'invest' ? g.src : null }; });
+  }
   /* regras de comerciantes por país (o país vem da configuração); país sem conjunto próprio usa só as marcas
      internacionais de REGRAS_GERAIS, e a tela avisa para categorizar o resto à mão */
   var REGRAS_PAIS = {};
@@ -163,7 +210,9 @@
   }
   /* nome do titular como aparece nas transferências ("To FULANO DE TAL"), no formato da chave da descrição */
   function normTitular(s) { return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
-  function classify(t, over, titular, pais) {
+  function classify(t, over, titular, pais, cats) {
+    cats = cats || montarCats(null);
+    var vis = {}; cats.forEach(function (c) { if (!c.oculta) vis[c.id] = 1; });
     var OWN = normTitular(titular), a = t[3] / 100, D = String(t[1]).toUpperCase(), rc = t[2], kind, cat = null;
     var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
     if (a > 0) {
@@ -185,8 +234,11 @@
     if (ov && (kind === 'gasto' || kind === 'invest' || kind === 'interno')) {
       if (ov === '_invest') { kind = 'invest'; cat = null; }
       else if (ov === '_ignore') { kind = 'interno'; cat = null; }
-      else if (CAT_BY[ov]) { kind = 'gasto'; cat = ov; }
+      else if (vis[ov]) { kind = 'gasto'; cat = ov; }
+      else if (cats.some(function (c) { return c.id === ov; })) { kind = 'gasto'; cat = 'outros'; }
     }
+    /* categoria escondida: o movimento vai para Outros (o total gasto não muda) */
+    if (kind === 'gasto' && !vis[cat]) cat = 'outros';
     r.kind = kind; r.cat = cat;
     return r;
   }
@@ -283,35 +335,45 @@
   /* previsão do mês em andamento. Categorias fixas entram pelo maior entre o gasto e a meta; cobranças
      recorrentes das outras categorias entram pelo valor de sempre (já pagas ou ainda por cair); só o resto
      segue o ritmo dos dias que passaram. metaCat(id) devolve a meta da categoria. */
-  var FIXAS = ['aluguel', 'assin', 'brasil'];
-  function preverMes(model, metaCat) {
+  function preverMes(model, metaCat, cats) {
+    cats = (cats || montarCats(null)).filter(function (c) { return !c.oculta; });
+    var FIXAS = cats.filter(function (c) { return c.fixa; }).map(function (c) { return c.id; });
     var cur = model.partial;
     if (!cur) return null;
     var g = model.by[cur], p = cur.split('-').map(Number), dim = new Date(p[0], p[1], 0).getDate(), day = Math.max(1, +model.lastDate.slice(8));
-    var fixo = 0, falFix = 0, vari = 0, rec = 0, pend = [];
-    CATS.forEach(function (c) {
+    var fixo = 0, falFix = 0, vari = 0, rec = 0, pend = [], semBase = [], recs = detectarRecorrentes(model), recCat = {};
+    /* conta fixa sem meta (vazia ou zero) entra pelo valor das cobranças recorrentes detectadas nela; sem meta
+       e sem recorrente, conta só o que já saiu, e semBase avisa (só se a categoria teve gasto nos meses anteriores) */
+    recs.forEach(function (o) { if (FIXAS.indexOf(o.last.cat) >= 0) recCat[o.last.cat] = (recCat[o.last.cat] || 0) + o.v; });
+    var antes = model.keys.filter(function (k) { return k !== cur; }).slice(-3);
+    cats.forEach(function (c) {
       var v = g.spend[c.id] || 0;
-      if (FIXAS.indexOf(c.id) >= 0) { var mt = metaCat(c.id); fixo += Math.max(v, mt); falFix += Math.max(0, mt - v); } else vari += v;
+      if (FIXAS.indexOf(c.id) < 0) { vari += v; return; }
+      var mt = +metaCat(c.id) || 0, base = mt > 0 ? mt : (recCat[c.id] || 0);
+      if (!base && antes.some(function (k) { return (model.by[k].spend[c.id] || 0) > 0; })) semBase.push(c.id);
+      fixo += Math.max(v, base); falFix += Math.max(0, base - v);
     });
-    detectarRecorrentes(model).forEach(function (o) {
+    recs.forEach(function (o) {
       if (FIXAS.indexOf(o.last.cat) >= 0) return;
       if (o.m[cur]) { rec += o.m[cur][0]; vari -= o.m[cur][0]; }
       else { rec += o.v; falFix += o.v; pend.push(o); }
     });
-    return { m: cur, day: day, dim: dim, gasto: g.gasto, proj: fixo + rec + Math.max(0, vari) / day * dim, falFix: falFix, pend: pend };
+    return { m: cur, day: day, dim: dim, gasto: g.gasto, proj: fixo + rec + Math.max(0, vari) / day * dim, falFix: falFix, pend: pend, semBase: semBase };
   }
   /* metas sugeridas: média dos 3 primeiros meses completos (ou dos que houver), em múltiplos de 5 */
-  function sugerirMetas(model) {
+  function sugerirMetas(model, cats) {
+    cats = (cats || montarCats(null)).filter(function (c) { return !c.oculta; });
     var ks = (model.complete.length ? model.complete : model.keys).slice(0, 3);
     if (!ks.length) return null;
     function media(fn) { var t = 0; ks.forEach(function (k) { t += Math.max(0, fn(model.by[k])); }); return Math.round(t / ks.length / 5) * 5; }
     var o = { cats: {}, poupar: media(function (g) { return g.saved; }) };
-    CATS.forEach(function (c) { o.cats[c.id] = media(function (g) { return g.spend[c.id] || 0; }); });
+    cats.forEach(function (c) { o.cats[c.id] = media(function (g) { return g.spend[c.id] || 0; }); });
     return o;
   }
-  function buildModel(months, over, titular, pais) {
+  function buildModel(months, over, titular, pais, cats) {
     var rows = [], by = {};
-    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular, pais)); }); });
+    cats = cats || montarCats(null);
+    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular, pais, cats)); }); });
     rows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
     rows.forEach(function (r) {
       var g = by[r.m] || (by[r.m] = { m: r.m, renda: 0, outras: 0, flex: 0, inv: 0, interno: 0, spend: {}, n: 0 });
@@ -326,7 +388,7 @@
     var keys = Object.keys(by).sort();
     keys.forEach(function (m) {
       var g = by[m]; g.entrou = g.renda + g.outras; g.gasto = 0;
-      CATS.forEach(function (c) { g.gasto += g.spend[c.id] || 0; });
+      Object.keys(g.spend).forEach(function (id) { g.gasto += g.spend[id]; });
       g.saved = -(g.flex + g.inv);
       g.saldo = g.entrou - g.gasto - g.saved;
     });
@@ -343,6 +405,8 @@
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {}), SUG = null, RECS = [];
+  /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
+  var CATST = montarCats(null), CATSV = CATST, CPOR = {};
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
   var LS = 'cortex-financas.v3', LS_V2 = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
@@ -388,8 +452,9 @@
   function pouparDefinido() { var v = S.plan && S.plan.poupar; return v != null && v !== '' && !isNaN(v) ? +v : null; }
   function planCat(id) { var v = metaDefinida(id); return v != null ? v : (SUG ? SUG.cats[id] : 0); }
   function planPoupar() { var v = pouparDefinido(); return v != null ? v : (SUG ? SUG.poupar : 0); }
-  function catNome(c) { var n = S.plan && S.plan.nomes && S.plan.nomes[c.id]; return n || c.nome; }
-  function planTotal() { var t = 0; CATS.forEach(function (c) { t += planCat(c.id); }); return t; }
+  function catPor(id) { return CPOR[id] || CPOR.outros; }
+  function catNome(c) { return CPOR[c.id] ? CPOR[c.id].nome : c.nome; }
+  function planTotal() { var t = 0; CATSV.forEach(function (c) { t += planCat(c.id); }); return t; }
   /* campos de metas (usados em "Editar metas" e na configuração); pre separa os ids dos dois formulários */
   /* campo em branco = seguir a sugestão (ou ficar sem meta, sem extrato) */
   function metaCampo(id, rotulo, v, sug) {
@@ -397,13 +462,13 @@
   }
   function metasCampos(pre) {
     var h = '';
-    CATS.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, catNome(c), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
+    CATSV.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, catNome(c), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
     return h + metaCampo('fin-' + pre + '-poupar', 'Guardar por mês', pouparDefinido(), SUG ? SUG.poupar : null);
   }
   function lerMeta(id) { var v = $(id).value.trim(); return v === '' || isNaN(v) ? null : Math.max(0, +v); }
   function lerMetas(pre) {
     var o = { cats: {}, poupar: lerMeta('#fin-' + pre + '-poupar') };
-    CATS.forEach(function (c) { var v = lerMeta('#fin-' + pre + '-' + c.id); if (v != null) o.cats[c.id] = v; });
+    CATSV.forEach(function (c) { var v = lerMeta('#fin-' + pre + '-' + c.id); if (v != null) o.cats[c.id] = v; });
     return o;
   }
 
@@ -416,11 +481,11 @@
     var ks = periodKeys(), n = ks.length || 1, o = { entrou: 0, gasto: 0, saved: 0, saldo: 0, spend: {}, n: ks.length };
     ks.forEach(function (k) {
       var g = M.by[k]; o.entrou += g.entrou; o.gasto += g.gasto; o.saved += g.saved; o.saldo += g.saldo;
-      CATS.forEach(function (c) { o.spend[c.id] = (o.spend[c.id] || 0) + (g.spend[c.id] || 0); });
+      CATSV.forEach(function (c) { o.spend[c.id] = (o.spend[c.id] || 0) + (g.spend[c.id] || 0); });
     });
     if (S.sel === 'all') {
       o.entrou /= n; o.gasto /= n; o.saved /= n; o.saldo /= n;
-      CATS.forEach(function (c) { o.spend[c.id] /= n; });
+      CATSV.forEach(function (c) { o.spend[c.id] /= n; });
     }
     return o;
   }
@@ -486,8 +551,10 @@
   function savePlan(p) { S.plan = p; localSave(); return Promise.resolve(); }
 
   function recompute() {
-    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais);
-    SUG = sugerirMetas(M);
+    CATST = montarCats(S.plan); CATSV = CATST.filter(function (c) { return !c.oculta; }); CPOR = {};
+    CATST.forEach(function (c) { CPOR[c.id] = c; });
+    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST);
+    SUG = sugerirMetas(M, CATST);
     RECS = detectarRecorrentes(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
   }
@@ -575,14 +642,50 @@
         ? '<label>Moeda da conta<select id="fin-s-moeda" disabled aria-describedby="fin-s-moeda-trava">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select><small id="fin-s-moeda-trava">Não muda depois que há extratos salvos: os valores estão em ' + esc(nomeMoeda(p.moeda)) + ' e não seriam convertidos. Para usar outra moeda, baixe um backup e apague os dados.</small></label>'
         : '<label>Moeda da conta<select id="fin-s-moeda">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select><small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small></label>') +
       '<label>País<select id="fin-s-pais">' + opcoes(PAISES, p.pais || 'IE') + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label>' +
-      '<label>Nome para os envios a outra conta sua<input id="fin-s-nome-brasil" type="text" autocomplete="off" maxlength="40" placeholder="' + esc(CAT_BY.brasil.nome) + '" value="' + esc((p.nomes && p.nomes.brasil) || '') + '">' +
-      '<small>Ex.: "Contas no Brasil". Em branco fica "' + esc(CAT_BY.brasil.nome) + '".</small></label>' +
-      '</div></fieldset>' +
+      '</div></fieldset>' + categoriasCampos() +
       '<fieldset><legend>Metas por mês (' + esc(simbolo()) + ')</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
       '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' + secaoDados() +
       '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
       '</form></div></section>';
+  }
+  /* renomear, marcar como conta fixa, esconder, excluir (só as criadas) e criar categorias */
+  function categoriasCampos() {
+    var cont = {}, livres = slotsLivres(S.plan), h = '';
+    M.rows.forEach(function (r) { if (r.kind === 'gasto') cont[r.cat] = (cont[r.cat] || 0) + 1; });
+    CATST.forEach(function (c) {
+      var k = 'fin-k-' + c.id, n = cont[c.id] || 0, outros = c.id === 'outros';
+      h += '<div class="crow' + (c.oculta ? ' oculta' : '') + '"><i class="sw" style="background:' + colorOf(c) + '"></i>' +
+        '<label class="cnome"><span class="vh">Nome da categoria ' + esc(c.padrao) + '</span><input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" placeholder="' + esc(c.padrao) + '" value="' + esc(c.propria || c.nome !== c.padrao ? c.nome : '') + '"></label>' +
+        '<label class="chk"><input id="' + k + '-fixa" type="checkbox"' + (c.fixa ? ' checked' : '') + '>Conta fixa</label>' +
+        (outros ? '<span></span>' : '<label class="chk"><input id="' + k + '-oculta" type="checkbox"' + (c.oculta ? ' checked' : '') + '>Esconder</label>') +
+        (c.propria ? '<label class="chk"><input id="' + k + '-excluir" type="checkbox">Excluir</label>' : '<span></span>') +
+        '<small>' + (c.oculta ? 'escondida' : n + (n === 1 ? ' movimento' : ' movimentos')) + '</small></div>';
+    });
+    return '<fieldset><legend>Categorias</legend><details class="metas" id="fin-kedit"' + (S.kOpen ? ' open' : '') + '><summary>Renomear, esconder ou criar categorias</summary>' +
+      '<p class="passo">Nome em branco volta ao nome de fábrica. "Conta fixa" entra na previsão pela meta, e não pelo ritmo do mês. ' +
+      'Ao esconder ou excluir, os movimentos vão para ' + esc(catPor('outros').nome) + '; ao mostrar de novo uma categoria escondida, voltam.</p>' +
+      '<div class="clista">' + h + '</div>' +
+      '<div class="mgrid"><label>Nova categoria<input id="fin-k-nova" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Educação"' + (livres.length ? '' : ' aria-describedby="fin-k-nova-d"') + '>' +
+      '<small id="fin-k-nova-d">' + (livres.length ? (livres.length === 1 ? '1 cor livre.' : livres.length + ' cores livres.') + ' Depois, escolha a categoria dos comerciantes em Revisar categorias.' : 'As ' + MAX_CORES + ' cores estão em uso: esconda uma categoria para liberar a cor dela.') + '</small></label></div>' +
+      '</details></fieldset>';
+  }
+  /* lê o editor de categorias para dentro de um plan novo; devolve { plan, erro } (erro só ao criar sem cor livre) */
+  function lerCategorias(p) {
+    var nomes = {}, ocultas = [], fixas = [], proprias = [], tirar = [];
+    CATST.forEach(function (c) {
+      var k = '#fin-k-' + c.id, nm = $(k + '-nome').value.trim(), oc = $(k + '-oculta'), ex = $(k + '-excluir');
+      if (ex && ex.checked) { tirar.push(c.id); return; }
+      if (c.propria) proprias.push({ id: c.id, nome: nm || c.nome, slot: c.slot });
+      else if (nm && nm !== c.padrao) nomes[c.id] = nm;
+      if (oc && oc.checked) ocultas.push(c.id);
+      if ($(k + '-fixa').checked) fixas.push(c.id);
+    });
+    /* categoria excluída: as escolhas manuais que apontavam para ela voltam ao automático */
+    Object.keys(S.over).forEach(function (k) { if (tirar.indexOf(S.over[k]) >= 0) delete S.over[k]; });
+    var np = Object.assign({}, p, { nomes: nomes, ocultas: ocultas, fixas: fixas, proprias: proprias }), nova = $('#fin-k-nova').value.trim(), erro = null;
+    if (nova) { try { np = criarCategoria(np, nova); } catch (e) { erro = 'Não criei "' + nova + '": ' + e.message + '.'; } }
+    return { plan: np, erro: erro };
   }
   /* ---------- seus dados: backup, restaurar, apagar ---------- */
   function baixar(nome, texto, tipo) {
@@ -685,7 +788,7 @@
     }
     ks.forEach(function (k, idx) {
       var g = M.by[k], tot = 0, segs = '';
-      CATS.forEach(function (c) {
+      CATSV.forEach(function (c) {
         var v = Math.max(0, g.spend[c.id] || 0);
         if (v > top * .003) { tot += v; segs += '<i style="flex:' + v.toFixed(2) + ' 0 0;background:' + colorOf(c) + '"></i>'; }
       });
@@ -696,7 +799,7 @@
         '<span class="xl"><b>' + mShort(k) + (M.partial === k ? '*' : '') + '</b>' + (showYr ? '<span>' + yr + '</span>' : '') + '</span></button>';
     });
     var leg = '';
-    CATS.forEach(function (c) { leg += '<span><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)) + '</span>'; });
+    CATSV.forEach(function (c) { leg += '<span><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)) + '</span>'; });
     leg += '<span><i class="sw line"></i>Entrou no mês</span>';
     return '<section class="sec"><div class="sec-top"><h2>Gastos por mês</h2><span class="hint">Toque numa barra para ver o mês' + (M.partial ? ' · * mês em andamento' : '') + '</span></div><div class="card">' +
       '<div class="chart"><div class="yax" aria-hidden="true"><div class="in">' + yl + '</div></div><div class="cscroll"><div class="plot" style="--n:' + ks.length + '"><div class="gl" aria-hidden="true">' + gl + '</div><div class="cols">' + cols + '</div></div></div></div>' +
@@ -704,7 +807,7 @@
   }
   function catPanel() {
     var s = periodStats(), all = S.sel === 'all', list = [], mx = 0;
-    CATS.forEach(function (c) {
+    CATSV.forEach(function (c) {
       var v = s.spend[c.id] || 0, g = planCat(c.id);
       if (Math.abs(v) >= 0.5 || g > 0) { list.push({ c: c, v: v, g: g }); mx = Math.max(mx, v, g); }
     });
@@ -725,7 +828,7 @@
     return h;
   }
   function tagOf(r) {
-    if (r.kind === 'gasto') { var c = CAT_BY[r.cat]; return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)); }
+    if (r.kind === 'gasto') { var c = catPor(r.cat); return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)); }
     var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas' }[r.kind];
     return '<i class="sw" style="background:var(--muted)"></i>' + t;
   }
@@ -742,7 +845,7 @@
     var all = S.sel === 'all';
     var rows = M.rows.filter(function (r) { return all || r.m === S.sel; });
     var fl = [['_in', 'Entradas', 'var(--muted)'], ['_sav', 'Reserva e investimento', 'var(--muted)']];
-    CATS.forEach(function (c) { fl.push([c.id, catNome(c), colorOf(c)]); });
+    CATSV.forEach(function (c) { fl.push([c.id, catNome(c), colorOf(c)]); });
     var hdr = '<div class="sec-top"><h2>Movimentos</h2><span class="rt"><span class="hint">' + rows.length + ' ' + (all ? 'em todos os meses' : 'no mês') + '</span><button type="button" class="btn sm" data-movtoggle aria-expanded="' + S.movOpen + '">' + (S.movOpen ? 'Minimizar' : 'Mostrar') + '</button></span></div>';
     if (!S.movOpen) return '<div>' + hdr + '</div>';
     var ns = S.f.length, nomes = fl.filter(function (x) { return S.f.indexOf(x[0]) >= 0; }).map(function (x) { return x[1]; });
@@ -766,7 +869,7 @@
     var ks = M.keys, comp = avgKeys(), n = comp.length || 1, h = '<section class="sec"><div class="sec-top"><h2>Mês a mês, por categoria</h2><span class="hint">A média usa só meses completos</span></div><div class="tw"><table><thead><tr><th>Categoria</th>';
     ks.forEach(function (k) { h += '<th class="' + (S.sel === k ? 'selc' : '') + '">' + mShort(k) + (M.partial === k ? '*' : '') + '</th>'; });
     h += '<th class="avg">Média</th></tr></thead><tbody>';
-    CATS.forEach(function (c) {
+    CATSV.forEach(function (c) {
       var vals = ks.map(function (k) { return M.by[k].spend[c.id] || 0; }), mxv = Math.max.apply(null, vals.concat([1]));
       if (!vals.some(function (v) { return Math.abs(v) >= .5; })) return;
       var avg = 0; comp.forEach(function (k) { avg += M.by[k].spend[c.id] || 0; });
@@ -796,11 +899,11 @@
     });
     return Object.keys(mp).map(function (k) { var x = mp[k]; if (Object.keys(x.effs).length > 1) x.eff = ''; return x; }).sort(function (a, b) { return Math.abs(b.total) - Math.abs(a.total); });
   }
-  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Ignorar' : (CAT_BY[e] ? catNome(CAT_BY[e]) : e); }
+  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Ignorar' : (CPOR[e] ? CPOR[e].nome : e); }
   function optionsFor(sel, volta) {
     var o = sel === '' ? '<option value="" selected disabled>Em mais de uma categoria</option>' : '';
     if (volta) o += '<option value="_auto">Voltar ao automático</option>';
-    CATS.forEach(function (c) { o += '<option value="' + c.id + '"' + (sel === c.id ? ' selected' : '') + '>' + esc(catNome(c)) + '</option>'; });
+    CATSV.forEach(function (c) { o += '<option value="' + c.id + '"' + (sel === c.id ? ' selected' : '') + '>' + esc(catNome(c)) + '</option>'; });
     o += '<option value="_invest"' + (sel === '_invest' ? ' selected' : '') + '>Investimento (não é gasto)</option>';
     o += '<option value="_ignore"' + (sel === '_ignore' ? ' selected' : '') + '>Ignorar (entre contas)</option>';
     return o;
@@ -884,7 +987,7 @@
       var inner = '<span class="bl">' + esc(x.l) + '</span><b class="num ' + tone + '">' + sign + f0(Math.abs(x.v)) + '</b><span class="bt"><i style="width:' + (Math.abs(x.v) / mx * 100).toFixed(1) + '%;background:' + col + '"></i></span>';
       if (x.cats) {
         var sub = '';
-        CATS.forEach(function (c) { if (Math.abs(cat[c.id] || 0) >= .5) sub += '<div><span>' + esc(catNome(c)) + '</span><b>' + f0(cat[c.id]) + '</b></div>'; });
+        CATSV.forEach(function (c) { if (Math.abs(cat[c.id] || 0) >= .5) sub += '<div><span>' + esc(catNome(c)) + '</span><b>' + f0(cat[c.id]) + '</b></div>'; });
         br += '<details class="brd"' + (S.cfOpen ? ' open' : '') + ' id="fin-cfd"><summary class="br">' + inner + '<span class="sub" style="grid-column:1/3">Toque para ver por categoria</span></summary><div class="brsub">' + sub + '</div></details>';
       } else br += '<div class="br ' + cls + (i === 0 ? ' first' : '') + '">' + inner + '</div>';
     });
@@ -1013,12 +1116,9 @@
     rect.addEventListener('pointerleave', function () { xh.setAttribute('visibility', 'hidden'); xd.setAttribute('visibility', 'hidden'); hideTip(); });
   }
   /* ---------- blocos de planejamento: previsão, metas de poupança, contas fixas, envios a outra conta e taxa de poupança ---------- */
-  var GOALS = [
-    { id: 'reserva', nome: 'Reserva de emergência', src: 'flex', de: 'Flexible Cash' },
-    { id: 'invest', nome: 'Investimentos', src: 'invest', de: 'investimentos e cripto' },
-    { id: 'viagens', nome: 'Viagens pequenas', src: null },
-    { id: 'viagem', nome: 'Viagem grande do ano', src: null }
-  ];
+  var ORIGENS = [['', 'Digitado por você'], ['flex', 'Saldo do Flexible Cash'], ['invest', 'Investimentos e cripto']];
+  var DE_ORIGEM = { flex: 'Flexible Cash', invest: 'investimentos e cripto' };
+  function metasPoupanca() { return listaMetasPoupanca(S.plan); }
   function pct(v) { return nn.format(v) + '%'; }
   function goalCfg(id) { var g = S.plan && S.plan.goals; return (g && g[id]) || {}; }
   function goalHas(g) {
@@ -1042,29 +1142,35 @@
     return y + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd;
   }
   function metasPoup() {
-    var h = '<section class="sec" id="fin-goals"><div class="sec-top"><h2>Metas de poupança</h2><span class="hint">reserva e investimentos saem do extrato; as viagens você atualiza</span></div><div class="gl4">';
-    GOALS.forEach(function (g) {
+    var h = '<section class="sec" id="fin-goals"><div class="sec-top"><h2>Metas de poupança</h2><span class="hint">as de Flexible Cash e investimentos saem do extrato; as outras você atualiza</span></div><div class="gl4">';
+    metasPoupanca().forEach(function (g) {
       var c = goalCfg(g.id), alvo = +c.alvo || 0, tem = goalHas(g), falta = Math.max(0, alvo - tem), pc = alvo ? Math.min(100, tem / alvo * 100) : 0, ml = mesesAte(c.prazo), st;
       if (!alvo) st = 'Defina o valor em Editar metas de poupança.';
       else if (falta < 0.5) st = '<span class="d good">Meta batida</span>';
       else st = 'Faltam ' + f0(falta) + (ml ? '<br>' + f0(falta / ml) + ' por mês até ' + esc(mesAno(c.prazo)) : '<br>sem prazo definido');
       h += '<div class="kpi goal"><span class="l">' + esc(g.nome) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>de ' + f0(alvo) + '</small>' : '') + '</span>' +
         '<span class="gbar" role="img" aria-label="' + (alvo ? nn.format(pc) + '% da meta' : 'sem meta') + '"><i style="width:' + pc.toFixed(1) + '%"></i></span>' +
-        '<span class="s">' + st + (g.src ? '<br><span class="src">valor atual: ' + g.de + '</span>' : '') + '</span></div>';
+        '<span class="s">' + st + (g.src ? '<br><span class="src">valor atual: ' + DE_ORIGEM[g.src] + '</span>' : '') + '</span></div>';
     });
     h += '</div><details class="metas" id="fin-gedit"' + (S.gOpen ? ' open' : '') + '><summary>Editar metas de poupança</summary><form id="fin-fgoals"><div class="ggrid">';
-    GOALS.forEach(function (g) {
-      var c = goalCfg(g.id);
-      h += '<fieldset><legend>' + esc(g.nome) + '</legend><div class="mgrid"><label>Meta (' + esc(simbolo()) + ')<input id="fin-g-' + g.id + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
-        '<label>Prazo<input id="fin-g-' + g.id + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
-        (g.src ? '' : '<label>Já guardado (' + esc(simbolo()) + ')<input id="fin-g-' + g.id + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"></label>') + '</div></fieldset>';
+    var lista = metasPoupanca();
+    lista.forEach(function (g) {
+      var c = goalCfg(g.id), k = 'fin-g-' + g.id;
+      h += '<fieldset><legend>' + esc(g.nome) + '</legend><div class="mgrid">' +
+        '<label>Nome<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(g.nome) + '"></label>' +
+        '<label>De onde vem o valor<select id="' + k + '-src">' + opcoes(ORIGENS, g.src || '') + '</select></label>' +
+        '<label>Meta (' + esc(simbolo()) + ')<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
+        '<label>Prazo<input id="' + k + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
+        '<label>Já guardado (' + esc(simbolo()) + ')<input id="' + k + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"><small>Só vale quando o valor é digitado por você.</small></label>' +
+        '<label class="chk"><input id="' + k + '-excluir" type="checkbox">Excluir esta meta</label></div></fieldset>';
     });
+    if (lista.length < MAX_METAS_POUP) h += '<fieldset><legend>Nova meta</legend><div class="mgrid"><label>Nome<input id="fin-g-nova" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Carro"><small>Até ' + MAX_METAS_POUP + ' metas.</small></label></div></fieldset>';
     return h + '</div><button class="btn sm pri" type="submit">Salvar metas de poupança</button></form></details></section>';
   }
   function previsao() {
     var cur = M.partial, h = '<section class="sec"><div class="sec-top"><h2>Previsão do mês</h2>';
     if (!cur) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(M.keys[M.keys.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
-    var P = preverMes(M, planCat), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
+    var P = preverMes(M, planCat, CATST), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
     var proj = P.proj, falFix = P.falFix, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
     var mx = Math.max(proj, meta, g.gasto, 1);
     var st = Math.abs(dif) < 0.5 ? '<span class="d ok">deve fechar na meta</span>' : dif > 0 ? '<span class="d bad">▲ deve passar ' + f0(dif) + ' da meta</span>' : '<span class="d good">▼ deve fechar ' + f0(-dif) + ' abaixo da meta</span>';
@@ -1073,14 +1179,16 @@
       '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (dif > 0.5 ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
       '<p class="s">' + st + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +
-      ' ' + FIXAS.map(function (id) { return catNome(CAT_BY[id]); }).join(', ') + ' e as contas fixas detectadas abaixo entram pelo valor de sempre; o resto segue o ritmo dos ' + day + ' primeiros dias.</p></div></section>';
+      ' ' + CATSV.filter(function (c) { return c.fixa; }).map(function (c) { return c.nome; }).concat(['as contas fixas detectadas abaixo']).join(', ').replace(/, ([^,]*)$/, ' e $1') + ' entram pelo valor de sempre; o resto segue o ritmo dos ' + day + ' primeiros dias.</p>' +
+      (P.semBase.length ? '<p class="aviso">' + P.semBase.map(function (id) { return '<b>' + esc(catPor(id).nome) + '</b>'; }).join(', ') + (P.semBase.length === 1 ? ' está' : ' estão') +
+        ' como conta fixa, mas sem meta e sem cobrança recorrente: a previsão conta só o que já saiu este mês. Defina a meta em Editar metas.</p>' : '') + '</div></section>';
   }
   /* a pessoa nova não sabe que o aluguel por transferência cai em "outros": pergunta uma vez */
-  function aluguelSugerido() { return sugerirAluguel(RECS, S.plan && S.plan.naoAluguel); }
+  function aluguelSugerido() { return CPOR.aluguel && !CPOR.aluguel.oculta ? sugerirAluguel(RECS, S.plan && S.plan.naoAluguel) : null; }
   function perguntaAluguel() {
     var o = aluguelSugerido();
     if (!o) return '';
-    return '<div class="aviso pergunta"><p>Todo dia ' + o.dia + ' sai ' + f2(o.v) + ' para <b>' + esc(o.last.desc) + '</b>, hoje em ' + esc(catNome(CAT_BY[o.last.cat] || CAT_BY.outros)) + '. <b>Isso é aluguel?</b></p>' +
+    return '<div class="aviso pergunta"><p>Todo dia ' + o.dia + ' sai ' + f2(o.v) + ' para <b>' + esc(o.last.desc) + '</b>, hoje em ' + esc(catPor(o.last.cat).nome) + '. <b>Isso é aluguel?</b></p>' +
       '<div class="grupo"><button class="btn sm pri" type="button" data-aluguel="sim">Sim, é aluguel</button><button class="btn sm" type="button" data-aluguel="nao">Não é</button></div></div>';
   }
   function recorrentes() {
@@ -1090,7 +1198,7 @@
     var h = '<section class="sec"><div class="sec-top"><h2>Contas fixas e assinaturas</h2><span class="hint">cobranças que se repetem nos últimos meses, com valor parecido</span></div><div class="card">';
     if (!list.length) return h + '<p class="vazio">Ainda não dá para ver repetições. Com dois ou três meses de extrato elas aparecem aqui.</p></div></section>';
     list.forEach(function (o, i) {
-      var c = CAT_BY[o.last.cat] || CAT_BY.outros;
+      var c = catPor(o.last.cat);
       h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + nk + ' meses</small></span><span class="rd">dia ' + o.dia + (o.atrasada ? '<small class="atraso">esperada dia ' + o.dia + ', ainda não apareceu</small>' : '<small>próxima ' + esc(dFmt(addMonth(o.last.date))) + '</small>') + '</span><b class="num">' + f2(o.v) + '</b></div>';
     });
     return h + '<div class="rec tot"><span></span><span class="rn">Total fixo por mês</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
@@ -1107,7 +1215,7 @@
     var ks = M.keys.slice(-6), ano = (M.lastDate || '').slice(0, 4), totAno = 0, sAvg = 0, nAvg = 0;
     M.keys.forEach(function (k) { var v = M.by[k].spend.brasil || 0; if (k.slice(0, 4) === ano) totAno += v; if (k !== M.partial) { sAvg += v; nAvg++; } });
     var items = ks.map(function (k) { return { k: k, v: M.by[k].spend.brasil || 0, at: k === ks[ks.length - 1], parc: k === M.partial }; });
-    return '<section class="sec"><div class="sec-top"><h2>' + esc(catNome(CAT_BY.brasil)) + '</h2><span class="hint">dinheiro que vai para outra conta sua</span></div><div class="card">' + vbars(items, f0) +
+    return '<section class="sec"><div class="sec-top"><h2>' + esc(catPor('brasil').nome) + '</h2><span class="hint">dinheiro que vai para outra conta sua</span></div><div class="card">' + vbars(items, f0) +
       '<div class="tri3"><div><b class="num">' + f0(nAvg ? sAvg / nAvg : 0) + '</b><span>média por mês</span></div><div><b class="num">' + f0(totAno) + '</b><span>em ' + esc(ano) + '</span></div><div><b class="num">' + f0(planCat('brasil')) + '</b><span>meta mensal</span></div></div>' +
       (M.partial ? '<p class="s">* mês em andamento</p>' : '') + '</div></section>';
   }
@@ -1126,7 +1234,10 @@
       '<div class="tri3"><div><b class="num">' + (avg == null ? '–' : pct(avg)) + '</b><span>média dos meses completos</span></div><div><b>' + (tr || '–') + '</b><span>últimos 3 meses contra os 3 anteriores</span></div><div><b class="num">' + (alvo == null ? '–' : pct(alvo)) + '</b><span>o que a meta de guardar ' + f0(planPoupar()) + ' representa</span></div></div>' +
       (M.partial ? '<p class="s">* mês em andamento</p>' : '') + '</div></section>';
   }
-  document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'fin-gedit') S.gOpen = e.target.open; }, true);
+  document.addEventListener('toggle', function (e) {
+    if (e.target && e.target.id === 'fin-gedit') S.gOpen = e.target.open;
+    if (e.target && e.target.id === 'fin-kedit') S.kOpen = e.target.open;
+  }, true);
 
   function render() {
     var root = $('#fin-app'), sc = $('.fin .cscroll'), keep = sc ? sc.scrollLeft : null;
@@ -1139,7 +1250,7 @@
     if (!M.keys.length) { root.innerHTML = header() + emptyState(); return; }
     root.innerHTML = header() + perguntaAluguel() + cashSummary() + dividas() + kpis() + previsao() + metasPoup() + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
-      '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>' + table() + review() +
+      (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
       '<p class="passo">Todo fim de mês: baixe o extrato consolidado do Revolut em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
     var s2 = $('.fin .cscroll');
     if (s2) s2.scrollLeft = keep != null ? keep : s2.scrollWidth;
@@ -1149,7 +1260,7 @@
   /* ---------- dica sobre a barra ---------- */
   function tipHtml(k) {
     var g = M.by[k], h = '<h3>' + esc(mLabel(k)) + (M.partial === k ? ' · em andamento' : '') + '</h3>';
-    CATS.forEach(function (c) {
+    CATSV.forEach(function (c) {
       var v = g.spend[c.id] || 0;
       if (Math.abs(v) >= .5) h += '<div class="r"><i class="sw" style="background:' + colorOf(c) + '"></i><span>' + esc(catNome(c)) + '</span><b>' + f0(v) + '</b></div>';
     });
@@ -1289,29 +1400,34 @@
     }
     if (fid === 'fin-fsetup') {
       e.preventDefault();
-      var nomes = Object.assign({}, (S.plan && S.plan.nomes) || {}), nb = $('#fin-s-nome-brasil').value.trim();
-      if (nb) nomes.brasil = nb; else delete nomes.brasil;
-      var cfg = Object.assign({}, S.plan || {}, lerMetas('s'), {
-        titular: $('#fin-s-titular').value.trim(), moeda: moedaTravada(S.months) ? (S.plan.moeda || 'EUR') : $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, nomes: nomes, configurado: true
-      });
+      var lk = lerCategorias(Object.assign({}, S.plan || {}, lerMetas('s'), {
+        titular: $('#fin-s-titular').value.trim(), moeda: moedaTravada(S.months) ? (S.plan.moeda || 'EUR') : $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, configurado: true
+      })), cfg = lk.plan;
       S.setupOpen = false;
       var trocou = S.plan && S.plan.moeda && S.plan.moeda !== cfg.moeda && S.div && S.div.cambios && Object.keys(S.div.cambios).length;
       enqueue(function () {
         if (trocou) { var d = JSON.parse(JSON.stringify(S.div)); d.cambios = {}; return saveDiv(d).then(function () { return savePlan(cfg); }); }
         return savePlan(cfg);
-      }).then(function () { recompute(); render(); toast(trocou ? 'Configuração salva. A moeda mudou: informe o câmbio de novo em Em observação.' : 'Configuração salva.'); });
+      }).then(function () { recompute(); render(); toast(lk.erro ? 'Configuração salva. ' + lk.erro : trocou ? 'Configuração salva. A moeda mudou: informe o câmbio de novo em Em observação.' : 'Configuração salva.', !!lk.erro); });
       return;
     }
     if (fid === 'fin-fgoals') {
       e.preventDefault();
-      var gs = {};
-      GOALS.forEach(function (g) {
-        var o = { alvo: Math.max(0, +$('#fin-g-' + g.id + '-alvo').value || 0) }, pz = $('#fin-g-' + g.id + '-prazo').value, te = $('#fin-g-' + g.id + '-tem');
+      var gs = {}, lm = [];
+      metasPoupanca().forEach(function (g) {
+        var k = '#fin-g-' + g.id;
+        if ($(k + '-excluir').checked) return;
+        var o = { alvo: Math.max(0, +$(k + '-alvo').value || 0), tem: Math.max(0, +$(k + '-tem').value || 0) }, pz = $(k + '-prazo').value;
         if (/^\d{4}-\d{2}$/.test(pz)) o.prazo = pz;
-        if (te) o.tem = Math.max(0, +te.value || 0);
         gs[g.id] = o;
+        lm.push({ id: g.id, nome: $(k + '-nome').value.trim() || g.nome, src: $(k + '-src').value || null });
       });
-      var pg = Object.assign({}, S.plan || {}, { goals: gs });
+      var ng = $('#fin-g-nova'), nn2 = ng ? ng.value.trim() : '';
+      if (nn2 && lm.length < MAX_METAS_POUP) {
+        var gi = 1; while (lm.some(function (g) { return g.id === 'm' + gi; }) || gs['m' + gi]) gi++;
+        lm.push({ id: 'm' + gi, nome: nn2.slice(0, 40), src: null }); gs['m' + gi] = { alvo: 0, tem: 0 };
+      }
+      var pg = Object.assign({}, S.plan || {}, { goals: gs, metasPoupanca: lm });
       S.gOpen = false;
       enqueue(function () { return savePlan(pg); }).then(function () { render(); toast('Metas de poupança salvas.'); });
       return;

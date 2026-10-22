@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 33 telas do painel (17 em 1280px, 16 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 37 telas do painel (19 em 1280px, 18 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -51,6 +51,11 @@ const D = { 'cortex-financas.v3': JSON.stringify(comDados) };
 // para pegar valor ou rótulo preso ao euro; o câmbio de "Em observação" é por 1 da moeda da configuração
 const emOutraMoeda = (moeda, pais, cambios) => ({ 'cortex-financas.v3': JSON.stringify({ ...comDados, plan: { ...plan, moeda, pais }, div: { ...div, cambios } }) });
 const LIBRA = emOutraMoeda('GBP', 'GB', { BRL: { rate: 6.55, data: '2026-10-01' }, USD: { rate: 1.27, data: '2026-10-01' }, EUR: { rate: 1.17, data: '2026-10-01' } });
+// categorias e metas editadas: Mercado renomeado, Saúde escondida, "Cafés" criada (com o Costa Coffee) e uma meta "Carro"
+const EDITADO = { 'cortex-financas.v3': JSON.stringify({ ...comDados, over: { 'COSTA COFFEE': 'u1' }, plan: { ...plan,
+  nomes: { mercado: 'Supermercado' }, ocultas: ['saude'], fixas: ['aluguel', 'assin', 'brasil', 'mercado'], proprias: [{ id: 'u1', nome: 'Cafés', slot: 8 }],
+  metasPoupanca: [{ id: 'reserva', nome: 'Reserva de emergência', src: 'flex' }, { id: 'm1', nome: 'Carro', src: null }],
+  goals: { reserva: { alvo: 3000 }, m1: { alvo: 5000, tem: 1200, prazo: '2027-12' } } } }) };
 const REAL = emOutraMoeda('BRL', 'BR', { USD: { rate: 0.19, data: '2026-10-01' }, EUR: { rate: 0.18, data: '2026-10-01' } });
 
 // ---------- o que roda dentro da página ----------
@@ -109,7 +114,17 @@ function conferir() {
     const cs = getComputedStyle(el); if (cs.position === 'fixed' || cs.visibility === 'hidden') continue;
     if (r.right - vw > fora) { fora = Math.round(r.right - vw); ex = el.tagName.toLowerCase() + '.' + el.className; }
   }
-  return { fora, ex, contraste: [...new Set(contraste)], cortados: [...new Set(cortados)] };
+  // controles que se cobrem (um campo por cima de outro, caixas de seleção encavaladas): nenhum pode tocar outro
+  const sobrepostos = [], ctrls = Array.from(document.querySelectorAll('input:not([type=hidden]), select, button, a[href], label.chk, summary'))
+    .filter(el => { const r = el.getBoundingClientRect(); return r.width && r.height && !el.closest('.vh') && el.checkVisibility({ visibilityProperty: true, contentVisibilityAuto: true }); });
+  for (let i = 0; i < ctrls.length; i++) for (let j = i + 1; j < ctrls.length; j++) {
+    const a = ctrls[i], b = ctrls[j];
+    if (a.contains(b) || b.contains(a)) continue;
+    const r = a.getBoundingClientRect(), q = b.getBoundingClientRect();
+    const w = Math.min(r.right, q.right) - Math.max(r.left, q.left), h = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top);
+    if (w > 2 && h > 2) sobrepostos.push(`${a.tagName.toLowerCase()}#${a.id || a.className} × ${b.tagName.toLowerCase()}#${b.id || b.className}`);
+  }
+  return { fora, ex, contraste: [...new Set(contraste)], cortados: [...new Set(cortados)], sobrepostos };
 }
 
 // ---------- as telas ----------
@@ -141,6 +156,8 @@ for (const w of [1280, 390]) {
   t('15-painel-libra', { storage: LIBRA });
   t('16-painel-real', { storage: REAL });
   t('17-configuracoes-real', { storage: REAL, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
+  t('18-painel-categorias-editadas', { storage: EDITADO, prepara: async pg => { await pg.click('#fin-gedit > summary'); } });
+  t('19-configuracoes-categorias', { storage: EDITADO, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-kedit > summary'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });
@@ -171,6 +188,7 @@ for (const s of TELAS) {
   if (c.fora > 0) problemas.push(`${arq}: passa ${c.fora}px da borda da tela (${c.ex})`);
   c.contraste.forEach(x => problemas.push(`${arq}: contraste ${x}`));
   c.cortados.forEach(x => problemas.push(`${arq}: texto cortado ${x}`));
+  c.sobrepostos.slice(0, 5).forEach(x => problemas.push(`${arq}: controles sobrepostos ${x}`));
   await ctx.close();
 }
 await browser.close();
@@ -178,7 +196,7 @@ servidor.close();
 
 console.log(`${TELAS.length} telas fotografadas em telas/atual/`);
 console.log(erros.length ? 'erros no console:\n  ' + erros.join('\n  ') : 'console sem erros');
-console.log(problemas.length ? `conferência: ${problemas.length} problema(s)\n  ` + problemas.join('\n  ') : 'conferência: nada além da borda, nada cortado, contraste AA em todo texto');
+console.log(problemas.length ? `conferência: ${problemas.length} problema(s)\n  ` + problemas.join('\n  ') : 'conferência: nada além da borda, nada cortado, nenhum controle sobreposto, contraste AA em todo texto');
 const falhouConferencia = erros.length || problemas.length;
 
 if (aprovar) {

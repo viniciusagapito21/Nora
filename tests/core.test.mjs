@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca };')();
 }
 function months(api) {
   const m = {};
@@ -322,4 +322,106 @@ test('com meses salvos a moeda fica travada (os valores não seriam convertidos)
   assert.equal(api.moedaTravada(undefined), false);
   assert.equal(api.moedaTravada({ '2026-07': [] }), false, 'mês vazio não trava');
   assert.equal(api.moedaTravada(months(api)), true);
+});
+
+test('categorias de fábrica: mesma ordem, e as fixas de sempre', () => {
+  const api = load(), cs = api.montarCats(null);
+  assert.deepEqual(cs.map(c => c.id), api.CATS.map(c => c.id));
+  assert.deepEqual(cs.filter(c => c.fixa).map(c => c.id), ['aluguel', 'brasil', 'assin']);
+  assert.ok(cs.every(c => !c.oculta && c.nome === c.padrao));
+  assert.deepEqual(api.slotsLivres(null), [], 'as 8 cores estão em uso');
+  assert.throws(() => api.criarCategoria({}, 'Educação'), /8 cores estão em uso/);
+});
+
+test('renomear não muda nada; esconder leva o gasto para Outros sem mudar o total', () => {
+  const api = load(), ms = months(api), base = api.buildModel(ms, {}, 'MARIA SILVA', 'IE');
+  const ren = api.montarCats({ nomes: { mercado: 'Supermercado' } });
+  assert.equal(ren.find(c => c.id === 'mercado').nome, 'Supermercado');
+  assert.deepEqual(api.buildModel(ms, {}, 'MARIA SILVA', 'IE', ren).by, base.by);
+  const esc = api.buildModel(ms, {}, 'MARIA SILVA', 'IE', api.montarCats({ ocultas: ['mercado'] })), g = esc.by['2026-09'], g0 = base.by['2026-09'];
+  assert.equal(g.spend.mercado, undefined);
+  assert.equal(g.spend.outros, g0.spend.outros + g0.spend.mercado);
+  assert.equal(g.gasto, g0.gasto);
+  assert.equal(api.montarCats({ ocultas: ['outros'] }).find(c => c.id === 'outros').oculta, false, 'Outros não se esconde');
+  // a escolha manual para uma categoria escondida também cai em Outros, e volta quando ela aparece de novo
+  const t = ['2026-09-22', 'Boots', 'Merchant', -950, 0];
+  assert.equal(api.classify(t, { BOOTS: 'mercado' }, '', 'IE', api.montarCats({ ocultas: ['mercado'] })).cat, 'outros');
+  assert.equal(api.classify(t, { BOOTS: 'mercado' }, '', 'IE', api.montarCats({})).cat, 'mercado');
+});
+
+test('categoria criada usa a cor de uma escondida e recebe movimentos pela escolha manual', () => {
+  const api = load();
+  const p0 = { ocultas: ['saude'] };
+  assert.deepEqual(api.slotsLivres(p0), [8]);
+  const p1 = api.criarCategoria(p0, '  Educação  ');
+  assert.deepEqual(p1.proprias, [{ id: 'u1', nome: 'Educação', slot: 8 }]);
+  assert.deepEqual(p0, { ocultas: ['saude'] }, 'o plan original não muda');
+  assert.throws(() => api.criarCategoria(p1, 'Pets'), /cores estão em uso/);
+  assert.throws(() => api.criarCategoria(p0, '   '), /precisa de um nome/);
+  const cs = api.montarCats(p1);
+  assert.deepEqual(cs.slice(-2).map(c => c.id), ['u1', 'outros'], 'as criadas ficam antes de Outros');
+  const m = api.buildModel(months(api), { BOOTS: 'u1' }, 'MARIA SILVA', 'IE', cs);
+  assert.equal(m.by['2026-09'].spend.u1, 9.5);
+  const sug = api.sugerirMetas(m, cs);
+  assert.ok('u1' in sug.cats && !('saude' in sug.cats), 'sugestão inclui a criada e deixa de fora a escondida');
+  // com Compras e Compras grandes escondidas, a cor 4 fica livre
+  assert.deepEqual(api.slotsLivres({ ocultas: ['compras'] }), [], 'Compras grandes ainda usa a cor 4');
+  assert.deepEqual(api.slotsLivres({ ocultas: ['compras', 'grandes'] }), [4]);
+});
+
+test('"conta fixa" decide como a categoria entra na previsão', () => {
+  const api = load(), ms = months(api), meta = id => ({ mercado: 110 })[id] || 0;
+  const m = api.buildModel(ms, {}, 'MARIA SILVA', 'IE');
+  const p0 = api.preverMes(m, meta, api.montarCats({}));
+  const p1 = api.preverMes(m, meta, api.montarCats({ fixas: ['aluguel', 'assin', 'brasil', 'mercado'] }));
+  const gm = m.by[m.partial].spend.mercado;
+  assert.ok(gm < 110);
+  assert.equal(Math.round((p1.falFix - p0.falFix) * 100), Math.round((110 - gm) * 100), 'como fixa, falta o que resta da meta de mercado');
+  assert.notEqual(Math.round(p1.proj), Math.round(p0.proj));
+});
+
+test('metas de poupança: as quatro de fábrica, ou a lista da pessoa (até 6, origem conferida)', () => {
+  const api = load();
+  assert.deepEqual(api.listaMetasPoupanca(null).map(g => [g.id, g.src]), [['reserva', 'flex'], ['invest', 'invest'], ['viagens', null], ['viagem', null]]);
+  const l = Array.from({ length: 8 }, (_, i) => ({ id: 'm' + i, nome: 'Meta ' + i, src: i === 0 ? 'flex' : 'qualquer' }));
+  const r = api.listaMetasPoupanca({ metasPoupanca: l });
+  assert.equal(r.length, 6);
+  assert.equal(r[0].src, 'flex');
+  assert.equal(r[1].src, null, 'origem desconhecida vira "digitado por você"');
+});
+
+test('os campos novos de categorias e metas passam pela migração e pelo backup sem perda', () => {
+  const api = load();
+  const plan = { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: { mercado: 'Supermercado' }, ocultas: ['saude'], fixas: ['aluguel'],
+    proprias: [{ id: 'u1', nome: 'Educação', slot: 8 }], metasPoupanca: [{ id: 'm1', nome: 'Carro', src: null }], goals: { m1: { alvo: 5000, tem: 200 } } };
+  const x = api.migrate({ v: 3, months: {}, over: { BOOTS: 'u1' }, plan, summary: null, div: null });
+  assert.deepEqual(x.plan, plan);
+  assert.deepEqual(api.lerSalvo(JSON.stringify(x)), x);
+});
+
+test('conta fixa com meta vazia ou zero entra pelo valor recorrente; sem recorrente, avisa', () => {
+  const api = load(), m = api.buildModel(months(api), {}, 'MARIA SILVA', 'IE'), cur = m.partial;
+  // metas como no painel sem metas definidas: a sugestão do extrato, com Saúde zerada (é o caso testado)
+  const sug = api.sugerirMetas(m).cats, meta = id => (id === 'saude' ? 0 : sug[id] || 0);
+  // Saúde: Boots cai todo dia 22 (recorrente de € 9,50) e em outubro ainda não caiu
+  assert.equal(m.by[cur].spend.saude || 0, 0);
+  const comoFixa = api.montarCats({ fixas: ['aluguel', 'assin', 'brasil', 'saude'] });
+  const p0 = api.preverMes(m, meta, api.montarCats({}));
+  const p1 = api.preverMes(m, meta, comoFixa);
+  assert.equal(Math.round(p1.proj * 100), Math.round(p0.proj * 100), 'a previsão não cai para zero: o Boots continua contado');
+  assert.ok(p1.falFix >= 9.5, 'os € 9,50 ainda por cair entram no que falta das contas fixas');
+  assert.ok(p1.pend.every(o => o.last.cat !== 'saude'), 'e não contam duas vezes como conta detectada');
+  assert.deepEqual(p1.semBase, []);
+  // com meta, a meta manda
+  const p2 = api.preverMes(m, id => (id === 'saude' ? 30 : meta(id)), comoFixa);
+  assert.equal(Math.round((p2.proj - p1.proj) * 100), 2050);
+  // Mercado como fixa com meta zero: o Lidl (recorrente) é a base; Comer fora como fixa sem meta: Costa e Deliveroo
+  // Compras grandes nunca teve gasto: nada a avisar. Mercado sem recorrente e com gasto: avisa
+  const semLidl = api.buildModel(months(api), { LIDL: 'compras' }, 'MARIA SILVA', 'IE');
+  const p3 = api.preverMes(semLidl, () => 0, api.montarCats({ fixas: ['mercado', 'grandes'] }));
+  // Envios com meta zero também avisa: tem gasto todo mês e a detecção de recorrentes não olha essa categoria
+  assert.deepEqual(api.preverMes(m, () => 0, api.montarCats({})).semBase, ['brasil']);
+  assert.deepEqual(p3.semBase, ['mercado']);
+  // de fábrica, nenhuma categoria fixa fica sem base no extrato de exemplo (nada de aviso à toa)
+  assert.deepEqual(api.preverMes(m, id => sug[id] || 0, api.montarCats({})).semBase, []);
 });
