@@ -3,20 +3,20 @@
   'use strict';
 
   /*CORE-START*/
+  /* o nome de 'brasil' é só o padrão; cada pessoa troca em Configurações (plan.nomes) */
   var CATS = [
-    { id: 'aluguel', nome: 'Aluguel e contas', slot: 1, meta: 475 },
-    { id: 'brasil', nome: 'Contas no Brasil', slot: 2, meta: 250 },
-    { id: 'mercado', nome: 'Mercado', slot: 3, meta: 170 },
-    { id: 'compras', nome: 'Compras', slot: 4, meta: 50 },
-    { id: 'grandes', nome: 'Compras grandes', slot: 4, hatch: true, meta: 0 },
-    { id: 'transporte', nome: 'Transporte', slot: 5, meta: 70 },
-    { id: 'lazer', nome: 'Comer fora e lazer', slot: 6, meta: 50 },
-    { id: 'assin', nome: 'Assinaturas e celular', slot: 7, meta: 75 },
-    { id: 'saude', nome: 'Health', slot: 8, meta: 20 },
-    { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0, meta: 20 }
+    { id: 'aluguel', nome: 'Aluguel e contas', slot: 1 },
+    { id: 'brasil', nome: 'Envios para outra conta sua', slot: 2 },
+    { id: 'mercado', nome: 'Mercado', slot: 3 },
+    { id: 'compras', nome: 'Compras', slot: 4 },
+    { id: 'grandes', nome: 'Compras grandes', slot: 4, hatch: true },
+    { id: 'transporte', nome: 'Transporte', slot: 5 },
+    { id: 'lazer', nome: 'Comer fora e lazer', slot: 6 },
+    { id: 'assin', nome: 'Assinaturas e celular', slot: 7 },
+    { id: 'saude', nome: 'Health', slot: 8 },
+    { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0 }
   ];
-  var POUPAR = 170;
-  var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
+    var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
   var RULES = [
     [/BOOTS|^NORMAL$|PHARMACY|HICKEY|LLOYDS|BARBER|\bHAIR|SALON|DENTAL|DENTIST|CLINIC|OPTIC|SPECSAVERS|\bNAILS?\b|BEAUTY|\bSPA\b|WAXING|LASH|BROWS/, 'saude'],
     [/TESCO|LIDL|DUNNES|\bALDI\b|\bSPAR\b|CENTRA|SUPERVALU|BUYMIE|KALABASA|APPLEGREEN|SUMMIT STORES|LONDIS|\bMACE\b|SUPERMARKET/, 'mercado'],
@@ -176,8 +176,17 @@
     if (plan.titular == null) plan.titular = v === 1 ? String(titularAntigo || '').trim() : '';
     if (!plan.moeda) plan.moeda = 'EUR';
     if (!plan.pais) plan.pais = 'IE';
-    if (!plan.nomes) plan.nomes = {};
+    if (!plan.nomes) plan.nomes = v === 1 ? { brasil: 'Contas no Brasil' } : {};
     return { v: VERSAO, months: months, over: x.over || {}, plan: plan, summary: x.summary || null, div: x.div || null };
+  }
+  /* metas sugeridas: média dos 3 primeiros meses completos (ou dos que houver), em múltiplos de 5 */
+  function sugerirMetas(model) {
+    var ks = (model.complete.length ? model.complete : model.keys).slice(0, 3);
+    if (!ks.length) return null;
+    function media(fn) { var t = 0; ks.forEach(function (k) { t += Math.max(0, fn(model.by[k])); }); return Math.round(t / ks.length / 5) * 5; }
+    var o = { cats: {}, poupar: media(function (g) { return g.saved; }) };
+    CATS.forEach(function (c) { o.cats[c.id] = media(function (g) { return g.spend[c.id] || 0; }); });
+    return o;
   }
   function buildModel(months, over, titular) {
     var rows = [], by = {};
@@ -212,7 +221,7 @@
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
-  var M = buildModel({}, {});
+  var M = buildModel({}, {}), SUG = null;
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
   var LS = 'cortex-financas.v2', LS_V1 = 'cortex-financas.v1', LS_TITULAR = 'cortex-financas.titular';
@@ -236,18 +245,27 @@
     return c.hatch ? 'repeating-linear-gradient(135deg,' + v + ' 0 3px,color-mix(in srgb,' + v + ' 40%,var(--surface)) 3px 6px)' : v;
   }
 
-  function planCat(id) { var p = S.plan && S.plan.cats; return p && p[id] != null && !isNaN(p[id]) ? +p[id] : CAT_BY[id].meta; }
-  function planPoupar() { return S.plan && S.plan.poupar != null && !isNaN(S.plan.poupar) ? +S.plan.poupar : POUPAR; }
+  /* meta definida pela pessoa; sem ela, a sugestão dos primeiros meses (SUG); sem extrato, zero */
+  function metaDefinida(id) { var p = S.plan && S.plan.cats; return p && p[id] != null && p[id] !== '' && !isNaN(p[id]) ? +p[id] : null; }
+  function pouparDefinido() { var v = S.plan && S.plan.poupar; return v != null && v !== '' && !isNaN(v) ? +v : null; }
+  function planCat(id) { var v = metaDefinida(id); return v != null ? v : (SUG ? SUG.cats[id] : 0); }
+  function planPoupar() { var v = pouparDefinido(); return v != null ? v : (SUG ? SUG.poupar : 0); }
+  function catNome(c) { var n = S.plan && S.plan.nomes && S.plan.nomes[c.id]; return n || c.nome; }
   function planTotal() { var t = 0; CATS.forEach(function (c) { t += planCat(c.id); }); return t; }
   /* campos de metas (usados em "Editar metas" e na configuração); pre separa os ids dos dois formulários */
+  /* campo em branco = seguir a sugestão (ou ficar sem meta, sem extrato) */
+  function metaCampo(id, rotulo, v, sug) {
+    return '<label>' + esc(rotulo) + '<input id="' + id + '" type="number" min="0" step="5" inputmode="decimal" value="' + (v != null ? v : '') + '" placeholder="' + (sug != null ? 'sugestão: ' + sug : 'sem meta') + '"></label>';
+  }
   function metasCampos(pre) {
     var h = '';
-    CATS.forEach(function (c) { h += '<label>' + esc(c.nome) + '<input id="fin-' + pre + '-' + c.id + '" type="number" min="0" step="5" inputmode="decimal" value="' + planCat(c.id) + '"></label>'; });
-    return h + '<label>Guardar por mês<input id="fin-' + pre + '-poupar" type="number" min="0" step="5" inputmode="decimal" value="' + planPoupar() + '"></label>';
+    CATS.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, catNome(c), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
+    return h + metaCampo('fin-' + pre + '-poupar', 'Guardar por mês', pouparDefinido(), SUG ? SUG.poupar : null);
   }
+  function lerMeta(id) { var v = $(id).value.trim(); return v === '' || isNaN(v) ? null : Math.max(0, +v); }
   function lerMetas(pre) {
-    var o = { cats: {}, poupar: Math.max(0, +$('#fin-' + pre + '-poupar').value || 0) };
-    CATS.forEach(function (c) { o.cats[c.id] = Math.max(0, +$('#fin-' + pre + '-' + c.id).value || 0); });
+    var o = { cats: {}, poupar: lerMeta('#fin-' + pre + '-poupar') };
+    CATS.forEach(function (c) { var v = lerMeta('#fin-' + pre + '-' + c.id); if (v != null) o.cats[c.id] = v; });
     return o;
   }
 
@@ -314,6 +332,7 @@
 
   function recompute() {
     M = buildModel(S.months, S.over, S.plan && S.plan.titular);
+    SUG = sugerirMetas(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
   }
 
@@ -392,8 +411,11 @@
       '<small>Como aparece em transferências para você mesmo (ex.: "To MARIA SILVA"). Serve para reconhecer envios para outra conta sua. Pode deixar em branco.</small></label>' +
       '<label>Moeda<select id="fin-s-moeda">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select></label>' +
       '<label>País<select id="fin-s-pais">' + opcoes(PAISES, p.pais || 'IE') + '</select></label>' +
+      '<label>Nome para os envios a outra conta sua<input id="fin-s-nome-brasil" type="text" autocomplete="off" maxlength="40" placeholder="' + esc(CAT_BY.brasil.nome) + '" value="' + esc((p.nomes && p.nomes.brasil) || '') + '">' +
+      '<small>Ex.: "Contas no Brasil". Em branco fica "' + esc(CAT_BY.brasil.nome) + '".</small></label>' +
       '</div></fieldset>' +
-      '<fieldset><legend>Metas por mês (€)</legend><div class="mgrid">' + metasCampos('s') + '</div></fieldset>' +
+      '<fieldset><legend>Metas por mês (€)</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
+      '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' +
       '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
       '</form></div></section>';
@@ -448,7 +470,7 @@
         '<span class="xl"><b>' + mShort(k) + (M.partial === k ? '*' : '') + '</b>' + (showYr ? '<span>' + yr + '</span>' : '') + '</span></button>';
     });
     var leg = '';
-    CATS.forEach(function (c) { leg += '<span><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(c.nome) + '</span>'; });
+    CATS.forEach(function (c) { leg += '<span><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)) + '</span>'; });
     leg += '<span><i class="sw line"></i>Entrou no mês</span>';
     return '<section class="sec"><div class="sec-top"><h2>Gastos por mês</h2><span class="hint">Toque numa barra para ver o mês' + (M.partial ? ' · * mês em andamento' : '') + '</span></div><div class="card">' +
       '<div class="chart"><div class="yax" aria-hidden="true"><div class="in">' + yl + '</div></div><div class="cscroll"><div class="plot" style="--n:' + ks.length + '"><div class="gl" aria-hidden="true">' + gl + '</div><div class="cols">' + cols + '</div></div></div></div>' +
@@ -469,7 +491,7 @@
       else if (Math.abs(over) <= 0.5) st = '<span class="d ok">= na meta</span> de ' + f0(x.g);
       else if (over > 0.5) st ='<span class="d bad">▲ ' + f0(over) + ' acima</span> da meta de ' + f0(x.g);
       else st = '<span class="d good">▼ ' + f0(-over) + ' abaixo</span> da meta de ' + f0(x.g);
-      h += '<button type="button" class="cat" data-f="' + x.c.id + '" aria-pressed="' + (S.f.indexOf(x.c.id) >= 0) + '"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(x.c.nome) + '</span><span class="val">' + f0(x.v) + '</span>' +
+      h += '<button type="button" class="cat" data-f="' + x.c.id + '" aria-pressed="' + (S.f.indexOf(x.c.id) >= 0) + '"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(catNome(x.c)) + '</span><span class="val">' + f0(x.v) + '</span>' +
         '<span class="track"><i style="width:' + w.toFixed(1) + '%;background:' + colorOf(x.c) + '"></i>' + (x.g > 0 ? '<b class="goal" style="left:calc(' + gp.toFixed(1) + '% - 1px)"></b>' : '') + '</span><span class="st">' + st + '</span></button>';
     });
     h += '<details class="metas" id="fin-metas"' + (S.metasOpen ? ' open' : '') + '><summary>Editar metas</summary><form id="fin-fmetas"><div class="mgrid">' +
@@ -477,7 +499,7 @@
     return h;
   }
   function tagOf(r) {
-    if (r.kind === 'gasto') { var c = CAT_BY[r.cat]; return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(c.nome); }
+    if (r.kind === 'gasto') { var c = CAT_BY[r.cat]; return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)); }
     var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas' }[r.kind];
     return '<i class="sw" style="background:var(--muted)"></i>' + t;
   }
@@ -494,7 +516,7 @@
     var all = S.sel === 'all';
     var rows = M.rows.filter(function (r) { return all || r.m === S.sel; });
     var fl = [['_in', 'Entradas', 'var(--muted)'], ['_sav', 'Reserva e investimento', 'var(--muted)']];
-    CATS.forEach(function (c) { fl.push([c.id, c.nome, colorOf(c)]); });
+    CATS.forEach(function (c) { fl.push([c.id, catNome(c), colorOf(c)]); });
     var hdr = '<div class="sec-top"><h2>Movimentos</h2><span class="rt"><span class="hint">' + rows.length + ' ' + (all ? 'em todos os meses' : 'no mês') + '</span><button type="button" class="btn sm" data-movtoggle aria-expanded="' + S.movOpen + '">' + (S.movOpen ? 'Minimizar' : 'Mostrar') + '</button></span></div>';
     if (!S.movOpen) return '<div>' + hdr + '</div>';
     var ns = S.f.length, nomes = fl.filter(function (x) { return S.f.indexOf(x[0]) >= 0; }).map(function (x) { return x[1]; });
@@ -522,7 +544,7 @@
       var vals = ks.map(function (k) { return M.by[k].spend[c.id] || 0; }), mxv = Math.max.apply(null, vals.concat([1]));
       if (!vals.some(function (v) { return Math.abs(v) >= .5; })) return;
       var avg = 0; comp.forEach(function (k) { avg += M.by[k].spend[c.id] || 0; });
-      h += '<tr><td><span class="rowsw"><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(c.nome) + '</span></td>';
+      h += '<tr><td><span class="rowsw"><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)) + '</span></td>';
       ks.forEach(function (k, i) { h += '<td class="h' + (S.sel === k ? ' selc' : '') + '" style="--i:' + Math.max(0, vals[i] / mxv).toFixed(2) + '">' + (Math.abs(vals[i]) < .5 ? '–' : nn.format(vals[i])) + '</td>'; });
       h += '<td class="avg">' + nn.format(avg / n) + '</td></tr>';
     });
@@ -548,11 +570,11 @@
     });
     return Object.keys(mp).map(function (k) { var x = mp[k]; if (Object.keys(x.effs).length > 1) x.eff = ''; return x; }).sort(function (a, b) { return Math.abs(b.total) - Math.abs(a.total); });
   }
-  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Ignorar' : (CAT_BY[e] ? CAT_BY[e].nome : e); }
+  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Ignorar' : (CAT_BY[e] ? catNome(CAT_BY[e]) : e); }
   function optionsFor(sel, volta) {
     var o = sel === '' ? '<option value="" selected disabled>Em mais de uma categoria</option>' : '';
     if (volta) o += '<option value="_auto">Voltar ao automático</option>';
-    CATS.forEach(function (c) { o += '<option value="' + c.id + '"' + (sel === c.id ? ' selected' : '') + '>' + esc(c.nome) + '</option>'; });
+    CATS.forEach(function (c) { o += '<option value="' + c.id + '"' + (sel === c.id ? ' selected' : '') + '>' + esc(catNome(c)) + '</option>'; });
     o += '<option value="_invest"' + (sel === '_invest' ? ' selected' : '') + '>Investimento (não é gasto)</option>';
     o += '<option value="_ignore"' + (sel === '_ignore' ? ' selected' : '') + '>Ignorar (entre contas)</option>';
     return o;
@@ -623,7 +645,7 @@
       { l: 'Renda (salários e pagamentos)', v: T.renda },
       { l: 'Outras entradas', v: T.outras }
     ];
-    if (Math.abs(T.interno) >= .5) items.push({ l: 'Entre contas (ex.: vindo do Brasil)', v: T.interno });
+    if (Math.abs(T.interno) >= .5) items.push({ l: 'Entre contas suas', v: T.interno });
     items.push({ l: T.flex <= 0 ? 'Enviado ao Flexible Cash (líquido)' : 'Retirado do Flexible Cash (líquido)', v: T.flex });
     items.push({ l: 'Investimentos e cripto (líquido)', v: T.invest });
     items.push({ l: 'Gastos (já descontados os reembolsos)', v: -T.gasto, cats: true });
@@ -636,7 +658,7 @@
       var inner = '<span class="bl">' + esc(x.l) + '</span><b class="num ' + tone + '">' + sign + f0(Math.abs(x.v)) + '</b><span class="bt"><i style="width:' + (Math.abs(x.v) / mx * 100).toFixed(1) + '%;background:' + col + '"></i></span>';
       if (x.cats) {
         var sub = '';
-        CATS.forEach(function (c) { if (Math.abs(cat[c.id] || 0) >= .5) sub += '<div><span>' + esc(c.nome) + '</span><b>' + f0(cat[c.id]) + '</b></div>'; });
+        CATS.forEach(function (c) { if (Math.abs(cat[c.id] || 0) >= .5) sub += '<div><span>' + esc(catNome(c)) + '</span><b>' + f0(cat[c.id]) + '</b></div>'; });
         br += '<details class="brd"' + (S.cfOpen ? ' open' : '') + ' id="fin-cfd"><summary class="br">' + inner + '<span class="sub" style="grid-column:1/3">Toque para ver por categoria</span></summary><div class="brsub">' + sub + '</div></details>';
       } else br += '<div class="br ' + cls + (i === 0 ? ' first' : '') + '">' + inner + '</div>';
     });
@@ -747,7 +769,7 @@
     rect.addEventListener('pointerdown', at);
     rect.addEventListener('pointerleave', function () { xh.setAttribute('visibility', 'hidden'); xd.setAttribute('visibility', 'hidden'); hideTip(); });
   }
-  /* ---------- blocos de planejamento: previsão, metas de poupança, contas fixas, Brasil e taxa de poupança ---------- */
+  /* ---------- blocos de planejamento: previsão, metas de poupança, contas fixas, envios a outra conta e taxa de poupança ---------- */
   var GOALS = [
     { id: 'reserva', nome: 'Reserva de emergência', src: 'flex', de: 'Flexible Cash' },
     { id: 'invest', nome: 'Investimentos', src: 'invest', de: 'investimentos e cripto' },
@@ -814,7 +836,7 @@
       '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (dif > 0.5 ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
       '<p class="s">' + st + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +
-      ' Aluguel, assinaturas e envios ao Brasil entram pelo valor cheio; o resto segue o ritmo dos ' + day + ' primeiros dias.</p></div></section>';
+      ' ' + FIXAS.map(function (id) { return catNome(CAT_BY[id]); }).join(', ') + ' entram pelo valor cheio; o resto segue o ritmo dos ' + day + ' primeiros dias.</p></div></section>';
   }
   function recorrentes() {
     var ks = M.keys.slice(-3), by = {}, list = [], tot = 0;
@@ -837,7 +859,7 @@
     if (!list.length) return h + '<p class="vazio">Ainda não dá para ver repetições. Com dois ou três meses de extrato elas aparecem aqui.</p></div></section>';
     list.forEach(function (o, i) {
       var c = CAT_BY[o.last.cat] || CAT_BY.outros;
-      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(c.nome) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + ks.length + ' meses</small></span><span class="rd">dia ' + o.dia + '<small>próxima ' + esc(dFmt(o.prox)) + '</small></span><b class="num">' + f2(o.v) + '</b></div>';
+      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + ks.length + ' meses</small></span><span class="rd">dia ' + o.dia + '<small>próxima ' + esc(dFmt(o.prox)) + '</small></span><b class="num">' + f2(o.v) + '</b></div>';
     });
     return h + '<div class="rec tot"><span></span><span class="rn">Total fixo por mês</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
   }
@@ -853,7 +875,7 @@
     var ks = M.keys.slice(-6), ano = (M.lastDate || '').slice(0, 4), totAno = 0, sAvg = 0, nAvg = 0;
     M.keys.forEach(function (k) { var v = M.by[k].spend.brasil || 0; if (k.slice(0, 4) === ano) totAno += v; if (k !== M.partial) { sAvg += v; nAvg++; } });
     var items = ks.map(function (k) { return { k: k, v: M.by[k].spend.brasil || 0, at: k === ks[ks.length - 1], parc: k === M.partial }; });
-    return '<section class="sec"><div class="sec-top"><h2>Envios ao Brasil</h2><span class="hint">para a sua conta de lá, fora dos gastos daqui</span></div><div class="card">' + vbars(items, f0) +
+    return '<section class="sec"><div class="sec-top"><h2>' + esc(catNome(CAT_BY.brasil)) + '</h2><span class="hint">dinheiro que vai para outra conta sua</span></div><div class="card">' + vbars(items, f0) +
       '<div class="tri3"><div><b class="num">' + f0(nAvg ? sAvg / nAvg : 0) + '</b><span>média por mês</span></div><div><b class="num">' + f0(totAno) + '</b><span>em ' + esc(ano) + '</span></div><div><b class="num">' + f0(planCat('brasil')) + '</b><span>meta mensal</span></div></div>' +
       (M.partial ? '<p class="s">* mês em andamento</p>' : '') + '</div></section>';
   }
@@ -894,7 +916,7 @@
     var g = M.by[k], h = '<h3>' + esc(mLabel(k)) + (M.partial === k ? ' · em andamento' : '') + '</h3>';
     CATS.forEach(function (c) {
       var v = g.spend[c.id] || 0;
-      if (Math.abs(v) >= .5) h += '<div class="r"><i class="sw" style="background:' + colorOf(c) + '"></i><span>' + esc(c.nome) + '</span><b>' + f0(v) + '</b></div>';
+      if (Math.abs(v) >= .5) h += '<div class="r"><i class="sw" style="background:' + colorOf(c) + '"></i><span>' + esc(catNome(c)) + '</span><b>' + f0(v) + '</b></div>';
     });
     h += '<div class="r t"><i class="sw" style="background:transparent"></i><span>Gastou</span><b>' + f0(g.gasto) + '</b></div>';
     h += '<div class="r"><i class="sw line"></i><span>Entrou</span><b>' + f0(g.entrou) + '</b></div>';
@@ -987,8 +1009,10 @@
     }
     if (fid === 'fin-fsetup') {
       e.preventDefault();
+      var nomes = Object.assign({}, (S.plan && S.plan.nomes) || {}), nb = $('#fin-s-nome-brasil').value.trim();
+      if (nb) nomes.brasil = nb; else delete nomes.brasil;
       var cfg = Object.assign({}, S.plan || {}, lerMetas('s'), {
-        titular: $('#fin-s-titular').value.trim(), moeda: $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, configurado: true
+        titular: $('#fin-s-titular').value.trim(), moeda: $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, nomes: nomes, configurado: true
       });
       S.setupOpen = false;
       enqueue(function () { return savePlan(cfg); }).then(function () { recompute(); render(); toast('Configuração salva.'); });

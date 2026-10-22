@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, CATS };')();
+  return new Function(core + '; return { parseCSV, extractTx, classify, buildModel, migrate, sugerirMetas, CATS };')();
 }
 function months(api) {
   const m = {};
@@ -78,7 +78,8 @@ test('migração v1 → v2 guarda o titular antigo e mantém o resto', () => {
   assert.deepEqual(x.months, v1.months);
   assert.deepEqual(x.over, v1.over);
   assert.deepEqual(x.div, v1.div);
-  assert.deepEqual(x.plan, { cats: { mercado: 200 }, poupar: 100, titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: {} });
+  // quem já usava continua vendo "Contas no Brasil"; o padrão novo é neutro
+  assert.deepEqual(x.plan, { cats: { mercado: 200 }, poupar: 100, titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', nomes: { brasil: 'Contas no Brasil' } });
   assert.equal(v1.plan.titular, undefined); // não altera o objeto original
 });
 
@@ -88,6 +89,7 @@ test('migração aceita v2 sem mudar nada e completa campos que faltam', () => {
   assert.deepEqual(migrate(v2, 'IGNORADO'), v2);
   assert.equal(migrate({ v: 2 }).plan.titular, '');
   assert.equal(migrate({}).plan.titular, ''); // v1 sem titular antigo
+  assert.deepEqual(migrate({ v: 2 }).plan.nomes, {});
 });
 
 test('migração recusa o que não é do painel', () => {
@@ -98,4 +100,21 @@ test('migração recusa o que não é do painel', () => {
   assert.throws(() => migrate({ months: [] }));
   assert.throws(() => migrate({ months: { 'setembro': [] } }));
   assert.throws(() => migrate({ months: { '2026-09': 'x' } }));
+});
+
+test('sem metas fixas de ninguém: categorias só têm nome neutro', () => {
+  const { CATS } = load();
+  assert.ok(CATS.every(c => c.meta === undefined));
+  assert.equal(CATS.find(c => c.id === 'brasil').nome, 'Envios para outra conta sua');
+});
+
+test('metas sugeridas pela média dos 3 primeiros meses completos', () => {
+  const api = load();
+  const s = api.sugerirMetas(api.buildModel(months(api), {}, 'Maria Silva'));
+  // jul, ago e set são iguais no exemplo; mercado = 38,40 + 27,15 + 42,10 = 107,65 → 110
+  assert.equal(s.cats.mercado, 110);
+  assert.equal(s.cats.brasil, 150);
+  assert.equal(s.cats.outros, 650); // o aluguel ainda cai em "outros" (passo seguinte)
+  assert.equal(s.poupar, 150);
+  assert.equal(api.sugerirMetas(api.buildModel({}, {}, '')), null);
 });
