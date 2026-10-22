@@ -211,7 +211,7 @@
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
+  var S = { months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {});
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
   /* a v1 e a chave antiga do titular ficam como estão, para dar para voltar atrás */
@@ -239,6 +239,17 @@
   function planCat(id) { var p = S.plan && S.plan.cats; return p && p[id] != null && !isNaN(p[id]) ? +p[id] : CAT_BY[id].meta; }
   function planPoupar() { return S.plan && S.plan.poupar != null && !isNaN(S.plan.poupar) ? +S.plan.poupar : POUPAR; }
   function planTotal() { var t = 0; CATS.forEach(function (c) { t += planCat(c.id); }); return t; }
+  /* campos de metas (usados em "Editar metas" e na configuração); pre separa os ids dos dois formulários */
+  function metasCampos(pre) {
+    var h = '';
+    CATS.forEach(function (c) { h += '<label>' + esc(c.nome) + '<input id="fin-' + pre + '-' + c.id + '" type="number" min="0" step="5" inputmode="decimal" value="' + planCat(c.id) + '"></label>'; });
+    return h + '<label>Guardar por mês<input id="fin-' + pre + '-poupar" type="number" min="0" step="5" inputmode="decimal" value="' + planPoupar() + '"></label>';
+  }
+  function lerMetas(pre) {
+    var o = { cats: {}, poupar: Math.max(0, +$('#fin-' + pre + '-poupar').value || 0) };
+    CATS.forEach(function (c) { o.cats[c.id] = Math.max(0, +$('#fin-' + pre + '-' + c.id).value || 0); });
+    return o;
+  }
 
   function toast(msg, erro) { if (window.__cortexToast) window.__cortexToast(msg, erro, erro ? 9000 : 6000); }
 
@@ -355,8 +366,37 @@
     } else st = 'Revolut · conta em euro';
     if (M.keys.length) st = 'Revolut · ' + st;
     return '<div class="view-top"><div><h1>Finanças</h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
-      '<div class="grupo"><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div></div>' +
-      '';
+      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
+      (configurado() && !suportado() ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
+  }
+  /* ---------- configuração guiada ---------- */
+  /* moeda e país já ficam guardados, mas por enquanto o painel só lê euro e só tem as regras da Irlanda */
+  var MOEDAS = [['EUR', 'Euro (€)'], ['BRL', 'Real (R$)'], ['GBP', 'Libra (£)'], ['USD', 'Dólar (US$)']];
+  var PAISES = [['IE', 'Irlanda'], ['PT', 'Portugal'], ['BR', 'Brasil'], ['GB', 'Reino Unido']];
+  function configurado() { return !!(S.plan && S.plan.configurado); }
+  function suportado() { return !S.plan || ((S.plan.moeda || 'EUR') === 'EUR' && (S.plan.pais || 'IE') === 'IE'); }
+  function avisoSuporte() {
+    return 'Por enquanto o painel só lê a conta em <b>euro</b> do Revolut e usa as regras de comerciantes da <b>Irlanda</b>. ' +
+      'A moeda e o país que você escolher ficam guardados e passam a valer quando forem suportados.';
+  }
+  function opcoes(lista, sel) {
+    return lista.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === sel ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
+  }
+  function setup() {
+    var p = S.plan || {}, primeira = !configurado();
+    return '<section class="sec" id="fin-setup"><div class="sec-top"><h2>' + (primeira ? 'Antes de começar' : 'Configurações') + '</h2>' +
+      '<span class="hint">tudo fica só neste navegador</span></div><div class="card"><form id="fin-fsetup" class="ggrid">' +
+      '<p class="aviso">' + avisoSuporte() + '</p>' +
+      '<fieldset><legend>Você</legend><div class="mgrid">' +
+      '<label>Seu nome no extrato<input id="fin-s-titular" type="text" autocomplete="off" spellcheck="false" placeholder="ex.: MARIA SILVA" value="' + esc(p.titular || '') + '">' +
+      '<small>Como aparece em transferências para você mesmo (ex.: "To MARIA SILVA"). Serve para reconhecer envios para outra conta sua. Pode deixar em branco.</small></label>' +
+      '<label>Moeda<select id="fin-s-moeda">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select></label>' +
+      '<label>País<select id="fin-s-pais">' + opcoes(PAISES, p.pais || 'IE') + '</select></label>' +
+      '</div></fieldset>' +
+      '<fieldset><legend>Metas por mês (€)</legend><div class="mgrid">' + metasCampos('s') + '</div></fieldset>' +
+      '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
+      (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
+      '</form></div></section>';
   }
   function emptyState() {
     return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
@@ -432,9 +472,8 @@
       h += '<button type="button" class="cat" data-f="' + x.c.id + '" aria-pressed="' + (S.f.indexOf(x.c.id) >= 0) + '"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(x.c.nome) + '</span><span class="val">' + f0(x.v) + '</span>' +
         '<span class="track"><i style="width:' + w.toFixed(1) + '%;background:' + colorOf(x.c) + '"></i>' + (x.g > 0 ? '<b class="goal" style="left:calc(' + gp.toFixed(1) + '% - 1px)"></b>' : '') + '</span><span class="st">' + st + '</span></button>';
     });
-    h += '<details class="metas" id="fin-metas"' + (S.metasOpen ? ' open' : '') + '><summary>Editar metas</summary><form id="fin-fmetas"><div class="mgrid">';
-    CATS.forEach(function (c) { h += '<label>' + esc(c.nome) + '<input id="fin-m-' + c.id + '" type="number" min="0" step="5" inputmode="decimal" value="' + planCat(c.id) + '"></label>'; });
-    h += '<label>Guardar por mês<input id="fin-m-poupar" type="number" min="0" step="5" inputmode="decimal" value="' + planPoupar() + '"></label></div><button class="btn sm pri" type="submit">Salvar metas</button></form></details></div></div>';
+    h += '<details class="metas" id="fin-metas"' + (S.metasOpen ? ' open' : '') + '><summary>Editar metas</summary><form id="fin-fmetas"><div class="mgrid">' +
+      metasCampos('m') + '</div><button class="btn sm pri" type="submit">Salvar metas</button></form></details></div></div>';
     return h;
   }
   function tagOf(r) {
@@ -839,6 +878,7 @@
     var root = $('#fin-app'), sc = $('.fin .cscroll'), keep = sc ? sc.scrollLeft : null;
     if (!root) return;
     if (!S.ready) { root.innerHTML = header() + '<p class="passo">Carregando seus dados…</p>'; return; }
+    if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
     if (!M.keys.length) { root.innerHTML = header() + emptyState(); return; }
     root.innerHTML = header() + cashSummary() + dividas() + kpis() + previsao() + metasPoup() + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
@@ -875,9 +915,10 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-dpay],[data-ddel]');
+    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-dpay],[data-ddel]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
+    if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
     if (t.hasAttribute('data-sel')) { S.sel = t.getAttribute('data-sel'); S.more = 12; hideTip(); render(); return; }
     if (t.hasAttribute('data-all')) { S.sel = S.sel === 'all' ? (M.complete.length ? M.complete[M.complete.length - 1] : M.keys[M.keys.length - 1]) : 'all'; S.more = 12; render(); return; }
     if (t.hasAttribute('data-f')) {
@@ -944,6 +985,15 @@
       divMut(function (d) { d.cambio = { rate: rt, data: todayIso(), fonte: 'informado por você' }; d.margem = mg; }).then(function () { toast('Câmbio atualizado.'); });
       return;
     }
+    if (fid === 'fin-fsetup') {
+      e.preventDefault();
+      var cfg = Object.assign({}, S.plan || {}, lerMetas('s'), {
+        titular: $('#fin-s-titular').value.trim(), moeda: $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, configurado: true
+      });
+      S.setupOpen = false;
+      enqueue(function () { return savePlan(cfg); }).then(function () { recompute(); render(); toast('Configuração salva.'); });
+      return;
+    }
     if (fid === 'fin-fgoals') {
       e.preventDefault();
       var gs = {};
@@ -960,8 +1010,7 @@
     }
     if (fid !== 'fin-fmetas') return;
     e.preventDefault();
-    var p = Object.assign({}, S.plan || {}, { cats: {}, poupar: Math.max(0, +$('#fin-m-poupar').value || 0) });
-    CATS.forEach(function (c) { p.cats[c.id] = Math.max(0, +$('#fin-m-' + c.id).value || 0); });
+    var p = Object.assign({}, S.plan || {}, lerMetas('m'));
     S.metasOpen = true;
     enqueue(function () { return savePlan(p); }).then(function () { render(); toast('Metas salvas.'); });
   });
