@@ -358,6 +358,68 @@
     return { v: 3, months: w.months, over: w.over, plan: juntarPlan(x.config, w), summary: w.summary, div: divV3(x.div, x.cambios) };
   }
   function carteiraAtiva(x) { return x.carteiras.filter(function (c) { return c.id === x.ativa; })[0] || x.carteiras[0]; }
+  /* carteiras: criar, editar, excluir, escolher. Todas devolvem uma v4 nova (não alteram x).
+     A primeira carteira é a principal: a moeda dela é a moedaPrincipal (o câmbio é por 1 dela); quando a
+     principal muda de moeda, o câmbio é pedido de novo. Uma carteira = um banco e uma moeda; com movimentos
+     salvos, moeda e banco não mudam (para mudar, cria-se outra carteira). */
+  var BANCOS = [['revolut', 'Revolut'], ['aib', 'AIB'], ['boi', 'Bank of Ireland'], ['wise', 'Wise'], ['nubank', 'Nubank'], ['btg', 'BTG Pactual'], ['outro', 'Outro banco']];
+  var COM_LEITOR = ['revolut'];
+  function temLeitor(banco) { return COM_LEITOR.indexOf(banco) >= 0; }
+  function acharCarteira(x, id) {
+    var c = x.carteiras.filter(function (w) { return w.id === id; })[0];
+    if (!c) throw new Error('a carteira ' + id + ' não existe');
+    return c;
+  }
+  function nomeCarteira(x, nome, id) {
+    nome = String(nome || '').trim().slice(0, 40);
+    if (!nome) throw new Error('a carteira precisa de um nome');
+    var igual = x.carteiras.filter(function (w) { return w.id !== id && w.nome.toLowerCase() === nome.toLowerCase(); })[0];
+    if (igual) throw new Error('já existe uma carteira chamada ' + igual.nome);
+    return nome;
+  }
+  function conferirMoeda(m) { if (!/^[A-Z]{3}$/.test(m || '')) throw new Error('moeda ' + m + ' inválida'); return m; }
+  function conferirBanco(b) { if (!BANCOS.some(function (o) { return o[0] === b; })) throw new Error('tipo de extrato ' + b + ' desconhecido'); return b; }
+  /* a principal é a primeira; se a moeda dela mudou, o câmbio digitado deixa de valer */
+  function comPrincipal(x, carteiras, ativa) {
+    var mp = carteiras[0].moeda, config = Object.assign({}, x.config, { moedaPrincipal: mp });
+    return Object.assign({}, x, { config: config, carteiras: carteiras, ativa: ativa, cambios: mp === x.config.moedaPrincipal ? x.cambios : {} });
+  }
+  function novaCarteira(x, d) {
+    if (x.carteiras.length >= MAX_CARTEIRAS) throw new Error('já há ' + MAX_CARTEIRAS + ' carteiras: exclua uma para criar outra');
+    var nome = nomeCarteira(x, d.nome), n = 0;
+    x.carteiras.forEach(function (w) { var k = +String(w.id).replace(/^c/, ''); if (k > n) n = k; });
+    var c = { id: 'c' + (n + 1), nome: nome, moeda: conferirMoeda(d.moeda), pais: d.pais || 'IE', banco: conferirBanco(d.banco || 'revolut'),
+      months: {}, over: {}, summary: null, metas: {}, transf: {}, sugDispensadas: [] };
+    return Object.assign({}, x, { carteiras: x.carteiras.concat(c), ativa: c.id });
+  }
+  /* d: { nome, pais, moeda, banco }, todos opcionais */
+  function editarCarteira(x, id, d) {
+    var c0 = acharCarteira(x, id), c = Object.assign({}, c0), travada = moedaTravada(c0.months);
+    if (d.nome != null) c.nome = nomeCarteira(x, d.nome, id);
+    if (d.pais) c.pais = d.pais;
+    if (d.moeda && d.moeda !== c0.moeda) {
+      if (travada) throw new Error('a moeda não muda depois que há extratos salvos: crie outra carteira');
+      c.moeda = conferirMoeda(d.moeda);
+    }
+    if (d.banco && d.banco !== c0.banco) {
+      if (travada) throw new Error('o tipo de extrato não muda depois que há extratos salvos: crie outra carteira');
+      c.banco = conferirBanco(d.banco);
+    }
+    return comPrincipal(x, x.carteiras.map(function (w) { return w.id === id ? c : w; }), x.ativa);
+  }
+  function excluirCarteira(x, id) {
+    acharCarteira(x, id);
+    if (x.carteiras.length === 1) throw new Error('a única carteira não se exclui: use Apagar meus dados');
+    var resto = x.carteiras.filter(function (w) { return w.id !== id; });
+    return comPrincipal(x, resto, x.ativa === id ? resto[0].id : x.ativa);
+  }
+  function escolherCarteira(x, id) { acharCarteira(x, id); return Object.assign({}, x, { ativa: id }); }
+  /* espaço ocupado pelas chaves do painel (todas: a v3 fica salva ao lado da v4). O navegador permite cerca de
+     5 milhões de caracteres por site; contamos caracteres de chave + valor e chamamos de "MB" */
+  var ESPACO_AVISO = 4 * 1024 * 1024;
+  function tamanhoSalvo(pares) {
+    return pares.reduce(function (t, p) { return p[0].indexOf('cortex-financas.') === 0 ? t + p[0].length + String(p[1] || '').length : t; }, 0);
+  }
   /* o que o painel usa (o formato da v3) para a carteira ativa */
   function compor(x) {
     var w = carteiraAtiva(x);
@@ -502,7 +564,7 @@
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
+  var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {}), SUG = null, RECS = [];
   /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
   var CATST = montarCats(null), CATSV = CATST, CPOR = {};
@@ -617,7 +679,17 @@
   function localSave() {
     if (S.bloqueado) return;
     S.dados = dadosAtuais();
-    try { localStorage.setItem(LS, JSON.stringify(S.dados)); } catch (e) { }
+    try { localStorage.setItem(LS, JSON.stringify(S.dados)); S.semEspaco = false; } catch (e) {
+      if (!S.semEspaco) toast('Não consegui salvar neste navegador: o espaço acabou. Baixe um backup agora para não perder o que fez.', true);
+      S.semEspaco = true;
+    }
+    S.espaco = espacoUsado();
+  }
+  /* soma todas as chaves do painel: a v3 continua salva ao lado da v4 e ocupa espaço também */
+  function espacoUsado() {
+    var pares = [];
+    try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); pares.push([k, localStorage.getItem(k)]); } } catch (e) { }
+    return tamanhoSalvo(pares);
   }
   function localLoad() {
     var raw = null, tit = '', velho = false;
@@ -633,7 +705,7 @@
     if (raw == null) return;
     try {
       usarDados(lerSalvo(raw, tit));
-      if (velho) localSave();
+      if (velho) localSave(); else S.espaco = espacoUsado();
     } catch (e) {
       S.bloqueado = { motivo: e.message, bruto: raw };
     }
@@ -674,6 +746,7 @@
     var files = Array.prototype.slice.call(list || []);
     if (!files.length) return Promise.resolve();
     if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
+    if (!temLeitor(bancoAtual())) { toast(SEM_LEITOR, true); return Promise.resolve(); }
     var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {};
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
@@ -717,11 +790,37 @@
     if (M.keys.length) {
       var n = 0; M.keys.forEach(function (k) { n += M.by[k].n; });
       st = n + ' movimentações · ' + mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4) + ' a ' + mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4) + ' · última em ' + dFull(M.lastDate);
-    } else st = 'Revolut · conta em ' + nomeMoeda();
-    if (M.keys.length) st = 'Revolut · ' + st;
+    } else st = nomeBanco(bancoAtual()) + ' · conta em ' + nomeMoeda();
+    if (M.keys.length) st = nomeBanco(bancoAtual()) + ' · ' + st;
+    var leitor = temLeitor(bancoAtual());
     return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
-      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
+      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add' + (leitor ? '' : ' disabled aria-describedby="fin-sem-leitor"') + '>Adicionar extrato</button></div>' : '') + '</div>' +
+      avisoEspaco() +
       (configurado() && !suportado() && !S.setupOpen ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
+  }
+  /* acima de 4 MB (somando a v3 guardada e a v4), sugere backup; se a gravação falhou, avisa como erro */
+  function avisoEspaco() {
+    if (S.semEspaco) return '<div class="aviso erro pergunta"><p>A última mudança não foi salva: o espaço deste navegador acabou. Baixe um backup para não perder o que fez.</p><button class="btn sm" type="button" data-backup="baixar">Baixar backup</button></div>';
+    if (S.espaco <= ESPACO_AVISO) return '';
+    return '<div class="aviso pergunta"><p>Os dados do Nora ocupam ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(S.espaco / 1048576) + ' MB neste navegador, perto do limite de cerca de 5 MB. A cópia da versão anterior, guardada para dar para voltar, entra na conta. Baixe um backup: se o espaço acabar, o que você mudar deixa de ser salvo.</p>' +
+      '<button class="btn sm" type="button" data-backup="baixar">Baixar backup</button></div>';
+  }
+  /* ---------- carteiras ---------- */
+  var SEM_LEITOR = 'Ainda não há leitor para este banco; o importador genérico vem em seguida.';
+  function cartAtual() { return S.dados ? carteiraAtiva(S.dados) : null; }
+  function bancoAtual() { var c = cartAtual(); return c ? c.banco : 'revolut'; }
+  function nomeBanco(b) { var o = BANCOS.filter(function (x) { return x[0] === b; })[0]; return o ? o[1] : b; }
+  function variasCarteiras() { return !!(S.dados && S.dados.carteiras.length > 1); }
+  /* Em observação e as metas de poupança valem para todas as carteiras, mas até o Resumo existir aparecem só na principal */
+  function naPrincipal() { return !S.dados || S.dados.ativa === S.dados.carteiras[0].id; }
+  function abas() {
+    if (!variasCarteiras()) return '';
+    return '<nav class="abas" aria-label="Carteiras">' + S.dados.carteiras.map(function (c) {
+      return '<button type="button" data-carteira="' + esc(c.id) + '"' + (c.id === S.dados.ativa ? ' aria-current="true"' : '') + '>' + esc(c.nome) + ' <small>' + esc(c.moeda) + '</small></button>';
+    }).join('') + '</nav>';
+  }
+  function notaPrincipal() {
+    return '<p class="passo">Em observação e Metas de poupança ficam na carteira principal, <b>' + esc(S.dados.carteiras[0].nome) + '</b>.</p>';
   }
   /* ---------- configuração guiada ---------- */
   /* a moeda escolhe a conta que o painel lê no extrato; o país escolhe as regras de comerciantes */
@@ -744,20 +843,61 @@
     var p = S.plan || {}, primeira = !configurado();
     return '<section class="sec" id="fin-setup"><div class="sec-top"><h2>' + (primeira ? 'Antes de começar' : 'Configurações') + '</h2>' +
       '<span class="hint">tudo fica só neste navegador</span></div><div class="card"><form id="fin-fsetup" class="ggrid">' +
-      '<p class="aviso" id="fin-s-aviso-pais"' + (temRegras(p.pais) ? ' hidden' : '') + '>' + avisoSuporte(p.pais || 'IE') + '</p>' +
       '<fieldset><legend>Você</legend><div class="mgrid">' +
       '<label>Seu nome no extrato<input id="fin-s-titular" type="text" autocomplete="off" spellcheck="false" placeholder="ex.: MARIA SILVA" value="' + esc(p.titular || '') + '">' +
       '<small>Como aparece em transferências para você mesmo (ex.: "To MARIA SILVA"). Serve para reconhecer envios para outra conta sua. Pode deixar em branco.</small></label>' +
-      (moedaTravada(S.months)
-        ? '<label>Moeda da conta<select id="fin-s-moeda" disabled aria-describedby="fin-s-moeda-trava">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select><small id="fin-s-moeda-trava">Não muda depois que há extratos salvos: os valores estão em ' + esc(nomeMoeda(p.moeda)) + ' e não seriam convertidos. Para usar outra moeda, baixe um backup e apague os dados.</small></label>'
-        : '<label>Moeda da conta<select id="fin-s-moeda">' + opcoes(MOEDAS, p.moeda || 'EUR') + '</select><small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small></label>') +
-      '<label>País<select id="fin-s-pais">' + opcoes(PAISES, p.pais || 'IE') + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label>' +
-      '</div></fieldset>' + categoriasCampos() +
-      '<fieldset><legend>Metas por mês (' + esc(simbolo()) + ')</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
+      '</div></fieldset>' + carteirasCampos() + categoriasCampos() +
+      '<fieldset><legend>Metas por mês' + (variasCarteiras() ? ' de ' + esc(cartAtual().nome) : '') + ' (' + esc(simbolo()) + ')</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
       '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' + secaoDados() +
       '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
       '</form></div></section>';
+  }
+  /* as moedas da lista, mais a da carteira se ela não estiver na lista (veio de um backup) */
+  function opcoesMoeda(sel) { return opcoes(MOEDAS.some(function (o) { return o[0] === sel; }) ? MOEDAS : MOEDAS.concat([[sel, sel]]), sel); }
+  /* cada carteira: nome, tipo de extrato (banco), moeda e país; com extrato salvo, banco e moeda travam */
+  function carteirasCampos() {
+    var x = dadosAtuais(), h = '', varias = x.carteiras.length > 1;
+    x.carteiras.forEach(function (c, i) {
+      var k = 'fin-w-' + c.id, trava = moedaTravada(c.months), r = resumoDados(c), desc = trava ? ' disabled aria-describedby="' + k + '-trava"' : '';
+      h += '<div class="wcart">' + (varias ? '<div class="wtop"><b>' + esc(c.nome) + '</b><small>' + (i === 0 ? 'principal · ' : '') +
+        (r.meses ? r.meses + (r.meses === 1 ? ' mês' : ' meses') + ', ' + r.mov + ' movimentações' : 'sem extrato') + '</small>' +
+        '<button class="btn sm" type="button" data-wexcluir="' + esc(c.id) + '">Excluir carteira</button></div>' : '') +
+        '<div class="mgrid"><label>Nome da carteira<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(c.nome) + '"></label>' +
+        '<label>Extrato<select id="' + k + '-banco"' + desc + '>' + opcoes(BANCOS, c.banco) + '</select>' +
+        '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + SEM_LEITOR + '</small></label>' +
+        '<label>Moeda da conta<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
+        (trava ? '' : '<small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small>') + '</label>' +
+        '<label>País<select id="' + k + '-pais">' + opcoes(PAISES, c.pais) + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label></div>' +
+        (trava ? '<p class="passo" id="' + k + '-trava">Extrato e moeda não mudam depois que há extratos salvos nesta carteira: os valores estão em ' + esc(nomeMoeda(c.moeda)) + ' e não seriam convertidos. Para outro banco ou outra moeda, crie outra carteira.</p>' : '') +
+        '<p class="aviso" id="' + k + '-aviso"' + (temRegras(c.pais) ? ' hidden' : '') + '>' + avisoSuporte(c.pais) + '</p></div>';
+    });
+    var nova = x.carteiras.length >= MAX_CARTEIRAS
+      ? '<p class="passo">Já há ' + MAX_CARTEIRAS + ' carteiras, o máximo. Para criar outra, exclua uma.</p>'
+      : '<details class="metas" id="fin-wnova"' + (S.wOpen ? ' open' : '') + '><summary>Adicionar carteira</summary>' +
+        '<p class="passo">Uma carteira para cada conta: um banco e uma moeda. Até ' + MAX_CARTEIRAS + '. Cada uma tem a sua aba, com o extrato dela. Ao salvar, a carteira nova é criada e aberta.</p>' +
+        '<div class="mgrid"><label>Nome da carteira<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Wise libras"></label>' +
+        '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + SEM_LEITOR + '</small></label>' +
+        '<label>Moeda da conta<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
+        '<label>País<select id="fin-wn-pais">' + opcoes(PAISES, carteiraAtiva(x).pais) + '</select></label></div>' +
+        '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
+    return '<fieldset><legend>' + (varias ? 'Carteiras' : 'Carteira') + '</legend>' + h + nova + '</fieldset>';
+  }
+  function lerCarteira(id) {
+    var k = '#fin-w-' + id, mo = $(k + '-moeda'), bc = $(k + '-banco');
+    return { nome: $(k + '-nome').value, pais: $(k + '-pais').value, moeda: mo.disabled ? undefined : mo.value, banco: bc.disabled ? undefined : bc.value };
+  }
+  function telaExcluirCarteira() {
+    var x = dadosAtuais(), c = x.carteiras.filter(function (w) { return w.id === S.excluir; })[0], r = resumoDados(c);
+    var prox = x.carteiras[0].id === c.id ? x.carteiras[1] : null;
+    var oQue = r.meses ? r.meses + (r.meses === 1 ? ' mês' : ' meses') + ' e ' + r.mov + ' movimentações (' + (r.meses === 1 ? mLabel(r.de) : mLabel(r.de) + ' a ' + mLabel(r.ate)) + ')' : 'a carteira, que ainda não tem extrato';
+    return '<section class="sec"><div class="sec-top"><h2>Excluir a carteira ' + esc(c.nome) + '</h2></div><div class="card ggrid">' +
+      '<p class="aviso erro">Isso apaga deste navegador ' + esc(oQue) + ', com as escolhas de categoria e as metas por mês dessa carteira. Não dá para desfazer.</p>' +
+      '<p>As outras carteiras, a configuração, Em observação e as metas de poupança ficam.</p>' +
+      (prox ? '<p class="aviso">' + esc(prox.nome) + ' passa a ser a carteira principal' + (prox.moeda !== c.moeda ? ', em ' + esc(nomeMoeda(prox.moeda)) + ': o câmbio de Em observação terá de ser informado de novo, e os valores das metas de poupança não são convertidos.' : '.') + '</p>' : '') +
+      '<div class="grupo"><button class="pill perigo" type="button" data-excluir="confirmar">Excluir carteira</button>' +
+      '<button class="btn" type="button" data-backup="baixar">Baixar backup antes</button>' +
+      '<button class="btn" type="button" data-excluir="cancelar">Cancelar</button></div></div></section>';
   }
   /* renomear, marcar como conta fixa, esconder, excluir (só as criadas) e criar categorias */
   function categoriasCampos() {
@@ -780,7 +920,8 @@
       '<small id="fin-k-nova-d">' + (livres.length ? (livres.length === 1 ? '1 cor livre.' : livres.length + ' cores livres.') + ' Depois, escolha a categoria dos comerciantes em Revisar categorias.' : 'As ' + MAX_CORES + ' cores estão em uso: esconda uma categoria para liberar a cor dela.') + '</small></label></div>' +
       '</details></fieldset>';
   }
-  /* lê o editor de categorias para dentro de um plan novo; devolve { plan, erro } (erro só ao criar sem cor livre) */
+  /* lê o editor de categorias para dentro de um plan novo; devolve { plan, erro, tirar } (erro só ao criar sem cor livre;
+     tirar = categorias criadas que a pessoa excluiu) */
   function lerCategorias(p) {
     var nomes = {}, ocultas = [], fixas = [], proprias = [], tirar = [];
     CATST.forEach(function (c) {
@@ -791,11 +932,9 @@
       if (oc && oc.checked) ocultas.push(c.id);
       if ($(k + '-fixa').checked) fixas.push(c.id);
     });
-    /* categoria excluída: as escolhas manuais que apontavam para ela voltam ao automático */
-    Object.keys(S.over).forEach(function (k) { if (tirar.indexOf(S.over[k]) >= 0) delete S.over[k]; });
     var np = Object.assign({}, p, { nomes: nomes, ocultas: ocultas, fixas: fixas, proprias: proprias }), nova = $('#fin-k-nova').value.trim(), erro = null;
     if (nova) { try { np = criarCategoria(np, nova); } catch (e) { erro = 'Não criei "' + nova + '": ' + e.message + '.'; } }
-    return { plan: np, erro: erro };
+    return { plan: np, erro: erro, tirar: tirar };
   }
   /* ---------- seus dados: backup, restaurar, apagar ---------- */
   function baixar(nome, texto, tipo) {
@@ -860,6 +999,8 @@
       '<button class="pill perigo" type="button" data-apagar="pedir">Apagar e começar do zero</button></div></div></section>';
   }
   function emptyState() {
+    if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
+      '<p id="fin-sem-leitor">' + SEM_LEITOR + '</p><button class="btn pri" type="button" disabled aria-describedby="fin-sem-leitor">Escolher arquivo CSV</button></section>';
     return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
       '<ol><li>No Revolut, abra Extratos e escolha o extrato consolidado.</li><li>Baixe em CSV, de 1º de janeiro até hoje.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li></ol>' +
       '<button class="btn pri" type="button" data-fin-add>Escolher arquivo CSV</button></section>';
@@ -1355,13 +1496,15 @@
     if (!S.ready) { root.innerHTML = header() + '<p class="passo">Carregando seus dados…</p>'; return; }
     if (S.restaurar) { root.innerHTML = header() + telaRestaurar(); return; }
     if (S.apagar) { root.innerHTML = header() + telaApagar(); return; }
+    if (S.excluir) { root.innerHTML = header() + telaExcluirCarteira(); return; }
     if (S.bloqueado) { root.innerHTML = header() + telaBloqueio(); return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
-    if (!M.keys.length) { root.innerHTML = header() + emptyState(); return; }
-    root.innerHTML = header() + perguntaAluguel() + cashSummary() + dividas() + kpis() + previsao() + metasPoup() + chart() +
+    if (!M.keys.length) { root.innerHTML = header() + abas() + emptyState(); return; }
+    var pr = naPrincipal(), leitor = temLeitor(bancoAtual());
+    root.innerHTML = header() + abas() + (leitor ? '' : '<p class="aviso" id="fin-sem-leitor">' + SEM_LEITOR + '</p>') + perguntaAluguel() + cashSummary() + (pr ? dividas() : notaPrincipal()) + kpis() + previsao() + (pr ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
-      '<p class="passo">Todo fim de mês: baixe o extrato consolidado do Revolut em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
+      (bancoAtual() === 'revolut' ? '<p class="passo">Todo fim de mês: baixe o extrato consolidado do Revolut em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' : '') + cashBridge();
     var s2 = $('.fin .cscroll');
     if (s2) s2.scrollLeft = keep != null ? keep : s2.scrollWidth;
     drawBal();
@@ -1393,7 +1536,7 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel]');
+    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
@@ -1417,6 +1560,24 @@
       var ap = t.getAttribute('data-apagar');
       if (ap === 'confirmar') { apagarTudo(); S.apagar = false; recompute(); render(); toast('Seus dados foram apagados deste navegador.'); }
       else { S.apagar = ap === 'pedir'; render(); }
+      return;
+    }
+    if (t.hasAttribute('data-carteira')) {
+      var cid = t.getAttribute('data-carteira');
+      if (cid === S.dados.ativa) return;
+      usarDados(escolherCarteira(dadosAtuais(), cid)); localSave();
+      S.sel = null; S.f = []; S.q = ''; S.more = 12; recompute(); render();
+      var ab = document.querySelector('[data-carteira="' + cid + '"]'); if (ab) ab.focus();
+      return;
+    }
+    if (t.hasAttribute('data-wexcluir')) { S.excluir = t.getAttribute('data-wexcluir'); render(); window.scrollTo(0, 0); return; }
+    if (t.hasAttribute('data-excluir')) {
+      if (t.getAttribute('data-excluir') === 'confirmar') {
+        var x0 = dadosAtuais(), ex = x0.carteiras.filter(function (w) { return w.id === S.excluir; })[0], x1 = excluirCarteira(x0, S.excluir);
+        var semCambio = Object.keys(x0.cambios || {}).length && !Object.keys(x1.cambios).length;
+        usarDados(x1); localSave(); S.excluir = null; S.sel = null; recompute(); render();
+        toast('Carteira ' + ex.nome + ' excluída.' + (semCambio ? ' A carteira principal mudou de moeda: informe o câmbio de novo em Em observação.' : ''));
+      } else { S.excluir = null; render(); }
       return;
     }
     if (t.hasAttribute('data-aluguel')) {
@@ -1464,7 +1625,9 @@
     var t = e.target;
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
-    if (t.id === 'fin-s-pais') { var av = $('#fin-s-aviso-pais'); av.innerHTML = avisoSuporte(t.value); av.hidden = temRegras(t.value); return; }
+    var wm = /^(fin-w-.+|fin-wn)-(pais|banco)$/.exec(t.id || '');
+    if (wm && wm[2] === 'pais') { var av = $('#' + wm[1] + '-aviso'); av.innerHTML = avisoSuporte(t.value); av.hidden = temRegras(t.value); return; }
+    if (wm) { $('#' + wm[1] + '-leitor').hidden = temLeitor(t.value); return; }
     if (t.id === 'fin-json') { lerBackup(t.files && t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.hasAttribute && t.hasAttribute('data-ov') && t.closest('#fin-app')) {
       var key = t.getAttribute('data-ov'), v = t.value, autos = {};
@@ -1510,15 +1673,34 @@
     }
     if (fid === 'fin-fsetup') {
       e.preventDefault();
-      var lk = lerCategorias(Object.assign({}, S.plan || {}, lerMetas('s'), {
-        titular: $('#fin-s-titular').value.trim(), moeda: moedaTravada(S.months) ? (S.plan.moeda || 'EUR') : $('#fin-s-moeda').value, pais: $('#fin-s-pais').value, configurado: true
-      })), cfg = lk.plan;
-      S.setupOpen = false;
-      var trocou = S.plan && S.plan.moeda && S.plan.moeda !== cfg.moeda && S.div && S.div.cambios && Object.keys(S.div.cambios).length;
-      enqueue(function () {
-        if (trocou) { var d = JSON.parse(JSON.stringify(S.div)); d.cambios = {}; return saveDiv(d).then(function () { return savePlan(cfg); }); }
-        return savePlan(cfg);
-      }).then(function () { recompute(); render(); toast(lk.erro ? 'Configuração salva. ' + lk.erro : trocou ? 'Configuração salva. A moeda mudou: informe o câmbio de novo em Em observação.' : 'Configuração salva.', !!lk.erro); });
+      /* 1) carteiras (nome, banco, moeda, país); 2) você, categorias e metas da carteira ativa; 3) carteira nova, que vira a ativa */
+      var x = dadosAtuais(), erros = [], tinhaCambio = Object.keys(x.cambios || {}).length > 0, mp0 = x.config.moedaPrincipal;
+      x.carteiras.forEach(function (c) {
+        try { x = editarCarteira(x, c.id, lerCarteira(c.id)); } catch (er) { erros.push(c.nome + ': ' + er.message + '.'); }
+      });
+      var mudouPrincipal = x.config.moedaPrincipal !== mp0;
+      usarDados(x);
+      var lk = lerCategorias(Object.assign({}, S.plan, lerMetas('s'), { titular: $('#fin-s-titular').value.trim(), configurado: true }));
+      if (lk.erro) erros.push(lk.erro);
+      S.plan = lk.plan; x = dadosAtuais();
+      /* categoria excluída: as escolhas manuais que apontavam para ela voltam ao automático, em todas as carteiras */
+      if (lk.tirar.length) x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) {
+        var ov = {}; Object.keys(c.over).forEach(function (k) { if (lk.tirar.indexOf(c.over[k]) < 0) ov[k] = c.over[k]; });
+        return Object.assign({}, c, { over: ov });
+      }) });
+      var wn = $('#fin-wn-nome'), criada = null;
+      if (wn && wn.value.trim()) {
+        try { x = novaCarteira(x, { nome: wn.value, banco: $('#fin-wn-banco').value, moeda: $('#fin-wn-moeda').value, pais: $('#fin-wn-pais').value }); criada = carteiraAtiva(x); }
+        catch (er) { erros.push('Não criei a carteira "' + wn.value.trim() + '": ' + er.message + '.'); }
+      }
+      S.setupOpen = false; S.wOpen = false;
+      if (criada) { S.sel = null; S.f = []; S.q = ''; }
+      enqueue(function () { usarDados(x); localSave(); }).then(function () {
+        recompute(); render();
+        var msg = 'Configuração salva.' + (criada ? ' Carteira ' + criada.nome + ' criada' + (temLeitor(criada.banco) ? ': adicione o extrato dela.' : '. ' + SEM_LEITOR) : '') +
+          (mudouPrincipal && tinhaCambio ? ' A moeda principal mudou: informe o câmbio de novo em Em observação.' : '');
+        toast(erros.length ? msg + ' ' + erros.join(' ') : msg, !!erros.length);
+      });
       return;
     }
     if (fid === 'fin-fgoals') {
@@ -1548,7 +1730,7 @@
     S.metasOpen = true;
     enqueue(function () { return savePlan(p); }).then(function () { render(); toast('Metas salvas.'); });
   });
-  document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; }, true);
+  document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; if (e.target.id === 'fin-wnova') S.wOpen = e.target.open; }, true);
   /* arrastar um extrato só vale com a aba Finanças aberta */
   window.addEventListener('dragover', function (e) { var r = $('#fin-app'); if (!r) return; e.preventDefault(); r.classList.add('arrasta'); });
   window.addEventListener('dragleave', function (e) { var r = $('#fin-app'); if (r && !e.relatedTarget) r.classList.remove('arrasta'); });

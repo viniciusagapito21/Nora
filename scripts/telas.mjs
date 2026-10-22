@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 37 telas do painel (19 em 1280px, 18 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 47 telas do painel (24 em 1280px, 23 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -34,7 +34,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx };')();
+const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -56,6 +56,16 @@ const EDITADO = { 'cortex-financas.v3': JSON.stringify({ ...comDados, over: { 'C
   nomes: { mercado: 'Supermercado' }, ocultas: ['saude'], fixas: ['aluguel', 'assin', 'brasil', 'mercado'], proprias: [{ id: 'u1', nome: 'Cafés', slot: 8 }],
   metasPoupanca: [{ id: 'reserva', nome: 'Reserva de emergência', src: 'flex' }, { id: 'm1', nome: 'Carro', src: null }],
   goals: { reserva: { alvo: 3000 }, m1: { alvo: 5000, tem: 1200, prazo: '2027-12' } } } }) };
+// três carteiras: a do exemplo (Revolut, euro) e duas vazias de bancos sem leitor ainda (Wise em libra, Nubank em real)
+const tresCarteiras = ativa => {
+  let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
+  x = api.novaCarteira(x, { nome: 'Wise libras', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  x = api.novaCarteira(x, { nome: 'Nubank', moeda: 'BRL', pais: 'BR', banco: 'nubank' });
+  return { 'cortex-financas.v4': JSON.stringify(api.escolherCarteira(x, ativa)) };
+};
+const CARTEIRAS = tresCarteiras('c1'), SEM_LEITOR = tresCarteiras('c2');
+// v3 com um campo grande (que o painel preserva): a v3 guardada e a v4 passam juntas de 4 MB
+const GRANDE = { 'cortex-financas.v3': JSON.stringify({ ...comDados, plan: { ...plan, extra: 'x'.repeat(2.1 * 1024 * 1024) } }) };
 const REAL = emOutraMoeda('BRL', 'BR', { USD: { rate: 0.19, data: '2026-10-01' }, EUR: { rate: 0.18, data: '2026-10-01' } });
 
 // ---------- o que roda dentro da página ----------
@@ -158,6 +168,11 @@ for (const w of [1280, 390]) {
   t('17-configuracoes-real', { storage: REAL, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
   t('18-painel-categorias-editadas', { storage: EDITADO, prepara: async pg => { await pg.click('#fin-gedit > summary'); } });
   t('19-configuracoes-categorias', { storage: EDITADO, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-kedit > summary'); } });
+  t('20-painel-carteiras', { storage: CARTEIRAS });
+  t('21-carteira-sem-leitor', { storage: SEM_LEITOR });
+  t('22-configuracoes-carteiras', { storage: CARTEIRAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-wnova > summary'); await pg.selectOption('#fin-wn-banco', 'btg'); } });
+  t('23-excluir-carteira', { storage: CARTEIRAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('[data-wexcluir=c1]'); } });
+  t('24-aviso-espaco', { storage: GRANDE, viewport: true });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });

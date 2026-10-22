@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO };')();
 }
 function months(api) {
   const m = {};
@@ -512,4 +512,96 @@ test('v4 inválida é recusada com motivo', () => {
   assert.throws(() => api.migrate({ ...ok, carteiras: [ok.carteiras[0], ok.carteiras[0]] }), /repetid/);
   assert.equal(api.migrate({ ...ok, ativa: 'nao-existe' }).ativa, 'c1', 'ativa inválida volta para a primeira');
   assert.throws(() => api.paraV3({ ...ok, carteiras: [ok.carteiras[0], { ...ok.carteiras[0], id: 'c2' }] }), /mais de uma carteira/);
+});
+
+// ---------- 9.2: criar, renomear e excluir carteiras ----------
+function comUmaCarteira(api) { return api.migrate({ v: 3, months: months(api), over: { TESCO: 'lazer' }, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', configurado: true }, summary: null, div: { items: [], cambios: { BRL: { rate: 5.61 } } } }); }
+
+test('criar carteira: nome, moeda, país e banco; vira a ativa; até 5', () => {
+  const api = load(), x = comUmaCarteira(api), copia = JSON.stringify(x);
+  const y = api.novaCarteira(x, { nome: '  Wise libras ', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  assert.equal(JSON.stringify(x), copia, 'não altera o original');
+  assert.equal(y.carteiras.length, 2);
+  const w = y.carteiras[1];
+  assert.deepEqual({ id: w.id, nome: w.nome, moeda: w.moeda, pais: w.pais, banco: w.banco }, { id: 'c2', nome: 'Wise libras', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  assert.deepEqual([w.months, w.over, w.summary, w.metas], [{}, {}, null, {}]);
+  assert.equal(y.ativa, 'c2');
+  assert.equal(y.config.moedaPrincipal, 'EUR', 'a principal continua a primeira');
+  assert.deepEqual(y.cambios, x.cambios);
+  // a mesma moeda pode repetir (decisão 9); o nome não
+  const z = api.novaCarteira(y, { nome: 'Revolut 2', moeda: 'EUR', pais: 'IE', banco: 'revolut' });
+  assert.equal(z.carteiras[2].id, 'c3');
+  assert.throws(() => api.novaCarteira(z, { nome: 'revolut', moeda: 'EUR', banco: 'revolut' }), /já existe uma carteira chamada/);
+  assert.throws(() => api.novaCarteira(z, { nome: ' ', moeda: 'EUR' }), /precisa de um nome/);
+  assert.throws(() => api.novaCarteira(z, { nome: 'X', moeda: 'euro' }), /moeda/);
+  assert.throws(() => api.novaCarteira(z, { nome: 'X', moeda: 'EUR', banco: 'banco-inventado' }), /tipo de extrato/);
+  let cinco = api.novaCarteira(api.novaCarteira(z, { nome: 'N4', moeda: 'BRL', pais: 'BR', banco: 'nubank' }), { nome: 'N5', moeda: 'BRL', pais: 'BR', banco: 'btg' });
+  assert.equal(cinco.carteiras.length, 5);
+  assert.throws(() => api.novaCarteira(cinco, { nome: 'N6', moeda: 'EUR' }), /já há 5 carteiras/);
+  // o id novo vem depois do maior que existe (não reaproveita o de uma excluída no meio)
+  const quatro = api.excluirCarteira(cinco, 'c2');
+  assert.equal(api.novaCarteira(quatro, { nome: 'N6', moeda: 'EUR', banco: 'revolut' }).carteiras[4].id, 'c6');
+});
+
+test('só o Revolut tem leitor por enquanto', () => {
+  const api = load();
+  assert.equal(api.temLeitor('revolut'), true);
+  ['aib', 'boi', 'wise', 'nubank', 'btg', 'outro'].forEach(b => assert.equal(api.temLeitor(b), false, b));
+  assert.deepEqual(api.BANCOS.map(b => b[0]), ['revolut', 'aib', 'boi', 'wise', 'nubank', 'btg', 'outro']);
+});
+
+test('editar carteira: nome e país sempre; moeda e banco só sem movimentos', () => {
+  const api = load(), x = api.novaCarteira(comUmaCarteira(api), { nome: 'Nubank', moeda: 'BRL', pais: 'BR', banco: 'nubank' });
+  // c1 tem extrato: moeda e banco travados
+  const y = api.editarCarteira(x, 'c1', { nome: 'Revolut euro', pais: 'PT', moeda: 'EUR', banco: 'revolut' });
+  assert.deepEqual([y.carteiras[0].nome, y.carteiras[0].pais], ['Revolut euro', 'PT']);
+  assert.equal(y.carteiras[0].months, x.carteiras[0].months, 'movimentos intactos');
+  assert.throws(() => api.editarCarteira(x, 'c1', { moeda: 'GBP' }), /moeda não muda/);
+  assert.throws(() => api.editarCarteira(x, 'c1', { banco: 'aib' }), /tipo de extrato não muda/);
+  assert.throws(() => api.editarCarteira(x, 'c1', { nome: 'nubank' }), /já existe uma carteira chamada/);
+  assert.throws(() => api.editarCarteira(x, 'c9', { nome: 'X' }), /não existe/);
+  // c2 vazia: troca moeda e banco à vontade; não mexe na moeda principal
+  const z = api.editarCarteira(x, 'c2', { moeda: 'USD', banco: 'wise' });
+  assert.deepEqual([z.carteiras[1].moeda, z.carteiras[1].banco, z.config.moedaPrincipal], ['USD', 'wise', 'EUR']);
+  // a principal (a primeira) vazia trocando de moeda: a principal acompanha e o câmbio é pedido de novo (decisão 8)
+  const vazia = api.migrate({ v: 3, months: {}, over: {}, plan: { moeda: 'EUR' }, summary: null, div: { items: [], cambios: { BRL: { rate: 5.61 } } } });
+  const g = api.editarCarteira(vazia, 'c1', { moeda: 'GBP' });
+  assert.deepEqual([g.config.moedaPrincipal, g.cambios], ['GBP', {}]);
+  assert.deepEqual(api.editarCarteira(vazia, 'c1', { moeda: 'EUR' }).cambios, { BRL: { rate: 5.61 } }, 'mesma moeda: câmbio fica');
+});
+
+test('excluir carteira: some com os meses dela, as outras ficam; a única não se exclui', () => {
+  const api = load(), um = comUmaCarteira(api);
+  assert.throws(() => api.excluirCarteira(um, 'c1'), /única carteira/);
+  const x = api.novaCarteira(um, { nome: 'Wise', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  const y = api.excluirCarteira(x, 'c2');
+  assert.deepEqual(y.carteiras.map(c => c.id), ['c1']);
+  assert.equal(y.ativa, 'c1', 'a ativa excluída passa para a primeira');
+  assert.deepEqual(y.carteiras[0], x.carteiras[0]);
+  assert.deepEqual([y.config.moedaPrincipal, y.cambios], ['EUR', x.cambios]);
+  assert.deepEqual(api.paraV3(y), api.paraV3(um), 'volta a ser exatamente a v3 de antes');
+  // excluir a principal: a próxima vira principal; outra moeda pede o câmbio de novo
+  const z = api.excluirCarteira(api.escolherCarteira(x, 'c1'), 'c1');
+  assert.deepEqual([z.ativa, z.config.moedaPrincipal, z.cambios], ['c2', 'GBP', {}]);
+  assert.throws(() => api.excluirCarteira(x, 'c9'), /não existe/);
+});
+
+test('escolher a carteira ativa', () => {
+  const api = load(), x = api.novaCarteira(comUmaCarteira(api), { nome: 'Wise', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  const y = api.escolherCarteira(x, 'c1');
+  assert.equal(y.ativa, 'c1');
+  assert.equal(api.compor(y).plan.moeda, 'EUR');
+  assert.equal(api.compor(x).plan.moeda, 'GBP');
+  assert.deepEqual(api.compor(x).months, {});
+  assert.throws(() => api.escolherCarteira(x, 'c9'), /não existe/);
+});
+
+test('aviso de espaço soma a v3 e a v4 (as duas ficam salvas)', () => {
+  const { tamanhoSalvo, ESPACO_AVISO } = load();
+  const mb = n => 'x'.repeat(Math.round(n * 1024 * 1024));
+  assert.equal(ESPACO_AVISO, 4 * 1024 * 1024);
+  const v3 = ['cortex-financas.v3', mb(2.1)], v4 = ['cortex-financas.v4', mb(2.1)];
+  assert.ok(tamanhoSalvo([v4]) < ESPACO_AVISO);
+  assert.ok(tamanhoSalvo([v3, v4]) > ESPACO_AVISO, 'a v3 conta junto');
+  assert.equal(tamanhoSalvo([['outra-coisa', mb(5)], ['cortex-financas.mov', '1']]), 'cortex-financas.mov'.length + 1, 'só as chaves do painel');
 });

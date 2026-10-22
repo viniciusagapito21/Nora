@@ -558,3 +558,20 @@ html, body { overflow-x: clip; }
 .cartao .mini { flex: none; display: flex; align-items: flex-end; gap: 3px; height: 28px; }
 .cartao .mini i { display: block; width: 6px; border-radius: 2px 2px 0 0; background: var(--line-hover); }
 .cartao .mini i.at { background: var(--accent); }
+
+/* carteiras (passo 9.2): abas, só com duas ou mais */
+.fin .abas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.fin .abas button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--fg); font: inherit; font-size: var(--fs-md); cursor: pointer; }
+.fin .abas button small { font-size: var(--fs-label); line-height: 1; color: var(--muted); letter-spacing: .04em; padding-top: 2px; }
+.fin .abas button:hover { background: var(--raised); border-color: var(--line-hover); }
+.fin .abas button[aria-current="true"] { background: var(--cta); border-color: var(--cta); color: var(--on-cta); font-weight: 600; }
+.fin .abas button[aria-current="true"] small { color: var(--on-cta); }
+/* cada carteira em Configurações */
+.fin .wcart { padding: 4px 0 8px; }
+.fin .wcart + .wcart { border-top: 1px solid var(--line); padding-top: 12px; }
+.fin .wtop { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.fin .wtop small { color: var(--muted); font-size: var(--fs-sm); }
+.fin .wtop .btn { margin-left: auto; }
+.fin .wcart .passo { margin: 0 0 8px; }
+/* botão desativado (carteira sem leitor): sem transparência, para o texto continuar legível */
+.pill:disabled, .fin .btn:disabled, .pill.primario:disabled, .fin .btn.pri:disabled { background: var(--raised); border-color: var(--line); color: var(--muted); font-weight: 500; opacity: 1; cursor: not-allowed; transform: none; }
