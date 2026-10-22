@@ -1,0 +1,12 @@
+{
+  "name": "cortex-financas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Painel de finanças pessoais que lê extratos CSV do banco e roda inteiro no navegador.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "start": "npx --yes serve@14.2.4 ."
+  },
+  "engines": { "node": ">=18" }
+}
