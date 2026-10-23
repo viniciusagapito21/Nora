@@ -854,3 +854,24 @@ test('sem saldo no extrato: com o saldo informado, reconstrói o fim de cada dia
   assert.equal(E.fonteSaldo, 'extrato');
   assert.equal(E.rows[2].bal, 400);
 });
+
+test('entradas: renda, outras, entre contas suas ou resgate, valendo para a mesma descrição', () => {
+  const { classify, buildModel } = load();
+  const pix = ['2026-09-20', 'Pix recebido Joao Exemplo', 'Others', 8000, null], kind = (t, over) => classify(t, over, 'MARIA SILVA', 'BR').kind;
+  assert.equal(kind(pix, {}), 'outras');
+  assert.equal(kind(pix, { '+PIX RECEBIDO JOAO EXEMPLO': '_renda' }), 'renda');
+  assert.equal(kind(pix, { '+PIX RECEBIDO JOAO EXEMPLO': '_ignore' }), 'interno');
+  assert.equal(kind(pix, { '+PIX RECEBIDO JOAO EXEMPLO': '_invest' }), 'invest');
+  // a escolha da saída de mesmo nome não muda a entrada, e vice-versa
+  const saida = ['2026-09-21', 'Pix recebido Joao Exemplo', 'Others', -3000, null];
+  assert.equal(kind(pix, { 'PIX RECEBIDO JOAO EXEMPLO': 'mercado' }), 'outras');
+  assert.equal(kind(saida, { '+PIX RECEBIDO JOAO EXEMPLO': '_renda' }), 'gasto');
+  // vale para os próximos movimentos com a mesma descrição, e "entre contas suas" sai do Entrou
+  const ov = { '+PIX RECEBIDO JOAO EXEMPLO': '_ignore' };
+  const M = buildModel({ '2026-09': [pix, ['2026-09-25', 'Pix recebido Joao Exemplo', 'Others', 5000, null]] }, ov, 'MARIA SILVA', 'BR');
+  assert.equal(M.by['2026-09'].entrou, 0);
+  assert.equal(M.by['2026-09'].interno, 130);
+  // saída marcada "entre contas suas" (_ignore) não entra no Gastou
+  const G = buildModel({ '2026-09': [['2026-09-02', 'To BTG MARIA', 'Others', -50000, null], ['2026-09-03', 'Tesco', 'Merchant', -2000, null]] }, { 'TO BTG MARIA': '_ignore' }, 'MARIA SILVA', 'IE');
+  assert.equal(G.by['2026-09'].gasto, 20);
+});

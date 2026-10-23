@@ -211,6 +211,8 @@
   }
   /* nome do titular como aparece nas transferências ("To FULANO DE TAL"), no formato da chave da descrição */
   function normTitular(s) { return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+  var ENTRADA = { renda: '_renda', outras: '_outras', interno: '_ignore', invest: '_invest' };
+  var DE_ENTRADA = { _renda: 'renda', _outras: 'outras', _ignore: 'interno', _invest: 'invest' };
   function classify(t, over, titular, pais, cats) {
     cats = cats || montarCats(null);
     var vis = {}; cats.forEach(function (c) { if (!c.oculta) vis[c.id] = 1; });
@@ -237,6 +239,13 @@
       else if (ov === '_ignore') { kind = 'interno'; cat = null; }
       else if (vis[ov]) { kind = 'gasto'; cat = ov; }
       else if (cats.some(function (c) { return c.id === ov; })) { kind = 'gasto'; cat = 'outros'; }
+    }
+    /* entradas têm escolha própria, na chave '+DESCRIÇÃO' (não se mistura com a da saída de mesmo nome):
+       _renda, _outras, _ignore (entre contas suas: não conta como entrada) ou _invest (resgate) */
+    if (a > 0 && ENTRADA[r.baseKind]) {
+      r.keyE = '+' + r.key; r.autoE = ENTRADA[r.baseKind];
+      var oe = over && over[r.keyE];
+      if (oe && DE_ENTRADA[oe]) { kind = DE_ENTRADA[oe]; cat = null; }
     }
     /* categoria escondida: o movimento vai para Outros (o total gasto não muda) */
     if (kind === 'gasto' && !vis[cat]) cat = 'outros';
@@ -1559,7 +1568,7 @@
   }
   function tagOf(r) {
     if (r.kind === 'gasto') { var c = catPor(r.cat); return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)); }
-    var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas' }[r.kind];
+    var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas suas' }[r.kind];
     return '<i class="sw" style="background:var(--muted)"></i>' + t;
   }
   /* filtro de várias escolhas: sem nada marcado mostra tudo; com marcas, mostra o que casa com qualquer uma */
@@ -1629,29 +1638,59 @@
     });
     return Object.keys(mp).map(function (k) { var x = mp[k]; if (Object.keys(x.effs).length > 1) x.eff = ''; return x; }).sort(function (a, b) { return Math.abs(b.total) - Math.abs(a.total); });
   }
-  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Ignorar' : (CPOR[e] ? CPOR[e].nome : e); }
+  /* as entradas, agrupadas pela descrição (chave '+DESCRIÇÃO') */
+  function entradas() {
+    var mp = {};
+    M.rows.forEach(function (r) {
+      if (!r.keyE) return;
+      var x = mp[r.keyE] || (mp[r.keyE] = { key: r.keyE, desc: r.desc, n: 0, total: 0, eff: '', effs: {}, autos: {} });
+      var e = ENTRADA[r.kind] || '_outras';
+      x.n++; x.total += r.a; x.effs[e] = (x.effs[e] || 0) + 1; x.autos[r.autoE] = 1; x.eff = e;
+    });
+    return Object.keys(mp).map(function (k) { var x = mp[k]; if (Object.keys(x.effs).length > 1) x.eff = ''; return x; }).sort(function (a, b) { return b.total - a.total; });
+  }
+  var NOME_ENTRADA = { _renda: 'Renda', _outras: 'Outras entradas', _ignore: 'Entre contas suas', _invest: 'Resgate de investimento' };
+  function optionsEntrada(sel, volta) {
+    var o = sel === '' ? '<option value="" selected disabled>Em mais de um tipo</option>' : '';
+    if (volta) o += '<option value="_auto">Voltar ao automático</option>';
+    [['_renda', 'Renda'], ['_outras', 'Outras entradas'], ['_ignore', 'Entre contas suas'], ['_invest', 'Resgate de investimento']].forEach(function (x) {
+      o += '<option value="' + x[0] + '"' + (sel === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
+    });
+    return o;
+  }
+  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Entre contas suas' : (CPOR[e] ? CPOR[e].nome : e); }
   function optionsFor(sel, volta) {
     var o = sel === '' ? '<option value="" selected disabled>Em mais de uma categoria</option>' : '';
     if (volta) o += '<option value="_auto">Voltar ao automático</option>';
     CATSV.forEach(function (c) { o += '<option value="' + c.id + '"' + (sel === c.id ? ' selected' : '') + '>' + esc(catNome(c)) + '</option>'; });
     o += '<option value="_invest"' + (sel === '_invest' ? ' selected' : '') + '>Investimento (não é gasto)</option>';
-    o += '<option value="_ignore"' + (sel === '_ignore' ? ' selected' : '') + '>Ignorar (entre contas)</option>';
+    o += '<option value="_ignore"' + (sel === '_ignore' ? ' selected' : '') + '>Entre contas suas</option>';
     return o;
   }
   function revList() {
     var q = S.q.trim().toUpperCase(), all = merchants().filter(function (x) { return !q || x.key.indexOf(q) >= 0; }), h = '';
-    if (!all.length) return '<p class="vazio">Nenhum comerciante encontrado.</p>';
+    var ent = entradas().filter(function (x) { return !q || x.key.indexOf(q) >= 0; });
+    if (!all.length && !ent.length) return '<p class="vazio">Nada encontrado.</p>';
+    if (all.length) h += '<h3 class="rvt">Saídas</h3>';
     all.slice(0, 40).forEach(function (x) {
       h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + x.n + (x.n === 1 ? ' movimento · ' : ' movimentos · ') + f2(x.total) + (S.over[x.key] ? ' · categoria sua' : '') + (x.eff === '' ? ' · hoje dividido: ' + Object.keys(x.effs).map(function (e) { return effNome(e) + ' (' + x.effs[e] + ')'; }).join(', ') + '. Escolha uma para todos.' : '') + '</small></div>' +
         '<select data-ov="' + esc(x.key) + '" aria-label="Categoria de ' + esc(x.desc) + '">' + optionsFor(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
     });
     if (all.length > 40) h += '<p class="passo" style="padding-top:12px">Mostrando 40 de ' + all.length + '. Use a busca para achar os outros.</p>';
+    if (ent.length) h += '<h3 class="rvt">Entradas</h3>';
+    ent.slice(0, 40).forEach(function (x) {
+      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + x.n + (x.n === 1 ? ' movimento · +' : ' movimentos · +') + f2(x.total) + (S.over[x.key] ? ' · escolha sua' : '') +
+        (x.eff === '' ? ' · hoje dividido: ' + Object.keys(x.effs).map(function (e) { return NOME_ENTRADA[e] + ' (' + x.effs[e] + ')'; }).join(', ') + '. Escolha um para todos.' : '') + '</small></div>' +
+        '<select data-ov="' + esc(x.key) + '" aria-label="Tipo de entrada de ' + esc(x.desc) + '">' + optionsEntrada(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
+    });
+    if (ent.length > 40) h += '<p class="passo" style="padding-top:12px">Mostrando 40 de ' + ent.length + ' entradas. Use a busca para achar as outras.</p>';
     return h;
   }
   function review() {
-    var nc = merchants().length;
-    return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>Revisar categorias</h2><span class="hint">' + nc + ' comerciantes. Abra para trocar a categoria de algum.</span></summary><div class="rv-c"><p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos.</p>' +
-      '<div class="fbusca"><label class="vh" for="fin-q">Buscar comerciante</label><input id="fin-q" type="search" placeholder="Buscar comerciante" value="' + esc(S.q) + '" autocomplete="off"></div><div class="card" id="fin-revlist">' + revList() + '</div></div></details></section>';
+    var nc = merchants().length, ne = entradas().length;
+    return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>Revisar categorias</h2><span class="hint">' + nc + ' comerciantes e ' + ne + (ne === 1 ? ' entrada' : ' entradas') + '. Abra para trocar a categoria de algum.</span></summary><div class="rv-c"><p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. ' +
+      'O que for dinheiro seu indo ou vindo de outra conta sua, marque como "Entre contas suas": não conta como gasto nem como entrada.</p>' +
+      '<div class="fbusca"><label class="vh" for="fin-q">Buscar comerciante ou entrada</label><input id="fin-q" type="search" placeholder="Buscar comerciante ou entrada" value="' + esc(S.q) + '" autocomplete="off"></div><div class="card" id="fin-revlist">' + revList() + '</div></div></details></section>';
   }
   function dayN(d) { var q = d.split('-'); return Date.UTC(+q[0], +q[1] - 1, +q[2]) / 864e5; }
   /* dinheiro total no fim de cada dia = conta + o que está guardado (Flexible Cash, investimentos e cripto).
@@ -2139,7 +2178,7 @@
       if (!v) return;
       if (v === '_auto') { delete S.over[key]; v = null; }
       /* só volta ao automático quando todos os movimentos desse nome já cairiam na categoria escolhida */
-      M.rows.forEach(function (r) { if (r.key === key) autos[r.auto] = 1; });
+      M.rows.forEach(function (r) { if (r.key === key) autos[r.auto] = 1; if (r.keyE === key) autos[r.autoE] = 1; });
       if (v && Object.keys(autos).length === 1 && autos[v]) delete S.over[key]; else if (v) S.over[key] = v;
       enqueue(saveOver).then(function () { recompute(); render(); var q = $('#fin-q'); if (q && S.q) { q.focus(); } });
     }

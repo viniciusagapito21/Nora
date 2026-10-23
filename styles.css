@@ -261,7 +261,7 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .rowsw { display: inline-flex; align-items: center; gap: 8px; }
 .fin .rev { display: flex; flex-direction: column; gap: 12px; }
 .fin .fbusca { max-width: 360px; }
-.fin .rrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px); gap: 4px 16px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.fin .rrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 260px); gap: 4px 16px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
 .fin .rrow .n { overflow-wrap: anywhere; }
 .fin .rrow .n small { display: block; color: var(--muted); font-size: var(--fs-sm); }
 .fin .passo { color: var(--muted); font-size: var(--fs-sm); max-width: 760px; }
@@ -597,3 +597,6 @@ html, body { overflow-x: clip; }
 .fin #fin-fancora .grupo { align-items: center; }
 .fin #fin-fancora input { min-height: 40px; width: 12em; max-width: 100%; padding: 0 12px; background: var(--field); border: 1px solid var(--field-line); border-radius: var(--r-sm); color: var(--fg); font: inherit; }
 .fin #fin-fancora input::placeholder { color: var(--placeholder); }
+/* Revisar categorias: saídas e entradas */
+.fin .rvt { margin: 4px 0 0; padding-top: 12px; font-family: var(--display); font-size: var(--fs-md); font-weight: 700; }
+.fin .rvt:first-child { padding-top: 0; }

@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 61 telas do painel (31 em 1280px, 30 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 63 telas do painel (32 em 1280px, 31 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -217,6 +217,8 @@ for (const w of [1280, 390]) {
   } });
   t('31-painel-saldo-estimado', { storage: comGenerica(true, { ancora: { data: '2026-10-14', valor: 1250000, informadoEm: '2026-10-15' } }) });
   t('32-painel-saldo-diario', { storage: comSaldoDiario() });
+  // Revisar categorias com saídas e entradas: o salário marcado como renda e o Pix como entre contas suas
+  t('29-revisar-entradas', { storage: comGenerica(true, { over: { '+SALÁRIO EMPRESA EXEMPLO LTDA': '_renda', '+PIX RECEBIDO JOÃO EXEMPLO': '_ignore' } }), prepara: async pg => { await pg.click('#fin-revd > summary'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });
