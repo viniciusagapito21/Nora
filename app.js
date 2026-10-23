@@ -532,11 +532,25 @@
     cats.forEach(function (c) { o.cats[c.id] = media(function (g) { return g.spend[c.id] || 0; }); });
     return o;
   }
-  function buildModel(months, over, titular, pais, cats) {
-    var rows = [], by = {};
+  /* saldos (carteira do importador genérico): { dia: { data: centavos }, ancora: { data, valor } } */
+  function buildModel(months, over, titular, pais, cats, saldos) {
+    var rows = [], by = {}, txs = [];
     cats = cats || montarCats(null);
-    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { rows.push(classify(t, over, titular, pais, cats)); }); });
+    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { txs.push(t); rows.push(classify(t, over, titular, pais, cats)); }); });
     rows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
+    /* movimentos sem saldo próprio: o saldo depois de cada um sai do fim do dia, andando para trás dentro do dia */
+    var fonteSaldo = rows.length && rows.every(function (r) { return r.bal != null; }) ? 'extrato' : null;
+    if (rows.length && !fonteSaldo && saldos) {
+      txs.sort(function (x, y) { return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0; });
+      var F = fechamentos(txs, saldos.dia, saldos.ancora);
+      if (F.fonte) {
+        fonteSaldo = F.fonte;
+        for (var i = rows.length - 1, dia = null, b = 0; i >= 0; i--) {
+          if (rows[i].date !== dia) { dia = rows[i].date; b = F.fecha[dia] / 100; }
+          rows[i].bal = b; b -= rows[i].a;
+        }
+      }
+    }
     rows.forEach(function (r) {
       var g = by[r.m] || (by[r.m] = { m: r.m, renda: 0, outras: 0, flex: 0, inv: 0, interno: 0, spend: {}, n: 0 });
       g.n++;
@@ -559,9 +573,9 @@
       var p = lastDate.split('-').map(Number);
       if (p[2] < new Date(p[0], p[1], 0).getDate()) partial = lastDate.slice(0, 7);
     }
-    /* extrato sem coluna de saldo (importador genérico): nada de saldo atual nem gráfico de saldo */
+    /* sem saldo do extrato e sem saldo informado: nada de saldo atual nem gráfico de saldo */
     var semSaldo = rows.some(function (r) { return r.bal == null; });
-    return { rows: rows, by: by, keys: keys, partial: partial, complete: keys.filter(function (k) { return k !== partial; }), lastDate: lastDate, semSaldo: semSaldo };
+    return { rows: rows, by: by, keys: keys, partial: partial, complete: keys.filter(function (k) { return k !== partial; }), lastDate: lastDate, semSaldo: semSaldo, fonteSaldo: semSaldo ? null : fonteSaldo };
   }
   /* ---------- importador genérico de CSV (bancos sem leitor próprio) ----------
      A pessoa escolhe as colunas; separador, codificação, linha do cabeçalho e formatos são detectados e
@@ -681,6 +695,7 @@
     if (m.desc < 0) q.push({ id: 'desc' });
     var v = m.valor || {};
     if (v.modo === 'duas' ? (v.saida < 0 || v.entrada < 0) : v.col < 0) q.push({ id: 'valor' });
+    if (m.saldo >= 0 && (v.modo === 'duas' ? (m.saldo === v.saida || m.saldo === v.entrada) : m.saldo === v.col)) q.push({ id: 'saldoValor', erro: true });
     if (q.length) return q;
     var ds = linhasDeDados(rows, m).map(function (x) { return x.r[m.data]; }).filter(pareceData), pd = possiveisData(ds);
     if (!pd.length) q.push({ id: 'fmtData', erro: true });
@@ -707,26 +722,94 @@
     return q;
   }
   /* aplica o mapeamento: { tx, linhas (número da linha no arquivo de cada tx), ignoradas: [{ n, motivo, celulas }],
-     de, ate, entradas, saidas } (centavos) */
+     de, ate, entradas, saidas, saldos: { data: centavos }, nSaldo } (centavos).
+     O saldo é do fim do dia e vale para a data, nunca para a linha: vem de uma coluna (m.saldo) ou de linhas
+     próprias (m.saldoLinhas, a descrição dessas linhas, ex.: "Saldo Diário"). Ele nunca vira movimento, e o
+     movimento guarda null no lugar do saldo (a chave de reimportação não depende dele). */
+  function normDesc(s) { return String(s || '').trim().replace(/\s+/g, ' ').toUpperCase(); }
   function interpretarCSV(rows, m) {
-    var tx = [], ns = [], ign = [], v = m.valor, fmtN = m.fmtNum || 'ponto';
+    var tx = [], ns = [], ign = [], sal = [], v = m.valor, fmtN = m.fmtNum || 'ponto', rotulo = m.saldoLinhas ? normDesc(m.saldoLinhas) : null;
     linhasDeDados(rows, m).forEach(function (x) {
       var r = x.r, d = lerData(r[m.data], m.fmtData), a;
       if (!d) { ign.push({ n: x.n, motivo: 'sem data válida', celulas: r }); return; }
+      /* linha de saldo (ex.: "Saldo Diário"): o valor dela é o saldo do fim do dia */
+      if (rotulo && normDesc(r[m.desc]) === rotulo) {
+        var vs = v.modo === 'duas' ? null : lerNumero(r[v.col], fmtN);
+        if (vs != null && !isNaN(vs)) sal.push([d, vs]); else ign.push({ n: x.n, motivo: 'linha de saldo sem valor', celulas: r });
+        return;
+      }
+      var b = m.saldo >= 0 ? lerNumero(r[m.saldo], fmtN) : null;
+      if (b != null && !isNaN(b)) sal.push([d, b]);
       if (v.modo === 'duas') {
         var sa = lerNumero(r[v.saida], fmtN), en = lerNumero(r[v.entrada], fmtN);
-        if (isNaN(sa) || isNaN(en)) a = NaN; else a = (en ? Math.abs(en) : 0) - (sa ? Math.abs(sa) : 0);
+        if (isNaN(sa) || isNaN(en)) a = NaN; else if (sa == null && en == null) a = null; else a = (en ? Math.abs(en) : 0) - (sa ? Math.abs(sa) : 0);
       } else { a = lerNumero(r[v.col], fmtN); if (v.saidas === 'positivas' && a) a = -a; }
+      /* só saldo, sem valor de movimento: não é movimento (o saldo já foi anotado) */
+      if (a == null && b != null && !isNaN(b)) return;
       if (a == null || isNaN(a)) { ign.push({ n: x.n, motivo: 'valor não entendido', celulas: r }); return; }
       if (!a) { ign.push({ n: x.n, motivo: 'valor zero', celulas: r }); return; }
-      var b = m.saldo >= 0 ? lerNumero(r[m.saldo], fmtN) : null;
-      tx.push([d, String(r[m.desc] || '').trim() || '(sem descrição)', 'Others', a, b == null || isNaN(b) ? null : b]); ns.push(x.n);
+      tx.push([d, String(r[m.desc] || '').trim() || '(sem descrição)', 'Others', a, null]); ns.push(x.n);
     });
-    /* extrato do mais novo para o mais antigo: inverte, para o saldo do fim do dia ser o da última linha */
-    if (tx.length > 1 && tx[0][0] > tx[tx.length - 1][0]) { tx.reverse(); ns.reverse(); }
+    /* extrato do mais novo para o mais antigo: inverte, para a ordem dentro do dia ser a do acontecido */
+    var dts = tx.map(function (t) { return t[0]; }).concat(sal.map(function (z) { return z[0]; }));
+    if (dts.length > 1 && dts[0] > dts[dts.length - 1]) { tx.reverse(); ns.reverse(); sal.reverse(); }
+    var saldos = {};
+    sal.forEach(function (z) { saldos[z[0]] = z[1]; }); /* o último do dia vale */
     var de = null, ate = null, ent = 0, sai = 0;
     tx.forEach(function (t) { if (!de || t[0] < de) de = t[0]; if (!ate || t[0] > ate) ate = t[0]; if (t[3] > 0) ent += t[3]; else sai += t[3]; });
-    return { tx: tx, linhas: ns, ignoradas: ign, de: de, ate: ate, entradas: ent, saidas: sai };
+    return { tx: tx, linhas: ns, ignoradas: ign, de: de, ate: ate, entradas: ent, saidas: sai, saldos: saldos, nSaldo: sal.length };
+  }
+  /* linhas de saldo: uma descrição que começa com "Saldo", sem outra informação, repetida em várias datas */
+  function detectarLinhasSaldo(rows, m) {
+    if (m.cab < 0 || m.desc < 0 || m.data < 0) return null;
+    var cont = {}, orig = {};
+    linhasDeDados(rows, m).forEach(function (x) {
+      var ds = String(x.r[m.desc] || '').trim();
+      if (/^saldo\b/i.test(ds) && pareceData(x.r[m.data])) { var k = normDesc(ds); cont[k] = (cont[k] || 0) + 1; orig[k] = ds; }
+    });
+    var melhor = null;
+    Object.keys(cont).forEach(function (k) { if (cont[k] >= 2 && (!melhor || cont[k] > cont[melhor])) melhor = k; });
+    return melhor ? orig[melhor] : null;
+  }
+  /* saldo do fim de cada dia: do extrato (saldos por data) ou, sem ele, reconstruído a partir de um saldo que a
+     pessoa informou (ancora: { data, valor }) andando pelos movimentos para trás e para a frente.
+     tx: movimentos em ordem; devolve { fecha: { data: centavos }, fonte: 'extrato' | 'estimado' | null } */
+  function fechamentos(tx, saldos, ancora) {
+    var mov = {}, dias = {};
+    tx.forEach(function (t) { mov[t[0]] = (mov[t[0]] || 0) + t[3]; dias[t[0]] = 1; });
+    var conhecidos = saldos && Object.keys(saldos).length ? saldos : null, fonte = conhecidos ? 'extrato' : null;
+    if (!conhecidos && ancora && ancora.data && ancora.valor != null) { conhecidos = {}; conhecidos[ancora.data] = ancora.valor; fonte = 'estimado'; dias[ancora.data] = 1; }
+    if (!conhecidos) return { fecha: {}, fonte: null };
+    Object.keys(conhecidos).forEach(function (d) { dias[d] = 1; });
+    var ks = Object.keys(dias).sort(), fecha = {}, i, prim = -1;
+    for (i = 0; i < ks.length; i++) {
+      if (conhecidos[ks[i]] != null) { fecha[ks[i]] = conhecidos[ks[i]]; if (prim < 0) prim = i; }
+      else if (i > 0 && fecha[ks[i - 1]] != null) fecha[ks[i]] = fecha[ks[i - 1]] + (mov[ks[i]] || 0);
+    }
+    /* antes do primeiro saldo conhecido: anda para trás desfazendo os movimentos do dia seguinte */
+    for (i = prim - 1; i >= 0; i--) fecha[ks[i]] = fecha[ks[i + 1]] - (mov[ks[i + 1]] || 0);
+    return { fecha: fecha, fonte: fonte };
+  }
+  /* confere o saldo do extrato: cada saldo do dia contra o anterior mais os movimentos entre os dois; e o saldo
+     informado pela pessoa contra o do extrato na mesma data. Devolve [{ de, ate, dif, tipo }] e { data, dif }.
+     tipo 'rendimento': diferença positiva de até RENDIMENTO_DIA por dia corrido (o rendimento da conta, que o
+     extrato não lista); 'falta': negativa ou maior que isso (pode faltar alguma linha). Nada vira movimento. */
+  var RENDIMENTO_DIA = 500;
+  function conferirSaldos(tx, saldos, ancora) {
+    var ks = Object.keys(saldos || {}).sort(), div = [], i, cmp = null;
+    for (i = 1; i < ks.length; i++) {
+      var soma = 0;
+      tx.forEach(function (t) { if (t[0] > ks[i - 1] && t[0] <= ks[i]) soma += t[3]; });
+      var dif = saldos[ks[i]] - (saldos[ks[i - 1]] + soma);
+      var dias = Math.round((Date.parse(ks[i]) - Date.parse(ks[i - 1])) / 864e5);
+      if (dif) div.push({ de: ks[i - 1], ate: ks[i], dif: dif, tipo: dif > 0 && dif <= RENDIMENTO_DIA * dias ? 'rendimento' : 'falta' });
+    }
+    if (ancora && ancora.data && ancora.valor != null && ks.length) {
+      var f = fechamentos(tx, saldos, null).fecha[ancora.data];
+      if (f == null) { var ult = ks[ks.length - 1], s2 = saldos[ult]; tx.forEach(function (t) { if (t[0] > ult && t[0] <= ancora.data) s2 += t[3]; }); f = s2; }
+      cmp = { data: ancora.data, extrato: f, dif: ancora.valor - f };
+    }
+    return { divergencias: div, ancora: cmp };
   }
   /* abre o arquivo: usa um mapeamento lembrado se o cabeçalho bater; senão detecta e sugere */
   function prepararImportacao(bytes, lembrados, cod, sep) {
@@ -742,7 +825,8 @@
     var rows = parseCSV(dec.texto, sep), cab = detectarCabecalho(rows);
     var mapa = cab < 0 ? { cab: -1, data: -1, desc: -1, saldo: -1, valor: { modo: 'uma', col: -1, saidas: null } } : sugerirColunas(rows[cab]);
     mapa.cab = cab; mapa.sep = sep;
-    if (cab >= 0) perguntasImportacao(rows, mapa); /* preenche os formatos que o arquivo deixa claros */
+    if (cab >= 0) { perguntasImportacao(rows, mapa); /* preenche os formatos que o arquivo deixa claros */
+      if (mapa.saldo < 0) mapa.saldoLinhas = detectarLinhasSaldo(rows, mapa); }
     return { cod: dec.cod, sep: sep, rows: rows, lembrado: false, mapa: mapa };
   }
   /* o que fica guardado na carteira: só posições de coluna e formatos, debaixo do código do cabeçalho */
@@ -750,7 +834,7 @@
     var o = Object.assign({}, importacao || {}), k = assinatura(rows[m.cab]);
     delete o[k];
     var ks = Object.keys(o); if (ks.length >= 5) delete o[ks[0]];
-    o[k] = { sep: m.sep, data: m.data, fmtData: m.fmtData, desc: m.desc, valor: m.valor, fmtNum: m.fmtNum || null, saldo: m.saldo };
+    o[k] = { sep: m.sep, data: m.data, fmtData: m.fmtData, desc: m.desc, valor: m.valor, fmtNum: m.fmtNum || null, saldo: m.saldo, saldoLinhas: m.saldoLinhas || null };
     return o;
   }
   /* junta movimentos novos aos de um mês: um movimento igual (data, descrição, valor e saldo) a um já salvo é
@@ -939,7 +1023,8 @@
   function recompute() {
     CATST = montarCats(S.plan); CATSV = CATST.filter(function (c) { return !c.oculta; }); CPOR = {};
     CATST.forEach(function (c) { CPOR[c.id] = c; });
-    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST);
+    var cw = cartAtual();
+    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, cw ? { dia: cw.saldosDia, ancora: cw.ancora } : null);
     SUG = sugerirMetas(M, CATST);
     RECS = detectarRecorrentes(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
@@ -1104,7 +1189,7 @@
       if (n >= 0) perguntasImportacao(I.rows, I.mapa);
     } else if (k === 'data') { m.data = n; delete m.fmtData; }
     else if (k === 'desc') m.desc = n;
-    else if (k === 'saldo') { m.saldo = n; delete m.fmtNum; }
+    else if (k === 'saldo') { m.saldoLinhas = v === 'l' ? detectarLinhasSaldo(I.rows, m) : null; m.saldo = v.charAt(0) === 'c' ? +v.slice(1) : -1; delete m.fmtNum; }
     else if (k === 'modo') { m.valor = v === 'duas' ? { modo: 'duas', saida: -1, entrada: -1 } : { modo: 'uma', col: -1, saidas: null }; delete m.fmtNum; }
     else if (k === 'col' || k === 'saida' || k === 'entrada') { m.valor[k] = n; delete m.fmtNum; }
     else if (k === 'fmtData' || k === 'fmtNum') m[k] = v;
@@ -1113,6 +1198,48 @@
     render();
     var el = foco ? document.getElementById(foco) : document.querySelector('[name="' + k + '"][value="' + v + '"]');
     if (el) el.focus();
+  }
+  /* saldo atual digitado na prévia (o "segundo o banco", na data do último movimento do arquivo) */
+  function ancoraDigitada(I) { var v = parseNum(I.ancoraTxt); return I.ancoraTxt && !isNaN(v) ? Math.round(v * 100) : null; }
+  function saldoNovo(r) { var c = cartAtual(), sd = (c && c.saldosDia) || {}; return Object.keys(r.saldos).some(function (d) { return sd[d] !== r.saldos[d]; }); }
+  function podeSalvar(I) { var p = I.previa; return !!(p && (p.novos || p.ancora != null || p.saldoNovo)); }
+  function previaSaldo(I, r) {
+    var ks = Object.keys(r.saldos);
+    return '<div id="fin-i-conf">' + confSaldo(I, r) + '</div><div class="mgrid"><label>Saldo atual segundo o banco, em ' + esc(dFull(r.ate)) + ' (opcional)<input id="fin-i-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="ex.: 1.234,56" value="' + esc(I.ancoraTxt || '') + '">' +
+      '<small>' + (ks.length ? 'Serve para conferir o saldo do extrato.' : 'Com ele, o painel estima o saldo de cada dia a partir dos movimentos.') + '</small></label></div>';
+  }
+  /* o saldo digitado só refaz esta parte e o botão (refazer a tela inteira faria perder o clique em Importar) */
+  function digitouAncora(t) {
+    var I = S.importar; I.ancoraTxt = t.value;
+    if (!I.previa) return;
+    I.previa.ancora = ancoraDigitada(I);
+    $('#fin-i-conf').innerHTML = confSaldo(I, I.previa.r);
+    var b = $('#fin-fimp button[type=submit]'), ok = podeSalvar(I);
+    b.disabled = !ok; b.textContent = textoBotao(I);
+  }
+  function textoBotao(I) {
+    var p = I.previa;
+    return !p ? 'Importar' : p.novos ? 'Importar ' + p.novos + (p.novos === 1 ? ' movimento' : ' movimentos') : podeSalvar(I) ? 'Salvar só o saldo' : 'Nada novo para importar';
+  }
+  function confSaldo(I, r) {
+    var h = '', an = ancoraDigitada(I), ks = Object.keys(r.saldos).sort(), m = I.mapa;
+    if (ks.length) {
+      var ult = ks[ks.length - 1], c = conferirSaldos(r.tx, r.saldos, an != null ? { data: r.ate, valor: an } : null), dv = c.divergencias;
+      h += '<p class="passo">Saldo do fim do dia: ' + ks.length + (ks.length === 1 ? ' dia' : ' dias') + ', ' + (m.saldoLinhas ? 'das linhas "' + esc(m.saldoLinhas) + '", que não entram como movimento' : 'da coluna ' + esc(nomeColuna(I, m.saldo))) +
+        '. Último: <b>' + esc(f2(r.saldos[ult] / 100)) + '</b> em ' + esc(dFull(ult)) + '.</p>';
+      var rend = dv.filter(function (x) { return x.tipo === 'rendimento'; }), falta = dv.filter(function (x) { return x.tipo === 'falta'; });
+      var lista = function (xs) { return '<ul class="imp-ign">' + xs.slice(0, 6).map(function (x) { return '<li>Entre ' + esc(dFull(x.de)) + ' e ' + esc(dFull(x.ate)) + ': ' + esc(sgn(x.dif / 100, f2)) + '</li>'; }).join('') + (xs.length > 6 ? '<li>e mais ' + (xs.length - 6) + '</li>' : '') + '</ul>'; };
+      if (rend.length) {
+        var tr = 0; rend.forEach(function (x) { tr += x.dif; });
+        h += '<details class="metas"><summary>' + esc(sgn(tr / 100, f2)) + ' em ' + rend.length + (rend.length === 1 ? ' dia' : ' dias') + ': provável rendimento da conta, não listado no extrato</summary>' +
+          '<p class="passo">O saldo subiu um pouco mais do que os movimentos explicam (até ' + esc(f2(RENDIMENTO_DIA / 100)) + ' por dia). Nenhum movimento é criado para isso: o saldo do extrato vale como está.</p>' + lista(rend) + '</details>';
+      }
+      if (falta.length) h += '<div class="aviso"><p>Em ' + falta.length + (falta.length === 1 ? ' trecho' : ' trechos') + ' o saldo do extrato não bate com o do dia anterior mais os movimentos: pode faltar alguma linha entre estes dias. Confira com o app do banco.</p>' + lista(falta) + '</div>';
+      if (c.ancora) h += c.ancora.dif
+        ? '<p class="aviso erro">O saldo que você informou (' + esc(f2(an / 100)) + ') não bate com o do extrato em ' + esc(dFull(r.ate)) + ' (' + esc(f2(c.ancora.extrato / 100)) + '): diferença de ' + esc(sgn(c.ancora.dif / 100, f2)) + '. Pode faltar alguma linha depois de ' + esc(dFull(ult)) + ', ou o saldo informado é de outro dia.</p>'
+        : '<p class="passo">O saldo que você informou bate com o do extrato em ' + esc(dFull(r.ate)) + '.</p>';
+    } else if (an != null) h += '<p class="passo">Sem saldo no extrato: o saldo de cada dia vai ser estimado a partir dos movimentos e desse saldo.</p>';
+    return h;
   }
   function confirmarImportacao() {
     var I = S.importar, r = interpretarCSV(I.rows, I.mapa), porMes = {}, novos = 0, rep = 0, meses = 0;
@@ -1124,11 +1251,18 @@
     });
     /* guarda só o mapeamento (posições e formatos), debaixo do código do cabeçalho; nada do conteúdo do arquivo */
     var x = dadosAtuais();
-    x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) { return c.id === x.ativa ? Object.assign({}, c, { importacao: lembrarMapa(c.importacao, I.rows, I.mapa) }) : c; }) });
+    var an = ancoraDigitada(I);
+    x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) {
+      if (c.id !== x.ativa) return c;
+      var n = Object.assign({}, c, { importacao: lembrarMapa(c.importacao, I.rows, I.mapa) });
+      if (Object.keys(r.saldos).length) n.saldosDia = Object.assign({}, c.saldosDia || {}, r.saldos);
+      if (an != null) { n.ancora = { data: r.ate, valor: an, informadoEm: todayIso() }; delete n.ancoraDispensada; }
+      return n;
+    }) });
     S.importar = null;
     return enqueue(function () { usarDados(x); localSave(); }).then(function () {
       recompute(); render(); window.scrollTo(0, 0);
-      toast(novos ? 'Adicionei ' + novos + (novos === 1 ? ' movimentação' : ' movimentações') + ' em ' + meses + (meses === 1 ? ' mês' : ' meses') + (rep ? '. ' + rep + (rep === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.')
+      toast(!novos && rep === 0 ? 'Saldo salvo.' : novos ? 'Adicionei ' + novos + (novos === 1 ? ' movimentação' : ' movimentações') + ' em ' + meses + (meses === 1 ? ' mês' : ' meses') + (rep ? '. ' + rep + (rep === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.')
         : 'Nada novo: ' + (rep === 1 ? 'a movimentação desse arquivo já estava salva.' : 'as ' + rep + ' movimentações desse arquivo já estavam salvas.'));
     });
   }
@@ -1147,6 +1281,14 @@
   function opColunas(I, sel, vazio) {
     return '<option value="-1"' + (sel < 0 ? ' selected' : '') + '>' + vazio + '</option>' + I.rows[I.mapa.cab].map(function (c, i) {
       return '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + esc(nomeColuna(I, i)) + '</option>';
+    }).join('');
+  }
+  /* papel do saldo: nenhum, uma coluna, ou linhas próprias com uma descrição (ex.: "Saldo Diário") */
+  function opSaldo(I) {
+    var m = I.mapa, rot = m.saldoLinhas || detectarLinhasSaldo(I.rows, m), o = '<option value="-1"' + (m.saldo < 0 && !m.saldoLinhas ? ' selected' : '') + '>Sem saldo</option>';
+    if (rot) o += '<option value="l"' + (m.saldoLinhas ? ' selected' : '') + '>Linhas "' + esc(rot) + '"</option>';
+    return o + I.rows[m.cab].map(function (c, i) {
+      return '<option value="c' + i + '"' + (i === m.saldo ? ' selected' : '') + '>Coluna ' + esc(nomeColuna(I, i)) + '</option>';
     }).join('');
   }
   function radios(nome, ops, sel) {
@@ -1176,13 +1318,14 @@
           ? '<label>Saídas (débitos)<select id="fin-i-saida" data-imp-campo="saida">' + opColunas(I, v.saida, 'Escolha') + '</select></label>' +
             '<label>Entradas (créditos)<select id="fin-i-entrada" data-imp-campo="entrada">' + opColunas(I, v.entrada, 'Escolha') + '</select></label>'
           : '<label>Valor<select id="fin-i-col" data-imp-campo="col">' + opColunas(I, v.col, 'Escolha') + '</select></label>') +
-        '<label>Saldo<select id="fin-i-saldo" data-imp-campo="saldo">' + opColunas(I, m.saldo, 'Sem saldo') + '</select><small>Opcional. Sem saldo, o painel não mostra saldo atual nem o gráfico de saldo.</small></label>' +
+        '<label>Saldo (fim do dia)<select id="fin-i-saldo" data-imp-campo="saldo">' + opSaldo(I) + '</select><small>Opcional. O saldo nunca entra como movimento: vale para o fim do dia.</small></label>' +
         '</div></fieldset>';
       var perg = '';
       q.forEach(function (x) {
         if (x.id === 'fmtData' && x.erro) perg += '<p class="aviso erro">A coluna ' + esc(nomeColuna(I, m.data)) + ' não tem datas num formato só. Confira se é a coluna certa.</p>';
         else if (x.id === 'fmtData') perg += '<fieldset><legend>Formato da data</legend><p class="passo">Datas como <b>' + esc(x.exemplo) + '</b> servem para mais de um formato. Como o banco escreve?</p>' +
           radios('fmtData', x.opcoes.map(function (f) { return [f, NOME_FMT_DATA[f] + ': ' + esc(dFull(lerData(x.exemplo, f)))]; }), m.fmtData) + '</fieldset>';
+        else if (x.id === 'saldoValor') perg += '<p class="aviso erro">A mesma coluna não pode ser o valor do movimento e o saldo. Escolha outra para o saldo, ou "Sem saldo".</p>';
         else if (x.id === 'fmtNum' && x.erro) perg += '<p class="aviso erro">Há valores que não são número nas colunas escolhidas. Confira as colunas de valor e de saldo.</p>';
         else if (x.id === 'fmtNum') perg += '<fieldset><legend>Formato do número</legend><p class="passo">Valores como <b>' + esc(x.exemplo) + '</b> servem para os dois formatos. Como o banco escreve?</p>' +
           radios('fmtNum', x.opcoes.map(function (f) { return [f, NOME_FMT_NUM[f] + ': ' + esc(x.exemplo) + ' = ' + esc(f2(lerNumero(x.exemplo, f) / 100))]; }), m.fmtNum) + '</fieldset>';
@@ -1198,26 +1341,26 @@
       var porMes = {};
       r.tx.forEach(function (t) { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
       Object.keys(porMes).forEach(function (k) { var j = juntarMovimentos(S.months[k] || [], porMes[k]); novos += j.novos; rep += j.repetidos; });
-      I.previa = { r: r, novos: novos };
+      I.previa = { r: r, novos: novos, ancora: ancoraDigitada(I), saldoNovo: saldoNovo(r) };
       h += '<fieldset><legend>Prévia</legend>' + (r.tx.length
         ? '<p class="passo">Lido como: datas ' + NOME_FMT_DATA[m.fmtData] + (m.fmtNum ? ', números ' + NOME_FMT_NUM[m.fmtNum] : '') + ', valores em ' + esc(nomeMoeda()) + '. Confira com o app do banco: o período e os totais devem bater.</p>' +
           '<div class="imp-tot"><div><span>Período</span><b>' + esc(dFull(r.de)) + ' a ' + esc(dFull(r.ate)) + '</b></div><div><span>Movimentos</span><b>' + r.tx.length + '</b></div>' +
           '<div><span>Entradas</span><b class="num pos">+' + f2(r.entradas / 100) + '</b></div><div><span>Saídas</span><b class="num neg">−' + f2(-r.saidas / 100) + '</b></div></div>' +
-          '<div class="tw"><table class="imp"><thead><tr><th>Linha</th><th>Data</th><th>Descrição</th><th>Valor</th>' + (m.saldo >= 0 ? '<th>Saldo</th>' : '') + '</tr></thead><tbody>' +
+          '<div class="tw"><table class="imp"><thead><tr><th>Linha</th><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>' +
           r.tx.slice(0, 5).map(function (t, i) {
             var n = r.linhas[i];
-            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>no arquivo: ' + esc(celulas(I.rows[n - 1])) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td>' +
-              (m.saldo >= 0 ? '<td>' + (t[4] == null ? '–' : f2(t[4] / 100)) + '</td>' : '') + '</tr>';
+            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>no arquivo: ' + esc(celulas(I.rows[n - 1])) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
           (r.ignoradas.length ? '<details class="metas"><summary>' + r.ignoradas.length + (r.ignoradas.length === 1 ? ' linha ignorada' : ' linhas ignoradas') + ' (rodapé, totais ou sem valor)</summary><ul class="imp-ign">' +
             r.ignoradas.slice(0, 20).map(function (x) { return '<li>Linha ' + x.n + ', ' + x.motivo + ': ' + esc(celulas(x.celulas)) + '</li>'; }).join('') + '</ul></details>' : '') +
-          (rep ? '<p class="aviso">' + rep + (rep === 1 ? ' movimento já estava salvo e vai ser ignorado' : ' movimentos já estavam salvos e vão ser ignorados') + ' (mesma data, descrição, valor' + (m.saldo >= 0 ? ' e saldo' : '') + ').</p>' : '')
+          (rep ? '<p class="aviso">' + rep + (rep === 1 ? ' movimento já estava salvo e vai ser ignorado' : ' movimentos já estavam salvos e vão ser ignorados') + ' (mesma data, descrição e valor).</p>' : '') +
+          previaSaldo(I, r)
         : '<p class="aviso erro">Nenhum movimento entendido com essas colunas. Confira a linha do cabeçalho e as colunas.</p>') + '</fieldset>';
     }
     return '<section class="sec" id="fin-imp"><div class="sec-top"><h2>Importar extrato</h2><span class="hint">' + esc(I.nome) + ' · ' + esc(c ? c.nome : '') + '</span></div>' +
       '<div class="card"><form id="fin-fimp" class="ggrid">' + h +
-      '<div class="grupo"><button class="btn pri" type="submit"' + (pend || !r || !novos ? ' disabled aria-describedby="fin-i-falta"' : '') + '>' +
-      (pend || !r ? 'Importar' : novos ? 'Importar ' + novos + (novos === 1 ? ' movimento' : ' movimentos') : 'Nada novo para importar') + '</button>' +
+      '<div class="grupo"><button class="btn pri" type="submit"' + (pend || !r || !podeSalvar(I) ? ' disabled aria-describedby="fin-i-falta"' : '') + '>' +
+      (pend || !r ? 'Importar' : textoBotao(I)) + '</button>' +
       '<button class="btn" type="button" data-imp="cancelar">Cancelar</button></div>' +
       (pend ? '<p class="passo" id="fin-i-falta">Responda o que falta acima para ver a prévia.</p>' : '') + '</form></div></section>';
   }
@@ -1535,7 +1678,7 @@
   function cashSummary() {
     var rows = M.rows;
     if (!rows.length) return '';
-    if (M.semSaldo) return '<section class="sec"><p class="aviso">O extrato de ' + esc(origem()) + ' não traz saldo: o painel mostra o que entrou e saiu, sem saldo atual nem gráfico de saldo.</p></section>';
+    if (M.semSaldo) return perguntaSaldo();
     var sm = S.summary, pts = balSeries(), lp = pts[pts.length - 1], last = rows[rows.length - 1], pmin = pts[0], nt = [], parts = 'Conta ' + f0(lp.c);
     pts.forEach(function (p) { if (p.b < pmin.b) pmin = p; });
     if (sm) {
@@ -1543,11 +1686,28 @@
       if (sm.asOf && sm.asOf < last.date) nt.push('Flexible Cash e cripto de ' + dFull(sm.asOf));
       if (sm.investAsOf && sm.investAsOf < last.date) nt.push('investimentos de ' + dFull(sm.investAsOf));
     }
-    return '<section class="sec"><div class="card cfm"><div><p class="l mono">' + (sm ? 'Dinheiro total · Revolut' : 'Saldo atual · conta Revolut') + '</p><p class="big num">' + f0(lp.b) + '</p>' +
+    var est = M.fonteSaldo === 'estimado', an = est && cartAtual().ancora;
+    return '<section class="sec"><div class="card cfm"><div><p class="l mono">' + (sm ? 'Dinheiro total · Revolut' : bancoAtual() === 'revolut' ? 'Saldo atual · conta Revolut' : (est ? 'Saldo estimado · ' : 'Saldo atual · ') + esc(origem())) + '</p><p class="big num">' + f0(lp.b) + '</p>' +
       '<p class="s">' + esc(parts) + '</p>' +
       '<p class="s">em ' + esc(dFull(last.date)) + (nt.length ? ' · ' + esc(nt.join(' · ')) : '') + ' · média do período ' + f0(avgBal(pts)) + ' · mais baixo ' + f2(pmin.b) + '</p></div>' +
       '<div><div id="fin-bal" class="bal spark"></div><div class="axl mono"><span>' + esc(dFull(pts[0].d)) + '</span><span>' + esc(dFull(pts[pts.length - 1].d)) + '</span></div>' +
-      (sm ? '<p class="s">Antes de hoje, o total é reconstruído a partir das transferências para o Flexible Cash e para investimentos. Rendimentos e variação de preço não entram.</p>' : '') + '</div></div></section>';
+      (sm ? '<p class="s">Antes de hoje, o total é reconstruído a partir das transferências para o Flexible Cash e para investimentos. Rendimentos e variação de preço não entram.</p>' : '') +
+      (est ? '<p class="s">Estimado a partir dos movimentos, com o saldo que você informou para ' + esc(dFull(an.data)) + ' (' + esc(f2(an.valor / 100)) + '). Rendimentos e tarifas que o extrato não lista não entram.</p>' : '') +
+      (!sm && bancoAtual() !== 'revolut' && !est ? '<p class="s">Saldo do fim de cada dia, como está no extrato.</p>' : '') + '</div></div></section>';
+  }
+  /* sem saldo no extrato: pergunta uma vez o saldo segundo o banco, na data do último movimento */
+  function perguntaSaldo() {
+    var c = cartAtual();
+    if (c && c.ancoraDispensada) return '<section class="sec"><div class="aviso pergunta"><p>O extrato de ' + esc(origem()) + ' não traz saldo: o painel mostra o que entrou e saiu, sem saldo atual nem gráfico de saldo.</p>' +
+      '<button class="btn sm" type="button" data-saldo="perguntar">Informar o saldo</button></div></section>';
+    return '<section class="sec"><form class="aviso pergunta" id="fin-fancora"><p>O extrato de ' + esc(origem()) + ' não traz saldo. Qual era o saldo segundo o banco no fim de <b>' + esc(dFull(M.lastDate)) + '</b>? Com ele, o painel estima o saldo de cada dia a partir dos movimentos.</p>' +
+      '<div class="grupo"><label class="vh" for="fin-ancora">Saldo em ' + esc(dFull(M.lastDate)) + '</label><input id="fin-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="ex.: 1.234,56">' +
+      '<button class="btn sm pri" type="submit">Salvar</button><button class="btn sm" type="button" data-saldo="dispensar">Agora não</button></div></form></section>';
+  }
+  function mudarCarteira(fn) {
+    var x = dadosAtuais();
+    x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) { return c.id === x.ativa ? fn(Object.assign({}, c)) : c; }) });
+    usarDados(x); localSave(); recompute(); render();
   }
   function cashBridge() {
     var rows = M.rows;
@@ -1557,7 +1717,7 @@
     rows.forEach(function (r) {
       if (r.kind === 'gasto') { T.gasto -= r.a; cat[r.cat] = (cat[r.cat] || 0) - r.a; } else T[r.kind] += r.a;
     });
-    var items = (M.semSaldo ? [] : [{ c: 'base', l: 'Saldo inicial (' + dFull(first.date) + ')', v: open }]).concat([
+    var items = (M.semSaldo ? [] : [{ c: 'base', l: 'Saldo inicial' + (M.fonteSaldo === 'estimado' ? ' estimado' : '') + ' (' + dFull(first.date) + ')', v: open }]).concat([
       { l: 'Renda (salários e pagamentos)', v: T.renda },
       { l: 'Outras entradas', v: T.outras }
     ]);
@@ -1565,7 +1725,7 @@
     items.push({ l: T.flex <= 0 ? 'Enviado ao Flexible Cash (líquido)' : 'Retirado do Flexible Cash (líquido)', v: T.flex });
     items.push({ l: 'Investimentos e cripto (líquido)', v: T.invest });
     items.push({ l: 'Gastos (já descontados os reembolsos)', v: -T.gasto, cats: true });
-    if (!M.semSaldo) items.push({ c: 'end', l: 'Saldo atual na conta', v: cur });
+    if (!M.semSaldo) items.push({ c: 'end', l: M.fonteSaldo === 'estimado' ? 'Saldo atual estimado' : 'Saldo atual na conta', v: cur });
     var mx = 1; items.forEach(function (x) { mx = Math.max(mx, Math.abs(x.v)); });
     var br = '';
     items.forEach(function (x, i) {
@@ -1873,7 +2033,7 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp]');
+    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
@@ -1900,6 +2060,12 @@
       return;
     }
     if (t.hasAttribute('data-imp')) { S.importar = null; render(); return; }
+    if (t.hasAttribute('data-saldo')) {
+      var ds = t.getAttribute('data-saldo') === 'dispensar';
+      mudarCarteira(function (c) { if (ds) c.ancoraDispensada = true; else delete c.ancoraDispensada; return c; });
+      if (!ds) { var ia = $('#fin-ancora'); if (ia) ia.focus(); }
+      return;
+    }
     if (t.hasAttribute('data-carteira')) {
       var cid = t.getAttribute('data-carteira');
       if (cid === S.dados.ativa) return;
@@ -1979,11 +2145,20 @@
     }
   });
   document.addEventListener('input', function (e) {
+    if (e.target.id === 'fin-i-ancora' && S.importar) { digitouAncora(e.target); return; }
     if (e.target.id === 'fin-q') { S.q = e.target.value; $('#fin-revlist').innerHTML = revList(); }
   });
   document.addEventListener('submit', function (e) {
     var fid = e.target.id;
-    if (fid === 'fin-fimp') { e.preventDefault(); if (S.importar && S.importar.previa && S.importar.previa.novos) confirmarImportacao(); return; }
+    if (fid === 'fin-fancora') {
+      e.preventDefault();
+      var va = parseNum($('#fin-ancora').value);
+      if (isNaN(va)) { toast('Informe o saldo, ex.: 1.234,56.', true); return; }
+      mudarCarteira(function (c) { c.ancora = { data: M.lastDate, valor: Math.round(va * 100), informadoEm: todayIso() }; delete c.ancoraDispensada; return c; });
+      toast('Saldo salvo: o gráfico de saldo é estimado a partir dele.');
+      return;
+    }
+    if (fid === 'fin-fimp') { e.preventDefault(); if (S.importar && podeSalvar(S.importar)) confirmarImportacao(); return; }
     if (fid === 'fin-fdiv') {
       e.preventDefault();
       var nome = $('#fin-d-nome').value.trim(), valor = parseNum($('#fin-d-valor').value);

@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 55 telas do painel (28 em 1280px, 27 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 61 telas do painel (31 em 1280px, 30 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -66,7 +66,7 @@ const tresCarteiras = ativa => {
 const CARTEIRAS = tresCarteiras('c1'), SEM_LEITOR = tresCarteiras('c2');
 // importador genérico: o extrato inventado de um banco brasileiro (Latin-1, ponto e vírgula, sem saldo)
 const GENERICO = join(RAIZ, 'exemplo/extrato-generico-exemplo.csv');
-const comGenerica = comMeses => {
+const comGenerica = (comMeses, extra) => {
   let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
   x = api.novaCarteira(x, { nome: 'Banco Exemplo', moeda: 'BRL', pais: 'BR', banco: 'outro' });
   if (comMeses) {
@@ -75,6 +75,19 @@ const comGenerica = comMeses => {
     x.carteiras[1].months = {};
     api.interpretarCSV(p.rows, p.mapa).tx.forEach(t => { (x.carteiras[1].months[t[0].slice(0, 7)] = x.carteiras[1].months[t[0].slice(0, 7)] || []).push(t); });
   }
+  Object.assign(x.carteiras[1], extra || {});
+  return { 'cortex-financas.v4': JSON.stringify(x) };
+};
+// extrato inventado na estrutura do BTG convertido para CSV: saldo do dia em linhas "Saldo Diário"
+const SALDO_DIARIO = join(RAIZ, 'exemplo/extrato-saldo-diario-exemplo.csv');
+const comSaldoDiario = () => {
+  let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
+  x = api.novaCarteira(x, { nome: 'Banco Exemplo', moeda: 'BRL', pais: 'BR', banco: 'btg' });
+  const p = api.prepararImportacao(new Uint8Array(readFileSync(SALDO_DIARIO)));
+  p.mapa.valor.saidas = 'negativas';
+  const r = api.interpretarCSV(p.rows, p.mapa), c = x.carteiras[1];
+  c.months = {}; r.tx.forEach(t => { (c.months[t[0].slice(0, 7)] = c.months[t[0].slice(0, 7)] || []).push(t); });
+  c.saldosDia = r.saldos;
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
 // cartão inventado e ambíguo de propósito: 03/04/2026, 1.234 e compras sem sinal
@@ -196,6 +209,14 @@ for (const w of [1280, 390]) {
   } });
   t('27-importar-ambiguo', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', AMBIGUO); await pg.waitForSelector('#fin-fimp'); } });
   t('28-painel-sem-saldo', { storage: comGenerica(true) });
+  // saldo do dia em linhas próprias, conferido, com um saldo informado que não bate (falta rendimento no extrato)
+  t('30-importar-saldo-diario', { storage: comGenerica(false), prepara: async pg => {
+    await pg.setInputFiles('#fin-csv', SALDO_DIARIO); await pg.waitForSelector('#fin-fimp');
+    await pg.click('input[name=sinal][value=negativas]'); await pg.waitForSelector('.imp-tot');
+    await pg.fill('#fin-i-ancora', '6.050,00');
+  } });
+  t('31-painel-saldo-estimado', { storage: comGenerica(true, { ancora: { data: '2026-10-14', valor: 1250000, informadoEm: '2026-10-15' } }) });
+  t('32-painel-saldo-diario', { storage: comSaldoDiario() });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });

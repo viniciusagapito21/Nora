@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey, fechamentos, conferirSaldos };')();
 }
 function months(api) {
   const m = {};
@@ -677,9 +677,10 @@ test('importador B: débito e crédito em colunas, 1,234.56, mês/dia/ano, saldo
   assert.deepEqual(api.perguntasImportacao(p.rows, p.mapa), [], 'mês/dia (25) e 1,234.56 são claros; duas colunas não têm dúvida de sinal');
   const r = api.interpretarCSV(p.rows, p.mapa);
   assert.deepEqual(r.tx, [
-    ['2026-09-01', 'OPENING CAFE', 'Others', -1544, 23456],
-    ['2026-09-14', 'SALARY EXAMPLE LTD', 'Others', 300000, 323456],
-    ['2026-09-25', 'SUPERMARKET EXAMPLE', 'Others', -123456, 200000]]);
+    ['2026-09-01', 'OPENING CAFE', 'Others', -1544, null],
+    ['2026-09-14', 'SALARY EXAMPLE LTD', 'Others', 300000, null],
+    ['2026-09-25', 'SUPERMARKET EXAMPLE', 'Others', -123456, null]], 'o saldo nunca fica no movimento');
+  assert.deepEqual(r.saldos, { '2026-09-01': 23456, '2026-09-14': 323456, '2026-09-25': 200000 }, 'saldo por data');
 });
 
 test('importador C: data, número e sinal ambíguos ficam como pergunta; cada resposta muda o resultado', () => {
@@ -750,4 +751,106 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(!/rel="preload"[^>]*crossorigin/.test(html));
+});
+
+// ---------- saldo do fim do dia (estrutura do extrato do BTG convertido para CSV; tudo inventado) ----------
+// Primeira coluna vazia, cabeçalho de página antes da tabela (repetido a cada página), colunas vazias no meio,
+// "Data e hora", número 1,234.56 com menos nas saídas, e o saldo do dia como LINHA própria ("Saldo Diário",
+// 23:59, valor na coluna Valor), depois dos movimentos do dia. No dia 16 o saldo tem 0,42 a mais (rendimento
+// que o extrato não lista).
+const pagina = () => [
+  ',Extrato de conta corrente,,,,,,,,22/10/2026,',
+  ',,,,,,,,,,',
+  ',Cliente:,MARIA SILVA,,,,,,,,',
+  ',CPF:,000.000.000-00,,,,,,,,',
+  ',Período do extrato:,14/09/2026 a 18/09/2026,,,,,,,,',
+  ',Lançamentos:,,,,,,Saldo atual:,,1517.42,',
+  ',,,,,,,,,,',
+  ',Data e hora,Categoria,Transação,,,Descrição,,,,Valor'];
+const CSV_BTG = [
+  ...pagina(),
+  ',14/09/2026 09:12,Transferência,Pix recebido,,,EMPRESA EXEMPLO LTDA,,,,"1,000.00"',
+  ',14/09/2026 18:40,Cartão,Compra no débito,,,MERCADO EXEMPLO,,,,-82.50',
+  ',14/09/2026 23:59,,,,,Saldo Diário,,,,"1,417.50"',
+  ',15/09/2026 10:05,Transferência,Pix enviado,,,JOAO EXEMPLO,,,,-50.00',
+  ',15/09/2026 23:59,,,,,Saldo Diário,,,,"1,367.50"',
+  ',,,,,,,,,,',
+  ',,,,,,SAC: 0000-000-0000 ou atendimento@exemplo.com,,,,',
+  ...pagina(),
+  ',16/09/2026 08:00,Cartão,Compra no débito,,,PADARIA EXEMPLO,,,,-12.00',
+  ',16/09/2026 23:59,,,,,Saldo Diário,,,,"1,355.92"',
+  ',18/09/2026 14:30,Transferência,Pix recebido,,,CLIENTE EXEMPLO,,,,161.50',
+  ',18/09/2026 23:59,,,,,Saldo Diário,,,,"1,517.42"',
+  ',,,,,,,,,,',
+  ',,,,,,©2026 Banco Exemplo - CNPJ 00.000.000/0000-00,,,,'
+].join('\n');
+
+test('saldo diário em linha própria: nunca vira movimento, vale para a data, e é conferido', () => {
+  const api = load(), p = api.prepararImportacao(utf8(CSV_BTG));
+  assert.equal(p.mapa.cab, 7);
+  assert.deepEqual([p.mapa.data, p.mapa.desc, p.mapa.valor.col, p.mapa.saldo, p.mapa.saldoLinhas], [1, 6, 10, -1, 'Saldo Diário']);
+  p.mapa.valor.saidas = 'negativas';
+  assert.deepEqual(api.perguntasImportacao(p.rows, p.mapa), []);
+  const r = api.interpretarCSV(p.rows, p.mapa);
+  assert.equal(r.tx.length, 5, 'só os 5 movimentos; as 4 linhas de saldo não entram');
+  assert.ok(r.tx.every(t => t[4] === null && !/saldo/i.test(t[1])));
+  assert.deepEqual([r.entradas, r.saidas], [116150, -14450], 'os totais não somam saldo');
+  assert.equal(r.nSaldo, 4);
+  assert.deepEqual(r.saldos, { '2026-09-14': 141750, '2026-09-15': 136750, '2026-09-16': 135592, '2026-09-18': 151742 });
+  // o cabeçalho repetido da página 2, o CPF e o rodapé são ignorados
+  assert.ok(r.ignoradas.every(x => x.motivo === 'sem data válida'));
+  // o saldo de 16/09 não bate com 15/09 menos 12,00: diferença de +0,42
+  const c = api.conferirSaldos(r.tx, r.saldos);
+  assert.deepEqual(c.divergencias, [{ de: '2026-09-15', ate: '2026-09-16', dif: 42, tipo: 'rendimento' }], 'pequena e positiva: rendimento, não alerta');
+  // grande ou negativa: pode faltar linha; o limite do rendimento é por dia corrido entre os dois saldos
+  const tx1 = [['2026-09-15', 'X', 'Others', -1000, null]];
+  assert.equal(api.conferirSaldos(tx1, { '2026-09-14': 10000, '2026-09-15': 8500 }).divergencias[0].tipo, 'falta', 'negativa');
+  assert.equal(api.conferirSaldos(tx1, { '2026-09-14': 10000, '2026-09-15': 9600 }).divergencias[0].tipo, 'falta', 'R$ 6 em 1 dia');
+  assert.equal(api.conferirSaldos([], { '2026-09-11': 10000, '2026-09-14': 11200 }).divergencias[0].tipo, 'rendimento', 'R$ 12 em 3 dias (fim de semana)');
+  assert.equal(r.tx.length, 5, 'nenhum movimento criado para cobrir a diferença');
+  // saldo informado pela pessoa contra o do extrato
+  assert.equal(api.conferirSaldos(r.tx, r.saldos, { data: '2026-09-18', valor: 151742 }).ancora.dif, 0);
+  assert.equal(api.conferirSaldos(r.tx, r.saldos, { data: '2026-09-18', valor: 152000 }).ancora.dif, 258);
+});
+
+test('reimportar não depende do saldo: o mesmo movimento com outro saldo do dia não duplica', () => {
+  const api = load(), p = api.prepararImportacao(utf8(CSV_BTG));
+  p.mapa.valor.saidas = 'negativas';
+  const a = api.interpretarCSV(p.rows, p.mapa).tx;
+  const outro = api.prepararImportacao(utf8(CSV_BTG.replace('"1,417.50"', '"1,999.99"')));
+  outro.mapa.valor.saidas = 'negativas';
+  const b = api.interpretarCSV(outro.rows, outro.mapa).tx;
+  assert.equal(api.juntarMovimentos(a, b).novos, 0);
+});
+
+test('coluna de saldo: nunca é valor; linha só com saldo não é movimento', () => {
+  const api = load();
+  const csv = 'Data;Descrição;Valor;Saldo\n21/09/2026;Café;-3,50;96,50\n21/09/2026;;;96,50\n22/09/2026;Mercado;-20,00;76,50\n';
+  const p = api.prepararImportacao(utf8(csv));
+  assert.equal(p.mapa.saldo, 3);
+  p.mapa.valor.saidas = 'negativas';
+  const r = api.interpretarCSV(p.rows, p.mapa);
+  assert.equal(r.tx.length, 2);
+  assert.deepEqual(r.ignoradas, []);
+  assert.deepEqual(r.saldos, { '2026-09-21': 9650, '2026-09-22': 7650 });
+  assert.ok(api.perguntasImportacao(p.rows, { ...p.mapa, saldo: 2 }).some(q => q.id === 'saldoValor' && q.erro), 'a mesma coluna como valor e saldo é erro');
+});
+
+test('sem saldo no extrato: com o saldo informado, reconstrói o fim de cada dia para trás e para a frente', () => {
+  const api = load();
+  const tx = [['2026-09-01', 'A', 'Others', 100000, null], ['2026-09-01', 'B', 'Others', -2000, null], ['2026-09-03', 'C', 'Others', -5000, null], ['2026-09-07', 'D', 'Others', 1000, null]];
+  assert.deepEqual(api.fechamentos(tx, {}, null), { fecha: {}, fonte: null });
+  const f = api.fechamentos(tx, {}, { data: '2026-09-03', valor: 50000 });
+  assert.equal(f.fonte, 'estimado');
+  assert.deepEqual(f.fecha, { '2026-09-01': 55000, '2026-09-03': 50000, '2026-09-07': 51000 });
+  // no modelo: o saldo depois de cada movimento, e o de abertura do primeiro dia
+  const M = api.buildModel({ '2026-09': tx }, {}, '', 'BR', null, { dia: {}, ancora: { data: '2026-09-03', valor: 50000 } });
+  assert.equal(M.semSaldo, false);
+  assert.equal(M.fonteSaldo, 'estimado');
+  assert.deepEqual(M.rows.map(r => r.bal), [570, 550, 500, 510]);
+  assert.equal(M.rows[0].bal - M.rows[0].a, -430, 'saldo de abertura = fim do dia menos os movimentos do dia');
+  // com saldo do extrato, ele manda (o informado só é conferido)
+  const E = api.buildModel({ '2026-09': tx }, {}, '', 'BR', null, { dia: { '2026-09-03': 40000 }, ancora: { data: '2026-09-03', valor: 50000 } });
+  assert.equal(E.fonteSaldo, 'extrato');
+  assert.equal(E.rows[2].bal, 400);
 });

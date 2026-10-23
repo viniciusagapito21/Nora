@@ -593,3 +593,7 @@ html, body { overflow-x: clip; }
 .fin .imp-ign li { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 /* fieldset tem min-width: min-content por padrão: sem isto, a tabela da prévia alarga o formulário no celular */
 #fin-fimp fieldset { min-width: 0; }
+/* pergunta do saldo atual (carteira sem saldo no extrato) */
+.fin #fin-fancora .grupo { align-items: center; }
+.fin #fin-fancora input { min-height: 40px; width: 12em; max-width: 100%; padding: 0 12px; background: var(--field); border: 1px solid var(--field-line); border-radius: var(--r-sm); color: var(--fg); font: inherit; }
+.fin #fin-fancora input::placeholder { color: var(--placeholder); }
