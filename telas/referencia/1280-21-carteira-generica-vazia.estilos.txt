@@ -6,8 +6,6 @@ head>title e23mv3 18aoc6 18aoc6
 head>meta e23mv3 18aoc6 18aoc6
 head>link e23mv3 18aoc6 18aoc6
 head>link e23mv3 18aoc6 18aoc6
-head>link e23mv3 18aoc6 18aoc6
-head>link e23mv3 18aoc6 18aoc6
 head>style e23mv3 18aoc6 18aoc6
 body 1y4omft 1ln8j76 1ln8j76
 body>main.wrap 1dz59a4 1yytz64 1yytz64

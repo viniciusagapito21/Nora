@@ -746,3 +746,8 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
   assert.ok(Object.is(M.by['2026-09'].saved, 0), 'nada guardado é 0, e não −0 (a tabela mostrava "−0")');
   assert.equal(api.buildModel(months(api), {}).semSaldo, false, 'o Revolut continua com saldo');
 });
+
+test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(!/rel="preload"[^>]*crossorigin/.test(html));
+});

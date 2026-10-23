@@ -6,8 +6,6 @@ head>title 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
-head>link 1y599fs 1l2e3g5 1l2e3g5
-head>link 1y599fs 1l2e3g5 1l2e3g5
 head>style 1y599fs 1l2e3g5 1l2e3g5
 body 1weazxf 1ln8j76 1ln8j76
 body>main.wrap 5an2s8 1yytz64 1yytz64
