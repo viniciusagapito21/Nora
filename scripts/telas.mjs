@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 47 telas do painel (24 em 1280px, 23 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 55 telas do painel (28 em 1280px, 27 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -34,7 +34,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira };')();
+const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -64,6 +64,21 @@ const tresCarteiras = ativa => {
   return { 'cortex-financas.v4': JSON.stringify(api.escolherCarteira(x, ativa)) };
 };
 const CARTEIRAS = tresCarteiras('c1'), SEM_LEITOR = tresCarteiras('c2');
+// importador genérico: o extrato inventado de um banco brasileiro (Latin-1, ponto e vírgula, sem saldo)
+const GENERICO = join(RAIZ, 'exemplo/extrato-generico-exemplo.csv');
+const comGenerica = comMeses => {
+  let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
+  x = api.novaCarteira(x, { nome: 'Banco Exemplo', moeda: 'BRL', pais: 'BR', banco: 'outro' });
+  if (comMeses) {
+    const p = api.prepararImportacao(new Uint8Array(readFileSync(GENERICO)));
+    p.mapa.valor.saidas = 'negativas';
+    x.carteiras[1].months = {};
+    api.interpretarCSV(p.rows, p.mapa).tx.forEach(t => { (x.carteiras[1].months[t[0].slice(0, 7)] = x.carteiras[1].months[t[0].slice(0, 7)] || []).push(t); });
+  }
+  return { 'cortex-financas.v4': JSON.stringify(x) };
+};
+// cartão inventado e ambíguo de propósito: 03/04/2026, 1.234 e compras sem sinal
+const AMBIGUO = { name: 'cartao-exemplo.csv', mimeType: 'text/csv', buffer: Buffer.from('Data,Lançamento,Valor\n03/04/2026,LOJA EXEMPLO,1.234\n05/04/2026,MERCADO EXEMPLO,50\n07/04/2026,POSTO EXEMPLO,120\n') };
 // v3 com um campo grande (que o painel preserva): a v3 guardada e a v4 passam juntas de 4 MB
 const GRANDE = { 'cortex-financas.v3': JSON.stringify({ ...comDados, plan: { ...plan, extra: 'x'.repeat(2.1 * 1024 * 1024) } }) };
 const REAL = emOutraMoeda('BRL', 'BR', { USD: { rate: 0.19, data: '2026-10-01' }, EUR: { rate: 0.18, data: '2026-10-01' } });
@@ -169,10 +184,18 @@ for (const w of [1280, 390]) {
   t('18-painel-categorias-editadas', { storage: EDITADO, prepara: async pg => { await pg.click('#fin-gedit > summary'); } });
   t('19-configuracoes-categorias', { storage: EDITADO, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-kedit > summary'); } });
   t('20-painel-carteiras', { storage: CARTEIRAS });
-  t('21-carteira-sem-leitor', { storage: SEM_LEITOR });
+  t('21-carteira-generica-vazia', { storage: SEM_LEITOR });
   t('22-configuracoes-carteiras', { storage: CARTEIRAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-wnova > summary'); await pg.selectOption('#fin-wn-banco', 'btg'); } });
   t('23-excluir-carteira', { storage: CARTEIRAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('[data-wexcluir=c1]'); } });
   t('24-aviso-espaco', { storage: GRANDE, viewport: true });
+  t('25-importar-pergunta', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', GENERICO); await pg.waitForSelector('#fin-fimp'); } });
+  t('26-importar-previa', { storage: comGenerica(false), prepara: async pg => {
+    await pg.setInputFiles('#fin-csv', GENERICO); await pg.waitForSelector('#fin-fimp');
+    await pg.click('input[name=sinal][value=negativas]'); await pg.waitForSelector('.imp-tot');
+    await pg.click('#fin-fimp details > summary');
+  } });
+  t('27-importar-ambiguo', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', AMBIGUO); await pg.waitForSelector('#fin-fimp'); } });
+  t('28-painel-sem-saldo', { storage: comGenerica(true) });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });

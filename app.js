@@ -88,14 +88,15 @@
   var INV = /DIGITAL ASSETS|INVESTMENT ACCOUNT|AVATRADE|REVOLUT SECURITIES|TRADING 212|DEGIRO|ETORO/;
   var EN = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 
-  function parseCSV(text) {
+  function parseCSV(text, sep) {
+    sep = sep || ',';
     var rows = [], row = [], f = '', q = false, i, ch;
     for (i = 0; i < text.length; i++) {
       ch = text[i];
       if (q) {
         if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch;
       } else if (ch === '"') q = true;
-      else if (ch === ',') { row.push(f); f = ''; }
+      else if (ch === sep) { row.push(f); f = ''; }
       else if (ch === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
       else if (ch !== '\r') f += ch;
     }
@@ -214,7 +215,7 @@
     cats = cats || montarCats(null);
     var vis = {}; cats.forEach(function (c) { if (!c.oculta) vis[c.id] = 1; });
     var OWN = normTitular(titular), a = t[3] / 100, D = String(t[1]).toUpperCase(), rc = t[2], kind, cat = null;
-    var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
+    var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] == null ? null : t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
     if (a > 0) {
       if (/^PAYMENT FROM /.test(D) && !(OWN && D.indexOf(OWN) >= 0)) kind = 'renda';
       else if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
@@ -550,7 +551,7 @@
     keys.forEach(function (m) {
       var g = by[m]; g.entrou = g.renda + g.outras; g.gasto = 0;
       Object.keys(g.spend).forEach(function (id) { g.gasto += g.spend[id]; });
-      g.saved = -(g.flex + g.inv);
+      g.saved = -(g.flex + g.inv) || 0; /* sem nada guardado, 0 (e não −0) */
       g.saldo = g.entrou - g.gasto - g.saved;
     });
     var lastDate = rows.length ? rows[rows.length - 1].date : '', partial = null;
@@ -558,13 +559,216 @@
       var p = lastDate.split('-').map(Number);
       if (p[2] < new Date(p[0], p[1], 0).getDate()) partial = lastDate.slice(0, 7);
     }
-    return { rows: rows, by: by, keys: keys, partial: partial, complete: keys.filter(function (k) { return k !== partial; }), lastDate: lastDate };
+    /* extrato sem coluna de saldo (importador genérico): nada de saldo atual nem gráfico de saldo */
+    var semSaldo = rows.some(function (r) { return r.bal == null; });
+    return { rows: rows, by: by, keys: keys, partial: partial, complete: keys.filter(function (k) { return k !== partial; }), lastDate: lastDate, semSaldo: semSaldo };
+  }
+  /* ---------- importador genérico de CSV (bancos sem leitor próprio) ----------
+     A pessoa escolhe as colunas; separador, codificação, linha do cabeçalho e formatos são detectados e
+     mostrados para conferir. Quando o arquivo deixa dúvida (data 03/04/2026, 1.234, sinal das saídas), a
+     resposta fica em branco e a importação só sai depois que a pessoa responder: nada é adivinhado em silêncio.
+     Cada movimento vira [data, descrição, 'Others', centavos, saldo em centavos ou null]. */
+  var SEPARADORES = [[';', 'ponto e vírgula'], [',', 'vírgula'], ['\t', 'tabulação'], ['|', 'barra vertical']];
+  /* UTF-8 se o arquivo for UTF-8 válido; senão Latin-1 (Windows-1252, o que os bancos usam) */
+  function decodificar(bytes, cod) {
+    var t;
+    if (cod !== 'latin1') {
+      try { t = new TextDecoder('utf-8', { fatal: true }).decode(bytes); return { texto: t.replace(/^\uFEFF/, ''), cod: 'utf-8' }; }
+      catch (e) { if (cod === 'utf-8') throw new Error('o arquivo não é UTF-8 válido'); }
+    }
+    return { texto: new TextDecoder('windows-1252').decode(bytes), cod: 'latin1' };
+  }
+  function linhasCheias(rows) { return rows.filter(function (r) { return r.some(function (c) { return String(c).trim(); }); }); }
+  /* o separador que deixa mais linhas com o mesmo número de colunas (mais de uma) */
+  function detectarSeparador(texto) {
+    var amostra = texto.split(/\r?\n/).slice(0, 60).join('\n'), melhor = ',', pts = 0;
+    SEPARADORES.forEach(function (o) {
+      var cont = {}, max = 0;
+      linhasCheias(parseCSV(amostra, o[0])).forEach(function (r) { if (r.length > 1) { cont[r.length] = (cont[r.length] || 0) + 1; max = Math.max(max, cont[r.length]); } });
+      if (max > pts) { pts = max; melhor = o[0]; }
+    });
+    return melhor;
+  }
+  function pareceData(s) { return /^\s*\d{1,4}[\/\-. ]\d{1,2}[\/\-. ]\d{2,4}\b/.test(s) || !!isoDate(s); }
+  function pareceNumero(s) { s = String(s).trim(); return /\d/.test(s) && /^[(\-+−]?\s*[^\d\s,.\-]{0,3}\s*[\d][\d.,\s]*\s*[^\d\s,.]{0,3}\)?-?$/.test(s); }
+  /* identifica o cabeçalho sem guardar o texto dele: só um código calculado (FNV-1a) */
+  function assinatura(row) {
+    var t = row.map(function (c) { return String(c).trim().toLowerCase(); }).join('|'), x = 2166136261;
+    for (var i = 0; i < t.length; i++) { x ^= t.charCodeAt(i); x = Math.imul(x, 16777619); }
+    return 'h' + (x >>> 0).toString(36) + '.' + row.length;
+  }
+  /* primeira linha com 3+ textos que não são data nem número, seguida de uma linha do mesmo tamanho com data */
+  function detectarCabecalho(rows) {
+    for (var i = 0; i < Math.min(rows.length - 1, 40); i++) {
+      var r = rows[i], txt = r.filter(function (c) { c = String(c).trim(); return c && !pareceData(c) && !pareceNumero(c); }).length;
+      if (txt < 3) continue;
+      for (var j = i + 1; j < Math.min(rows.length, i + 4); j++) {
+        if (rows[j].length === r.length && rows[j].some(pareceData)) return i;
+      }
+    }
+    return -1;
+  }
+  /* sugestões pelo nome da coluna; o que não for achado fica para a pessoa escolher */
+  var NOMES_COLUNA = {
+    data: /(^|\s)(data|date|fecha|dt)(\s|$)|data (do |de )?(lan[cç]amento|movimento)/,
+    desc: /descri|hist[oó]rico|lan[cç]amento|details|memo|narrat|payee|estabelecimento|t[ií]tulo|title|refer[eê]ncia/,
+    valor: /^(valor|amount|value|montante|quantia|importe|transaction amount)/,
+    saida: /d[eé]bit|sa[ií]da|withdraw|money out|paid out/,
+    entrada: /cr[eé]dit|entrada|deposit|money in|paid in/,
+    saldo: /saldo|balance/
+  };
+  function sugerirColunas(cab) {
+    var n = cab.map(function (c) { return String(c).trim().toLowerCase(); }), o = {};
+    Object.keys(NOMES_COLUNA).forEach(function (k) {
+      for (var i = 0; i < n.length; i++) if (NOMES_COLUNA[k].test(n[i]) && !Object.keys(o).some(function (q) { return o[q] === i; })) { o[k] = i; break; }
+    });
+    var m = { data: o.data != null ? o.data : -1, desc: o.desc != null ? o.desc : -1, saldo: o.saldo != null ? o.saldo : -1 };
+    if (o.valor != null) m.valor = { modo: 'uma', col: o.valor, saidas: null };
+    else if (o.saida != null && o.entrada != null) m.valor = { modo: 'duas', saida: o.saida, entrada: o.entrada };
+    else m.valor = { modo: 'uma', col: -1, saidas: null };
+    return m;
+  }
+  /* datas: os formatos que servem para todos os valores da coluna */
+  var FORMATOS_DATA = ['dmy', 'mdy', 'ymd'];
+  function lerData(s, fmt) {
+    s = String(s || '').trim();
+    var m = s.match(/^(\d{1,4})[\/\-. ](\d{1,2})[\/\-. ](\d{1,4})(?:\b|$)/), y, mo, d;
+    if (!m) return fmt === 'texto' || !fmt ? isoDate(s) : null;
+    if (fmt === 'ymd') { if (m[1].length !== 4) return null; y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else if (fmt === 'dmy' || fmt === 'mdy') {
+      if (m[3].length !== 4 && m[3].length !== 2) return null;
+      y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      if (fmt === 'dmy') { d = +m[1]; mo = +m[2]; } else { mo = +m[1]; d = +m[2]; }
+    } else return null;
+    if (mo < 1 || mo > 12 || d < 1 || d > new Date(Date.UTC(y, mo, 0)).getUTCDate()) return null;
+    return y + '-' + (mo < 10 ? '0' : '') + mo + '-' + (d < 10 ? '0' : '') + d;
+  }
+  function possiveisData(valores) {
+    var vs = valores.filter(function (v) { return String(v).trim(); });
+    if (vs.length && vs.every(function (v) { return !/^\s*\d/.test(v) && isoDate(v); })) return ['texto'];
+    return FORMATOS_DATA.filter(function (f) { return vs.length && vs.every(function (v) { return lerData(v, f); }); });
+  }
+  /* números: 'virgula' = 1.234,56 e 'ponto' = 1,234.56 */
+  function soDigitos(s) { return String(s).replace(/[^\d.,]/g, ''); }
+  function serveNumero(v, fmt) {
+    v = soDigitos(v);
+    if (!v) return true;
+    return fmt === 'virgula' ? /^(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(v) : /^(\d{1,3}(,\d{3})+|\d+)(\.\d+)?$/.test(v);
+  }
+  function possiveisNumero(valores) { return ['virgula', 'ponto'].filter(function (f) { return valores.every(function (v) { return serveNumero(v, f); }); }); }
+  /* o formato só importa se algum valor tem ponto ou vírgula */
+  function numeroImporta(valores) { return valores.some(function (v) { return /[.,]/.test(soDigitos(v)); }); }
+  function lerNumero(s, fmt) {
+    s = String(s == null ? '' : s).trim();
+    if (!s) return null;
+    var neg = /^\(.*\)$/.test(s) || /^[^\d]*[-−]/.test(s) || /[-−]\s*$/.test(s), v = soDigitos(s);
+    if (!v || !serveNumero(v, fmt)) return NaN;
+    v = fmt === 'virgula' ? v.replace(/\./g, '').replace(',', '.') : v.replace(/,/g, '');
+    var c = Math.round(parseFloat(v) * 100);
+    return neg ? -c : c;
+  }
+  function colunaDe(rows, cab, col) { return col < 0 ? [] : rows.slice(cab + 1).filter(function (r) { return r.length > col; }).map(function (r) { return r[col]; }); }
+  /* as linhas de dados: depois do cabeçalho, com a data lida; o resto (rodapé, totais) é listado como ignorado */
+  function linhasDeDados(rows, m) {
+    return rows.slice(m.cab + 1).map(function (r, i) { return { n: m.cab + i + 2, r: r }; }).filter(function (x) { return x.r.some(function (c) { return String(c).trim(); }); });
+  }
+  /* o que ainda precisa de resposta, com as opções que o arquivo permite. Quando só um formato serve para
+     todos os valores, ele é preenchido em m (e aparece na prévia para conferir) */
+  function perguntasImportacao(rows, m) {
+    var q = [];
+    if (m.cab < 0) return [{ id: 'cab' }];
+    if (m.data < 0) q.push({ id: 'data' });
+    if (m.desc < 0) q.push({ id: 'desc' });
+    var v = m.valor || {};
+    if (v.modo === 'duas' ? (v.saida < 0 || v.entrada < 0) : v.col < 0) q.push({ id: 'valor' });
+    if (q.length) return q;
+    var ds = linhasDeDados(rows, m).map(function (x) { return x.r[m.data]; }).filter(pareceData), pd = possiveisData(ds);
+    if (!pd.length) q.push({ id: 'fmtData', erro: true });
+    else if (pd.length === 1) m.fmtData = pd[0];
+    else if (pd.indexOf(m.fmtData) < 0) q.push({ id: 'fmtData', opcoes: pd, exemplo: ds.filter(function (d) { return pd.length < 2 || lerData(d, pd[0]) !== lerData(d, pd[1]); })[0] || ds[0] });
+    var cols = v.modo === 'duas' ? [v.saida, v.entrada] : [v.col];
+    if (m.saldo >= 0) cols.push(m.saldo);
+    var ns = [];
+    linhasDeDados(rows, m).forEach(function (x) { if (lerData(x.r[m.data], pd.indexOf(m.fmtData) >= 0 ? m.fmtData : pd[0])) cols.forEach(function (c) { if (x.r[c] != null && String(x.r[c]).trim()) ns.push(x.r[c]); }); });
+    var pn = possiveisNumero(ns);
+    if (!pn.length) q.push({ id: 'fmtNum', erro: true });
+    else if (numeroImporta(ns) && pn.indexOf(m.fmtNum) < 0) {
+      if (pn.length === 1) m.fmtNum = pn[0];
+      else q.push({ id: 'fmtNum', opcoes: pn, exemplo: ns.filter(function (x) { return /[.,]/.test(soDigitos(x)); })[0] });
+    }
+    if (v.modo !== 'duas' && v.saidas !== 'negativas' && v.saidas !== 'positivas') {
+      var pos = 0, neg = 0;
+      linhasDeDados(rows, m).forEach(function (x) {
+        if (!lerData(x.r[m.data], m.fmtData || pd[0])) return;
+        var c = lerNumero(x.r[v.col], m.fmtNum || pn[0] || 'ponto'); if (c > 0) pos++; else if (c < 0) neg++;
+      });
+      q.push({ id: 'sinal', pos: pos, neg: neg });
+    }
+    return q;
+  }
+  /* aplica o mapeamento: { tx, linhas (número da linha no arquivo de cada tx), ignoradas: [{ n, motivo, celulas }],
+     de, ate, entradas, saidas } (centavos) */
+  function interpretarCSV(rows, m) {
+    var tx = [], ns = [], ign = [], v = m.valor, fmtN = m.fmtNum || 'ponto';
+    linhasDeDados(rows, m).forEach(function (x) {
+      var r = x.r, d = lerData(r[m.data], m.fmtData), a;
+      if (!d) { ign.push({ n: x.n, motivo: 'sem data válida', celulas: r }); return; }
+      if (v.modo === 'duas') {
+        var sa = lerNumero(r[v.saida], fmtN), en = lerNumero(r[v.entrada], fmtN);
+        if (isNaN(sa) || isNaN(en)) a = NaN; else a = (en ? Math.abs(en) : 0) - (sa ? Math.abs(sa) : 0);
+      } else { a = lerNumero(r[v.col], fmtN); if (v.saidas === 'positivas' && a) a = -a; }
+      if (a == null || isNaN(a)) { ign.push({ n: x.n, motivo: 'valor não entendido', celulas: r }); return; }
+      if (!a) { ign.push({ n: x.n, motivo: 'valor zero', celulas: r }); return; }
+      var b = m.saldo >= 0 ? lerNumero(r[m.saldo], fmtN) : null;
+      tx.push([d, String(r[m.desc] || '').trim() || '(sem descrição)', 'Others', a, b == null || isNaN(b) ? null : b]); ns.push(x.n);
+    });
+    /* extrato do mais novo para o mais antigo: inverte, para o saldo do fim do dia ser o da última linha */
+    if (tx.length > 1 && tx[0][0] > tx[tx.length - 1][0]) { tx.reverse(); ns.reverse(); }
+    var de = null, ate = null, ent = 0, sai = 0;
+    tx.forEach(function (t) { if (!de || t[0] < de) de = t[0]; if (!ate || t[0] > ate) ate = t[0]; if (t[3] > 0) ent += t[3]; else sai += t[3]; });
+    return { tx: tx, linhas: ns, ignoradas: ign, de: de, ate: ate, entradas: ent, saidas: sai };
+  }
+  /* abre o arquivo: usa um mapeamento lembrado se o cabeçalho bater; senão detecta e sugere */
+  function prepararImportacao(bytes, lembrados, cod, sep) {
+    var dec = decodificar(bytes, cod), lem = lembrados || {};
+    var ks = Object.keys(lem);
+    if (!sep) for (var i = 0; i < ks.length; i++) {
+      var rws = parseCSV(dec.texto, lem[ks[i]].sep);
+      for (var j = 0; j < Math.min(rws.length, 40); j++) if (assinatura(rws[j]) === ks[i]) {
+        return { cod: dec.cod, sep: lem[ks[i]].sep, rows: rws, lembrado: true, mapa: Object.assign(JSON.parse(JSON.stringify(lem[ks[i]])), { cab: j }) };
+      }
+    }
+    sep = sep || detectarSeparador(dec.texto);
+    var rows = parseCSV(dec.texto, sep), cab = detectarCabecalho(rows);
+    var mapa = cab < 0 ? { cab: -1, data: -1, desc: -1, saldo: -1, valor: { modo: 'uma', col: -1, saidas: null } } : sugerirColunas(rows[cab]);
+    mapa.cab = cab; mapa.sep = sep;
+    if (cab >= 0) perguntasImportacao(rows, mapa); /* preenche os formatos que o arquivo deixa claros */
+    return { cod: dec.cod, sep: sep, rows: rows, lembrado: false, mapa: mapa };
+  }
+  /* o que fica guardado na carteira: só posições de coluna e formatos, debaixo do código do cabeçalho */
+  function lembrarMapa(importacao, rows, m) {
+    var o = Object.assign({}, importacao || {}), k = assinatura(rows[m.cab]);
+    delete o[k];
+    var ks = Object.keys(o); if (ks.length >= 5) delete o[ks[0]];
+    o[k] = { sep: m.sep, data: m.data, fmtData: m.fmtData, desc: m.desc, valor: m.valor, fmtNum: m.fmtNum || null, saldo: m.saldo };
+    return o;
+  }
+  /* junta movimentos novos aos de um mês: um movimento igual (data, descrição, valor e saldo) a um já salvo é
+     ignorado. Conta repetições: dois cafés iguais no mesmo dia continuam dois; reimportar o mesmo arquivo não
+     acrescenta nada. */
+  function juntarMovimentos(atuais, novos) {
+    var tem = {}, vistos = {}, add = [], rep = 0;
+    atuais.forEach(function (t) { var k = txKey(t); tem[k] = (tem[k] || 0) + 1; });
+    novos.forEach(function (t) { var k = txKey(t); vistos[k] = (vistos[k] || 0) + 1; if (vistos[k] <= (tem[k] || 0)) rep++; else add.push(t); });
+    var lista = atuais.concat(add).map(function (t, i) { return [t, i]; });
+    lista.sort(function (a, b) { return a[0][0] < b[0][0] ? -1 : a[0][0] > b[0][0] ? 1 : a[1] - b[1]; });
+    return { lista: lista.map(function (x) { return x[0]; }), novos: add.length, repetidos: rep };
   }
   /*CORE-END*/
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
+  var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, importar: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {}), SUG = null, RECS = [];
   /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
   var CATST = montarCats(null), CATSV = CATST, CPOR = {};
@@ -746,7 +950,7 @@
     var files = Array.prototype.slice.call(list || []);
     if (!files.length) return Promise.resolve();
     if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
-    if (!temLeitor(bancoAtual())) { toast(SEM_LEITOR, true); return Promise.resolve(); }
+    if (!temLeitor(bancoAtual())) return abrirGenerico(files);
     var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {};
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
@@ -790,11 +994,10 @@
     if (M.keys.length) {
       var n = 0; M.keys.forEach(function (k) { n += M.by[k].n; });
       st = n + ' movimentações · ' + mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4) + ' a ' + mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4) + ' · última em ' + dFull(M.lastDate);
-    } else st = nomeBanco(bancoAtual()) + ' · conta em ' + nomeMoeda();
-    if (M.keys.length) st = nomeBanco(bancoAtual()) + ' · ' + st;
-    var leitor = temLeitor(bancoAtual());
+    } else st = origem() + ' · conta em ' + nomeMoeda();
+    if (M.keys.length) st = origem() + ' · ' + st;
     return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
-      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add' + (leitor ? '' : ' disabled aria-describedby="fin-sem-leitor"') + '>Adicionar extrato</button></div>' : '') + '</div>' +
+      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
       avisoEspaco() +
       (configurado() && !suportado() && !S.setupOpen ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
   }
@@ -806,10 +1009,12 @@
       '<button class="btn sm" type="button" data-backup="baixar">Baixar backup</button></div>';
   }
   /* ---------- carteiras ---------- */
-  var SEM_LEITOR = 'Ainda não há leitor para este banco; o importador genérico vem em seguida.';
+  var GENERICO = 'Sem leitor próprio: na primeira importação, você escolhe as colunas de data, descrição e valor e confere uma prévia.';
   function cartAtual() { return S.dados ? carteiraAtiva(S.dados) : null; }
   function bancoAtual() { var c = cartAtual(); return c ? c.banco : 'revolut'; }
   function nomeBanco(b) { var o = BANCOS.filter(function (x) { return x[0] === b; })[0]; return o ? o[1] : b; }
+  /* de onde vem o extrato: o banco, ou o nome da carteira quando o banco é "Outro banco" */
+  function origem() { var c = cartAtual(); return c && c.banco === 'outro' ? c.nome : nomeBanco(bancoAtual()); }
   function variasCarteiras() { return !!(S.dados && S.dados.carteiras.length > 1); }
   /* Em observação e as metas de poupança valem para todas as carteiras, mas até o Resumo existir aparecem só na principal */
   function naPrincipal() { return !S.dados || S.dados.ativa === S.dados.carteiras[0].id; }
@@ -865,7 +1070,7 @@
         '<button class="btn sm" type="button" data-wexcluir="' + esc(c.id) + '">Excluir carteira</button></div>' : '') +
         '<div class="mgrid"><label>Nome da carteira<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(c.nome) + '"></label>' +
         '<label>Extrato<select id="' + k + '-banco"' + desc + '>' + opcoes(BANCOS, c.banco) + '</select>' +
-        '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + SEM_LEITOR + '</small></label>' +
+        '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + GENERICO + '</small></label>' +
         '<label>Moeda da conta<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
         (trava ? '' : '<small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small>') + '</label>' +
         '<label>País<select id="' + k + '-pais">' + opcoes(PAISES, c.pais) + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label></div>' +
@@ -877,7 +1082,7 @@
       : '<details class="metas" id="fin-wnova"' + (S.wOpen ? ' open' : '') + '><summary>Adicionar carteira</summary>' +
         '<p class="passo">Uma carteira para cada conta: um banco e uma moeda. Até ' + MAX_CARTEIRAS + '. Cada uma tem a sua aba, com o extrato dela. Ao salvar, a carteira nova é criada e aberta.</p>' +
         '<div class="mgrid"><label>Nome da carteira<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Wise libras"></label>' +
-        '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + SEM_LEITOR + '</small></label>' +
+        '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + GENERICO + '</small></label>' +
         '<label>Moeda da conta<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
         '<label>País<select id="fin-wn-pais">' + opcoes(PAISES, carteiraAtiva(x).pais) + '</select></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
@@ -886,6 +1091,135 @@
   function lerCarteira(id) {
     var k = '#fin-w-' + id, mo = $(k + '-moeda'), bc = $(k + '-banco');
     return { nome: $(k + '-nome').value, pais: $(k + '-pais').value, moeda: mo.disabled ? undefined : mo.value, banco: bc.disabled ? undefined : bc.value };
+  }
+  /* ---------- importador genérico: prévia e perguntas ---------- */
+  /* cada escolha na tela refaz a prévia; trocar codificação ou separador relê o arquivo e refaz as sugestões */
+  function mudarImportacao(t) {
+    var I = S.importar, m = I.mapa, k = t.getAttribute('data-imp-campo'), v = t.value, n = +v, foco = t.id;
+    if (k === 'cod' || k === 'sep') {
+      try { Object.assign(I, prepararImportacao(I.bytes, null, k === 'cod' ? v : I.cod, k === 'sep' ? v : I.sep)); }
+      catch (er) { toast('Não consegui ler o arquivo assim: ' + er.message + '.', true); }
+    } else if (k === 'cab') {
+      I.mapa = n < 0 ? { cab: -1, sep: I.sep, data: -1, desc: -1, saldo: -1, valor: { modo: 'uma', col: -1, saidas: null } } : Object.assign(sugerirColunas(I.rows[n]), { cab: n, sep: I.sep });
+      if (n >= 0) perguntasImportacao(I.rows, I.mapa);
+    } else if (k === 'data') { m.data = n; delete m.fmtData; }
+    else if (k === 'desc') m.desc = n;
+    else if (k === 'saldo') { m.saldo = n; delete m.fmtNum; }
+    else if (k === 'modo') { m.valor = v === 'duas' ? { modo: 'duas', saida: -1, entrada: -1 } : { modo: 'uma', col: -1, saidas: null }; delete m.fmtNum; }
+    else if (k === 'col' || k === 'saida' || k === 'entrada') { m.valor[k] = n; delete m.fmtNum; }
+    else if (k === 'fmtData' || k === 'fmtNum') m[k] = v;
+    else if (k === 'sinal') m.valor.saidas = v;
+    I.lembrado = false;
+    render();
+    var el = foco ? document.getElementById(foco) : document.querySelector('[name="' + k + '"][value="' + v + '"]');
+    if (el) el.focus();
+  }
+  function confirmarImportacao() {
+    var I = S.importar, r = interpretarCSV(I.rows, I.mapa), porMes = {}, novos = 0, rep = 0, meses = 0;
+    r.tx.forEach(function (t) { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
+    Object.keys(porMes).forEach(function (k) {
+      var j = juntarMovimentos(S.months[k] || [], porMes[k]);
+      novos += j.novos; rep += j.repetidos;
+      if (j.novos) { S.months[k] = j.lista; meses++; }
+    });
+    /* guarda só o mapeamento (posições e formatos), debaixo do código do cabeçalho; nada do conteúdo do arquivo */
+    var x = dadosAtuais();
+    x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) { return c.id === x.ativa ? Object.assign({}, c, { importacao: lembrarMapa(c.importacao, I.rows, I.mapa) }) : c; }) });
+    S.importar = null;
+    return enqueue(function () { usarDados(x); localSave(); }).then(function () {
+      recompute(); render(); window.scrollTo(0, 0);
+      toast(novos ? 'Adicionei ' + novos + (novos === 1 ? ' movimentação' : ' movimentações') + ' em ' + meses + (meses === 1 ? ' mês' : ' meses') + (rep ? '. ' + rep + (rep === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.')
+        : 'Nada novo: ' + (rep === 1 ? 'a movimentação desse arquivo já estava salva.' : 'as ' + rep + ' movimentações desse arquivo já estavam salvas.'));
+    });
+  }
+  function abrirGenerico(files) {
+    if (files.length > 1) toast('Um arquivo por vez neste banco: abri só ' + files[0].name + '.');
+    var f = files[0];
+    return f.arrayBuffer().then(function (buf) {
+      var b = new Uint8Array(buf), c = cartAtual();
+      S.importar = Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, c && c.importacao));
+      render(); window.scrollTo(0, 0);
+    }).catch(function (e) { toast('Não consegui ler ' + f.name + ': ' + ((e && e.message) || e) + '.', true); });
+  }
+  var NOME_FMT_DATA = { dmy: 'dia/mês/ano', mdy: 'mês/dia/ano', ymd: 'ano-mês-dia', texto: 'com o mês por extenso' };
+  var NOME_FMT_NUM = { virgula: '1.234,56', ponto: '1,234.56' };
+  function nomeColuna(I, i) { var c = String(I.rows[I.mapa.cab][i] || '').trim(); return c || 'coluna ' + (i + 1); }
+  function opColunas(I, sel, vazio) {
+    return '<option value="-1"' + (sel < 0 ? ' selected' : '') + '>' + vazio + '</option>' + I.rows[I.mapa.cab].map(function (c, i) {
+      return '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + esc(nomeColuna(I, i)) + '</option>';
+    }).join('');
+  }
+  function radios(nome, ops, sel) {
+    return '<div class="radios">' + ops.map(function (o) {
+      return '<label class="chk"><input type="radio" name="' + nome + '" value="' + o[0] + '" data-imp-campo="' + nome + '"' + (o[0] === sel ? ' checked' : '') + '>' + o[1] + '</label>';
+    }).join('') + '</div>';
+  }
+  function celulas(r) { return r.map(function (c) { return String(c).trim(); }).filter(Boolean).join(' · ').slice(0, 90); }
+  function telaImportar() {
+    var I = S.importar, m = I.mapa, c = cartAtual(), h = '';
+    var cabs = [], ix = 0;
+    I.rows.slice(0, 40).forEach(function (r, i) { if (r.some(function (x) { return String(x).trim(); }) && ix++ < 25) cabs.push([String(i), 'Linha ' + (i + 1) + ': ' + celulas(r).slice(0, 60)]); });
+    h += (I.lembrado ? '<p class="aviso">Reconheci o formato deste arquivo e usei as colunas da última importação. Confira a prévia.</p>'
+      : '<p class="passo">Diga quais colunas são a data, a descrição e o valor. O que o painel detectou já vem marcado: confira.</p>') +
+      '<fieldset><legend>Arquivo</legend><div class="mgrid">' +
+      '<label>Codificação<select id="fin-i-cod" data-imp-campo="cod">' + opcoes([['utf-8', 'UTF-8'], ['latin1', 'Latin-1 (Windows)']], I.cod) + '</select><small>Se aparecerem letras trocadas (ex.: "HistÃ³rico"), troque aqui.</small></label>' +
+      '<label>Separador<select id="fin-i-sep" data-imp-campo="sep">' + opcoes(SEPARADORES, I.sep) + '</select></label>' +
+      '<label>Linha do cabeçalho<select id="fin-i-cab" data-imp-campo="cab"><option value="-1"' + (m.cab < 0 ? ' selected' : '') + '>Escolha a linha com os nomes das colunas</option>' + opcoes(cabs, String(m.cab)) + '</select></label></div></fieldset>';
+    var q = m.cab < 0 ? [{ id: 'cab' }] : perguntasImportacao(I.rows, m);
+    if (m.cab >= 0) {
+      var v = m.valor;
+      h += '<fieldset><legend>Colunas</legend><div class="mgrid">' +
+        '<label>Data<select id="fin-i-data" data-imp-campo="data">' + opColunas(I, m.data, 'Escolha') + '</select></label>' +
+        '<label>Descrição<select id="fin-i-desc" data-imp-campo="desc">' + opColunas(I, m.desc, 'Escolha') + '</select></label>' +
+        '<label>Valor em<select id="fin-i-modo" data-imp-campo="modo">' + opcoes([['uma', 'Uma coluna'], ['duas', 'Duas colunas: saídas e entradas']], v.modo) + '</select></label>' +
+        (v.modo === 'duas'
+          ? '<label>Saídas (débitos)<select id="fin-i-saida" data-imp-campo="saida">' + opColunas(I, v.saida, 'Escolha') + '</select></label>' +
+            '<label>Entradas (créditos)<select id="fin-i-entrada" data-imp-campo="entrada">' + opColunas(I, v.entrada, 'Escolha') + '</select></label>'
+          : '<label>Valor<select id="fin-i-col" data-imp-campo="col">' + opColunas(I, v.col, 'Escolha') + '</select></label>') +
+        '<label>Saldo<select id="fin-i-saldo" data-imp-campo="saldo">' + opColunas(I, m.saldo, 'Sem saldo') + '</select><small>Opcional. Sem saldo, o painel não mostra saldo atual nem o gráfico de saldo.</small></label>' +
+        '</div></fieldset>';
+      var perg = '';
+      q.forEach(function (x) {
+        if (x.id === 'fmtData' && x.erro) perg += '<p class="aviso erro">A coluna ' + esc(nomeColuna(I, m.data)) + ' não tem datas num formato só. Confira se é a coluna certa.</p>';
+        else if (x.id === 'fmtData') perg += '<fieldset><legend>Formato da data</legend><p class="passo">Datas como <b>' + esc(x.exemplo) + '</b> servem para mais de um formato. Como o banco escreve?</p>' +
+          radios('fmtData', x.opcoes.map(function (f) { return [f, NOME_FMT_DATA[f] + ': ' + esc(dFull(lerData(x.exemplo, f)))]; }), m.fmtData) + '</fieldset>';
+        else if (x.id === 'fmtNum' && x.erro) perg += '<p class="aviso erro">Há valores que não são número nas colunas escolhidas. Confira as colunas de valor e de saldo.</p>';
+        else if (x.id === 'fmtNum') perg += '<fieldset><legend>Formato do número</legend><p class="passo">Valores como <b>' + esc(x.exemplo) + '</b> servem para os dois formatos. Como o banco escreve?</p>' +
+          radios('fmtNum', x.opcoes.map(function (f) { return [f, NOME_FMT_NUM[f] + ': ' + esc(x.exemplo) + ' = ' + esc(f2(lerNumero(x.exemplo, f) / 100))]; }), m.fmtNum) + '</fieldset>';
+        else if (x.id === 'sinal') perg += '<fieldset><legend>Saídas</legend><p class="passo">Como as saídas (débitos) aparecem na coluna ' + esc(nomeColuna(I, v.col)) + '? No arquivo há ' +
+          x.pos + (x.pos === 1 ? ' valor positivo' : ' valores positivos') + ' e ' + x.neg + (x.neg === 1 ? ' negativo' : ' negativos') + '.</p>' +
+          radios('sinal', [['negativas', 'Com sinal de menos (−50,00); as entradas vêm sem sinal'], ['positivas', 'Sem sinal (50,00); as entradas é que vêm com menos']], v.saidas) + '</fieldset>';
+      });
+      h += perg;
+    }
+    var pend = q.length > 0, r = null, novos = 0, rep = 0;
+    if (!pend) {
+      r = interpretarCSV(I.rows, m);
+      var porMes = {};
+      r.tx.forEach(function (t) { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
+      Object.keys(porMes).forEach(function (k) { var j = juntarMovimentos(S.months[k] || [], porMes[k]); novos += j.novos; rep += j.repetidos; });
+      I.previa = { r: r, novos: novos };
+      h += '<fieldset><legend>Prévia</legend>' + (r.tx.length
+        ? '<p class="passo">Lido como: datas ' + NOME_FMT_DATA[m.fmtData] + (m.fmtNum ? ', números ' + NOME_FMT_NUM[m.fmtNum] : '') + ', valores em ' + esc(nomeMoeda()) + '. Confira com o app do banco: o período e os totais devem bater.</p>' +
+          '<div class="imp-tot"><div><span>Período</span><b>' + esc(dFull(r.de)) + ' a ' + esc(dFull(r.ate)) + '</b></div><div><span>Movimentos</span><b>' + r.tx.length + '</b></div>' +
+          '<div><span>Entradas</span><b class="num pos">+' + f2(r.entradas / 100) + '</b></div><div><span>Saídas</span><b class="num neg">−' + f2(-r.saidas / 100) + '</b></div></div>' +
+          '<div class="tw"><table class="imp"><thead><tr><th>Linha</th><th>Data</th><th>Descrição</th><th>Valor</th>' + (m.saldo >= 0 ? '<th>Saldo</th>' : '') + '</tr></thead><tbody>' +
+          r.tx.slice(0, 5).map(function (t, i) {
+            var n = r.linhas[i];
+            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>no arquivo: ' + esc(celulas(I.rows[n - 1])) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td>' +
+              (m.saldo >= 0 ? '<td>' + (t[4] == null ? '–' : f2(t[4] / 100)) + '</td>' : '') + '</tr>';
+          }).join('') + '</tbody></table></div>' +
+          (r.ignoradas.length ? '<details class="metas"><summary>' + r.ignoradas.length + (r.ignoradas.length === 1 ? ' linha ignorada' : ' linhas ignoradas') + ' (rodapé, totais ou sem valor)</summary><ul class="imp-ign">' +
+            r.ignoradas.slice(0, 20).map(function (x) { return '<li>Linha ' + x.n + ', ' + x.motivo + ': ' + esc(celulas(x.celulas)) + '</li>'; }).join('') + '</ul></details>' : '') +
+          (rep ? '<p class="aviso">' + rep + (rep === 1 ? ' movimento já estava salvo e vai ser ignorado' : ' movimentos já estavam salvos e vão ser ignorados') + ' (mesma data, descrição, valor' + (m.saldo >= 0 ? ' e saldo' : '') + ').</p>' : '')
+        : '<p class="aviso erro">Nenhum movimento entendido com essas colunas. Confira a linha do cabeçalho e as colunas.</p>') + '</fieldset>';
+    }
+    return '<section class="sec" id="fin-imp"><div class="sec-top"><h2>Importar extrato</h2><span class="hint">' + esc(I.nome) + ' · ' + esc(c ? c.nome : '') + '</span></div>' +
+      '<div class="card"><form id="fin-fimp" class="ggrid">' + h +
+      '<div class="grupo"><button class="btn pri" type="submit"' + (pend || !r || !novos ? ' disabled aria-describedby="fin-i-falta"' : '') + '>' +
+      (pend || !r ? 'Importar' : novos ? 'Importar ' + novos + (novos === 1 ? ' movimento' : ' movimentos') : 'Nada novo para importar') + '</button>' +
+      '<button class="btn" type="button" data-imp="cancelar">Cancelar</button></div>' +
+      (pend ? '<p class="passo" id="fin-i-falta">Responda o que falta acima para ver a prévia.</p>' : '') + '</form></div></section>';
   }
   function telaExcluirCarteira() {
     var x = dadosAtuais(), c = x.carteiras.filter(function (w) { return w.id === S.excluir; })[0], r = resumoDados(c);
@@ -1000,7 +1334,9 @@
   }
   function emptyState() {
     if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
-      '<p id="fin-sem-leitor">' + SEM_LEITOR + '</p><button class="btn pri" type="button" disabled aria-describedby="fin-sem-leitor">Escolher arquivo CSV</button></section>';
+      '<ol><li>No app ou no site de ' + esc(origem()) + ', baixe o extrato da conta em CSV.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li>' +
+      '<li>Na primeira vez, diga quais colunas são a data, a descrição e o valor, e confira a prévia antes de importar.</li></ol>' +
+      '<button class="btn pri" type="button" data-fin-add>Escolher arquivo CSV</button></section>';
     return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
       '<ol><li>No Revolut, abra Extratos e escolha o extrato consolidado.</li><li>Baixe em CSV, de 1º de janeiro até hoje.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li></ol>' +
       '<button class="btn pri" type="button" data-fin-add>Escolher arquivo CSV</button></section>';
@@ -1199,6 +1535,7 @@
   function cashSummary() {
     var rows = M.rows;
     if (!rows.length) return '';
+    if (M.semSaldo) return '<section class="sec"><p class="aviso">O extrato de ' + esc(origem()) + ' não traz saldo: o painel mostra o que entrou e saiu, sem saldo atual nem gráfico de saldo.</p></section>';
     var sm = S.summary, pts = balSeries(), lp = pts[pts.length - 1], last = rows[rows.length - 1], pmin = pts[0], nt = [], parts = 'Conta ' + f0(lp.c);
     pts.forEach(function (p) { if (p.b < pmin.b) pmin = p; });
     if (sm) {
@@ -1215,21 +1552,20 @@
   function cashBridge() {
     var rows = M.rows;
     if (!rows.length) return '';
-    var first = rows[0], last = rows[rows.length - 1], open = first.bal - first.a, cur = last.bal;
+    var first = rows[0], last = rows[rows.length - 1], open = M.semSaldo ? null : first.bal - first.a, cur = M.semSaldo ? null : last.bal;
     var T = { renda: 0, outras: 0, interno: 0, flex: 0, invest: 0, gasto: 0 }, cat = {};
     rows.forEach(function (r) {
       if (r.kind === 'gasto') { T.gasto -= r.a; cat[r.cat] = (cat[r.cat] || 0) - r.a; } else T[r.kind] += r.a;
     });
-    var items = [
-      { c: 'base', l: 'Saldo inicial (' + dFull(first.date) + ')', v: open },
+    var items = (M.semSaldo ? [] : [{ c: 'base', l: 'Saldo inicial (' + dFull(first.date) + ')', v: open }]).concat([
       { l: 'Renda (salários e pagamentos)', v: T.renda },
       { l: 'Outras entradas', v: T.outras }
-    ];
+    ]);
     if (Math.abs(T.interno) >= .5) items.push({ l: 'Entre contas suas', v: T.interno });
     items.push({ l: T.flex <= 0 ? 'Enviado ao Flexible Cash (líquido)' : 'Retirado do Flexible Cash (líquido)', v: T.flex });
     items.push({ l: 'Investimentos e cripto (líquido)', v: T.invest });
     items.push({ l: 'Gastos (já descontados os reembolsos)', v: -T.gasto, cats: true });
-    items.push({ c: 'end', l: 'Saldo atual na conta', v: cur });
+    if (!M.semSaldo) items.push({ c: 'end', l: 'Saldo atual na conta', v: cur });
     var mx = 1; items.forEach(function (x) { mx = Math.max(mx, Math.abs(x.v)); });
     var br = '';
     items.forEach(function (x, i) {
@@ -1297,7 +1633,7 @@
     });
     if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em ' + esc(nomeMoeda()) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
     if (open.length && !falta.length) {
-      var cur = M.rows.length ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
+      var cur = M.rows.length && !M.semSaldo ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
       if (cur != null) {
         var msg;
         if (cur >= tr) msg = 'O saldo da conta (' + f0(cur) + ') já cobre o valor reservado' + pos + '.';
@@ -1497,14 +1833,15 @@
     if (S.restaurar) { root.innerHTML = header() + telaRestaurar(); return; }
     if (S.apagar) { root.innerHTML = header() + telaApagar(); return; }
     if (S.excluir) { root.innerHTML = header() + telaExcluirCarteira(); return; }
+    if (S.importar) { root.innerHTML = header() + telaImportar(); return; }
     if (S.bloqueado) { root.innerHTML = header() + telaBloqueio(); return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
     if (!M.keys.length) { root.innerHTML = header() + abas() + emptyState(); return; }
-    var pr = naPrincipal(), leitor = temLeitor(bancoAtual());
-    root.innerHTML = header() + abas() + (leitor ? '' : '<p class="aviso" id="fin-sem-leitor">' + SEM_LEITOR + '</p>') + perguntaAluguel() + cashSummary() + (pr ? dividas() : notaPrincipal()) + kpis() + previsao() + (pr ? metasPoup() : '') + chart() +
+    var pr = naPrincipal();
+    root.innerHTML = header() + abas() + perguntaAluguel() + cashSummary() + (pr ? dividas() : notaPrincipal()) + kpis() + previsao() + (pr ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
-      (bancoAtual() === 'revolut' ? '<p class="passo">Todo fim de mês: baixe o extrato consolidado do Revolut em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' : '') + cashBridge();
+      '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + ' em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
     var s2 = $('.fin .cscroll');
     if (s2) s2.scrollLeft = keep != null ? keep : s2.scrollWidth;
     drawBal();
@@ -1536,7 +1873,7 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir]');
+    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
@@ -1562,6 +1899,7 @@
       else { S.apagar = ap === 'pedir'; render(); }
       return;
     }
+    if (t.hasAttribute('data-imp')) { S.importar = null; render(); return; }
     if (t.hasAttribute('data-carteira')) {
       var cid = t.getAttribute('data-carteira');
       if (cid === S.dados.ativa) return;
@@ -1623,6 +1961,7 @@
   document.addEventListener('scroll', hideTip, true);
   document.addEventListener('change', function (e) {
     var t = e.target;
+    if (t.hasAttribute && t.hasAttribute('data-imp-campo') && S.importar) { mudarImportacao(t); return; }
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
     var wm = /^(fin-w-.+|fin-wn)-(pais|banco)$/.exec(t.id || '');
@@ -1644,6 +1983,7 @@
   });
   document.addEventListener('submit', function (e) {
     var fid = e.target.id;
+    if (fid === 'fin-fimp') { e.preventDefault(); if (S.importar && S.importar.previa && S.importar.previa.novos) confirmarImportacao(); return; }
     if (fid === 'fin-fdiv') {
       e.preventDefault();
       var nome = $('#fin-d-nome').value.trim(), valor = parseNum($('#fin-d-valor').value);
@@ -1697,7 +2037,7 @@
       if (criada) { S.sel = null; S.f = []; S.q = ''; }
       enqueue(function () { usarDados(x); localSave(); }).then(function () {
         recompute(); render();
-        var msg = 'Configuração salva.' + (criada ? ' Carteira ' + criada.nome + ' criada' + (temLeitor(criada.banco) ? ': adicione o extrato dela.' : '. ' + SEM_LEITOR) : '') +
+        var msg = 'Configuração salva.' + (criada ? ' Carteira ' + criada.nome + ' criada: adicione o extrato dela.' : '') +
           (mudouPrincipal && tinhaCambio ? ' A moeda principal mudou: informe o câmbio de novo em Em observação.' : '');
         toast(erros.length ? msg + ' ' + erros.join(' ') : msg, !!erros.length);
       });

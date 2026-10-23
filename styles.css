@@ -575,3 +575,21 @@ html, body { overflow-x: clip; }
 .fin .wcart .passo { margin: 0 0 8px; }
 /* botão desativado (carteira sem leitor): sem transparência, para o texto continuar legível */
 .pill:disabled, .fin .btn:disabled, .pill.primario:disabled, .fin .btn.pri:disabled { background: var(--raised); border-color: var(--line); color: var(--muted); font-weight: 500; opacity: 1; cursor: not-allowed; transform: none; }
+
+/* importador genérico: perguntas e prévia */
+.fin .radios { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 8px; }
+.fin .radios label.chk { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--fs-md); color: var(--fg); white-space: normal; }
+.fin .radios input { width: 20px; height: 20px; accent-color: var(--accent-strong); flex: none; }
+.fin .imp-tot { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 16px; margin: 4px 0 12px; }
+.fin .imp-tot div { display: flex; flex-direction: column; gap: 2px; }
+.fin .imp-tot span { font-size: var(--fs-sm); color: var(--muted); }
+.fin .imp-tot b { font-family: var(--display); font-size: var(--fs-lg); font-weight: 700; }
+.fin .imp-tot b.pos, .fin table.imp td.pos { color: var(--pos); }
+.fin .imp-tot b.neg, .fin table.imp td.neg { color: var(--danger); }
+.fin table.imp td.ds { white-space: normal; text-align: left; min-width: 220px; }
+.fin table.imp td.ds small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--fs-label); }
+.fin table.imp th:nth-child(3) { text-align: left; }
+.fin .imp-ign { margin: 4px 0 8px; padding-left: 20px; font-size: var(--fs-sm); color: var(--soft); display: flex; flex-direction: column; gap: 4px; }
+.fin .imp-ign li { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+/* fieldset tem min-width: min-content por padrão: sem isto, a tabela da prévia alarga o formulário no celular */
+#fin-fimp fieldset { min-width: 0; }

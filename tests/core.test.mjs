@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey };')();
 }
 function months(api) {
   const m = {};
@@ -604,4 +604,145 @@ test('aviso de espaço soma a v3 e a v4 (as duas ficam salvas)', () => {
   assert.ok(tamanhoSalvo([v4]) < ESPACO_AVISO);
   assert.ok(tamanhoSalvo([v3, v4]) > ESPACO_AVISO, 'a v3 conta junto');
   assert.equal(tamanhoSalvo([['outra-coisa', mb(5)], ['cortex-financas.mov', '1']]), 'cortex-financas.mov'.length + 1, 'só as chaves do painel');
+});
+
+// ---------- importador genérico: só CSVs inventados ----------
+// A: banco brasileiro inventado. Ponto e vírgula, Latin-1, 1.234,56, sinal de menos nas saídas, sem saldo,
+//    três linhas antes do cabeçalho e duas de rodapé
+const CSV_A = [
+  'Extrato de conta corrente',
+  'Cliente: MARIA SILVA;Agência 0001',
+  '',
+  'Data;Histórico;Documento;Valor (R$)',
+  '01/09/2026;Salário Empresa Exemplo;000123;5.200,00',
+  '02/09/2026;Pão de Açúcar;;-312,45',
+  '15/09/2026;Farmácia São João;;-48,90',
+  '15/09/2026;Café Exemplo;;-7,50',
+  '15/09/2026;Café Exemplo;;-7,50',
+  '28/09/2026;Aluguel Imóveis Exemplo;;-1.850,00',
+  '',
+  'Total do período;;;2.973,65',
+  'Saldo final em 30/09/2026;;;4.120,10'
+].join('\r\n');
+// B: banco irlandês inventado. Vírgula, aspas, 1,234.56, débito e crédito em colunas separadas (positivos),
+//    datas mês/dia/ano, com saldo, do mais novo para o mais antigo
+const CSV_B = [
+  '"Posted Account","Posted Transactions Date","Description","Debit Amount","Credit Amount","Balance"',
+  '"123-456","09/25/2026","SUPERMARKET EXAMPLE","1,234.56","","2,000.00"',
+  '"123-456","09/14/2026","SALARY EXAMPLE LTD","","3,000.00","3,234.56"',
+  '"123-456","09/01/2026","OPENING CAFE","15.44","","234.56"'
+].join('\n');
+// C: cartão inventado. Ambíguo de propósito: datas que servem para dia/mês e mês/dia, valores como 1.234 e
+//    débito positivo (as compras vêm sem sinal)
+const CSV_C = ['Data,Lançamento,Valor', '03/04/2026,LOJA EXEMPLO,1.234', '05/04/2026,MERCADO EXEMPLO,50', '07/04/2026,POSTO EXEMPLO,120'].join('\n');
+const latin1 = t => new Uint8Array(Buffer.from(t, 'latin1'));
+const utf8 = t => new Uint8Array(Buffer.from(t, 'utf8'));
+
+test('importador: Latin-1 e UTF-8 detectados; separador ; e , detectados', () => {
+  const api = load();
+  const a = api.decodificar(latin1(CSV_A));
+  assert.equal(a.cod, 'latin1');
+  assert.ok(a.texto.includes('Histórico') && a.texto.includes('Pão de Açúcar'));
+  const u = api.decodificar(utf8('﻿' + CSV_A));
+  assert.equal(u.cod, 'utf-8');
+  assert.ok(u.texto.startsWith('Extrato'), 'tira o BOM');
+  assert.equal(api.detectarSeparador(a.texto), ';');
+  assert.equal(api.detectarSeparador(CSV_B), ',');
+  assert.equal(api.detectarSeparador(CSV_A.replace(/;/g, '\t')), '\t');
+});
+
+test('importador A: pula o que vem antes do cabeçalho e lista o rodapé como ignorado; só pergunta o sinal', () => {
+  const api = load(), p = api.prepararImportacao(latin1(CSV_A));
+  assert.equal(p.mapa.cab, 3);
+  assert.deepEqual([p.mapa.data, p.mapa.desc, p.mapa.valor.col, p.mapa.saldo], [0, 1, 3, -1]);
+  const q = api.perguntasImportacao(p.rows, p.mapa);
+  assert.deepEqual(q.map(x => x.id), ['sinal'], 'data e número são claros; o sinal sempre se pergunta');
+  assert.deepEqual([q[0].pos, q[0].neg], [1, 5]);
+  assert.equal(p.mapa.fmtNum, 'virgula');
+  p.mapa.fmtData = 'dmy'; p.mapa.valor.saidas = 'negativas';
+  assert.deepEqual(api.perguntasImportacao(p.rows, p.mapa), []);
+  const r = api.interpretarCSV(p.rows, p.mapa);
+  assert.equal(r.tx.length, 6);
+  assert.deepEqual(r.tx[1], ['2026-09-02', 'Pão de Açúcar', 'Others', -31245, null]);
+  assert.deepEqual([r.de, r.ate, r.entradas, r.saidas], ['2026-09-01', '2026-09-28', 520000, -222635]);
+  assert.deepEqual(r.ignoradas.map(x => [x.n, x.motivo]), [[12, 'sem data válida'], [13, 'sem data válida']]);
+});
+
+test('importador B: débito e crédito em colunas, 1,234.56, mês/dia/ano, saldo; do mais novo para o mais antigo', () => {
+  const api = load(), p = api.prepararImportacao(utf8(CSV_B));
+  assert.equal(p.sep, ',');
+  assert.deepEqual(p.mapa.valor, { modo: 'duas', saida: 3, entrada: 4 });
+  assert.equal(p.mapa.saldo, 5);
+  assert.equal(p.mapa.desc, 2);
+  assert.deepEqual(api.perguntasImportacao(p.rows, p.mapa), [], 'mês/dia (25) e 1,234.56 são claros; duas colunas não têm dúvida de sinal');
+  const r = api.interpretarCSV(p.rows, p.mapa);
+  assert.deepEqual(r.tx, [
+    ['2026-09-01', 'OPENING CAFE', 'Others', -1544, 23456],
+    ['2026-09-14', 'SALARY EXAMPLE LTD', 'Others', 300000, 323456],
+    ['2026-09-25', 'SUPERMARKET EXAMPLE', 'Others', -123456, 200000]]);
+});
+
+test('importador C: data, número e sinal ambíguos ficam como pergunta; cada resposta muda o resultado', () => {
+  const api = load(), p = api.prepararImportacao(utf8(CSV_C));
+  const q = api.perguntasImportacao(p.rows, p.mapa), por = Object.fromEntries(q.map(x => [x.id, x]));
+  assert.deepEqual(q.map(x => x.id), ['fmtData', 'fmtNum', 'sinal']);
+  assert.deepEqual(por.fmtData.opcoes, ['dmy', 'mdy']);
+  assert.equal(por.fmtData.exemplo, '03/04/2026');
+  assert.deepEqual(por.fmtNum.opcoes, ['virgula', 'ponto']);
+  assert.equal(por.fmtNum.exemplo, '1.234');
+  const com = (fmtData, fmtNum, saidas) => api.interpretarCSV(p.rows, { ...p.mapa, fmtData, fmtNum, valor: { ...p.mapa.valor, saidas } }).tx[0];
+  assert.deepEqual(com('dmy', 'virgula', 'positivas'), ['2026-04-03', 'LOJA EXEMPLO', 'Others', -123400, null]);
+  assert.deepEqual(com('mdy', 'ponto', 'positivas'), ['2026-03-04', 'LOJA EXEMPLO', 'Others', -123, null]);
+  assert.equal(com('dmy', 'virgula', 'negativas')[3], 123400, 'débito positivo só vira saída se a pessoa disser');
+});
+
+test('importador: coluna com datas incompatíveis entre si é erro, não palpite', () => {
+  const api = load(), p = api.prepararImportacao(utf8('Data,Descrição,Valor\n25/09/2026,A,-1\n09/26/2026,B,-2\n'));
+  const q = api.perguntasImportacao(p.rows, p.mapa);
+  assert.ok(q.some(x => x.id === 'fmtData' && x.erro));
+});
+
+test('importador: mapeamento lembrado pelo código do cabeçalho, sem guardar texto do arquivo', () => {
+  const api = load(), p = api.prepararImportacao(latin1(CSV_A));
+  Object.assign(p.mapa, { fmtData: 'dmy' }); p.mapa.valor.saidas = 'negativas';
+  const lem = api.lembrarMapa({}, p.rows, p.mapa), k = Object.keys(lem)[0];
+  const json = JSON.stringify(lem);
+  ['Histórico', 'Valor', 'MARIA', 'Café', 'Extrato', '5.200'].forEach(t => assert.ok(!json.includes(t), 'não guarda ' + t));
+  assert.equal(k, api.assinatura(p.rows[3]));
+  // outro mês do mesmo banco, com uma linha a mais antes do cabeçalho: reconhece e não pergunta nada
+  const outro = latin1(CSV_A.replace('Extrato de conta corrente', 'Extrato de conta corrente\r\nEmitido em 01/10/2026'));
+  const p2 = api.prepararImportacao(outro, lem);
+  assert.equal(p2.lembrado, true);
+  assert.equal(p2.mapa.cab, 4);
+  assert.deepEqual(api.perguntasImportacao(p2.rows, p2.mapa), []);
+  assert.equal(api.interpretarCSV(p2.rows, p2.mapa).tx.length, 6);
+  // cabeçalho diferente: não usa o lembrado
+  assert.equal(api.prepararImportacao(utf8(CSV_B), lem).lembrado, false);
+});
+
+test('reimportar não duplica: o igual a um já salvo é ignorado, e repetições legítimas continuam', () => {
+  const api = load(), p = api.prepararImportacao(latin1(CSV_A));
+  p.mapa.fmtData = 'dmy'; p.mapa.valor.saidas = 'negativas';
+  const tx = api.interpretarCSV(p.rows, p.mapa).tx;
+  const um = api.juntarMovimentos([], tx);
+  assert.deepEqual([um.novos, um.repetidos, um.lista.length], [6, 0, 6], 'os dois cafés iguais do dia 15 ficam');
+  const dois = api.juntarMovimentos(um.lista, tx);
+  assert.deepEqual([dois.novos, dois.repetidos, dois.lista.length], [0, 6, 6]);
+  // período que se sobrepõe: só o que é novo entra
+  const extra = ['2026-09-29', 'Padaria Exemplo', 'Others', -900, null];
+  const tres = api.juntarMovimentos(um.lista, tx.slice(3).concat([extra]));
+  assert.deepEqual([tres.novos, tres.repetidos], [1, 3]);
+  assert.deepEqual(tres.lista.at(-1), extra);
+});
+
+test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
+  const api = load(), p = api.prepararImportacao(latin1(CSV_A));
+  p.mapa.fmtData = 'dmy'; p.mapa.valor.saidas = 'negativas';
+  const m = {}; api.interpretarCSV(p.rows, p.mapa).tx.forEach(t => (m[t[0].slice(0, 7)] = m[t[0].slice(0, 7)] || []).push(t));
+  const M = api.buildModel(m, {}, 'MARIA SILVA', 'BR');
+  assert.equal(M.semSaldo, true);
+  assert.ok(M.rows.every(r => r.bal === null));
+  assert.equal(M.by['2026-09'].gasto, 2226.35);
+  assert.ok(Object.is(M.by['2026-09'].saved, 0), 'nada guardado é 0, e não −0 (a tabela mostrava "−0")');
+  assert.equal(api.buildModel(months(api), {}).semSaldo, false, 'o Revolut continua com saldo');
 });
