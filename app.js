@@ -369,9 +369,11 @@
   }
   function carteiraAtiva(x) { return x.carteiras.filter(function (c) { return c.id === x.ativa; })[0] || x.carteiras[0]; }
   /* carteiras: criar, editar, excluir, escolher. Todas devolvem uma v4 nova (não alteram x).
-     A primeira carteira é a principal: a moeda dela é a moedaPrincipal (o câmbio é por 1 dela); quando a
-     principal muda de moeda, o câmbio é pedido de novo. Uma carteira = um banco e uma moeda; com movimentos
-     salvos, moeda e banco não mudam (para mudar, cria-se outra carteira). */
+     A primeira carteira é a principal (onde ficam Em observação e as metas de poupança até o Resumo). A moeda
+     principal (config.moedaPrincipal, a soma do Resumo; o câmbio é por 1 dela) é uma escolha à parte, passo 9.3b;
+     com uma carteira só, ela acompanha a moeda da carteira. Quando a moeda principal muda, o câmbio é apagado e
+     pedido de novo. Uma carteira = um banco e uma moeda; com movimentos salvos, moeda e banco não mudam (para
+     mudar, cria-se outra carteira). */
   var BANCOS = [['revolut', 'Revolut'], ['aib', 'AIB'], ['boi', 'Bank of Ireland'], ['wise', 'Wise'], ['nubank', 'Nubank'], ['btg', 'BTG Pactual'], ['outro', 'Outro banco']];
   var COM_LEITOR = ['revolut'];
   function temLeitor(banco) { return COM_LEITOR.indexOf(banco) >= 0; }
@@ -391,7 +393,7 @@
   function conferirBanco(b) { if (!BANCOS.some(function (o) { return o[0] === b; })) throw new Error('tipo de extrato ' + b + ' desconhecido'); return b; }
   /* a principal é a primeira; se a moeda dela mudou, o câmbio digitado deixa de valer */
   function comPrincipal(x, carteiras, ativa) {
-    var mp = carteiras[0].moeda, config = Object.assign({}, x.config, { moedaPrincipal: mp });
+    var mp = carteiras.length === 1 ? carteiras[0].moeda : x.config.moedaPrincipal, config = Object.assign({}, x.config, { moedaPrincipal: mp });
     return Object.assign({}, x, { config: config, carteiras: carteiras, ativa: ativa, cambios: mp === x.config.moedaPrincipal ? x.cambios : {} });
   }
   function novaCarteira(x, d) {
@@ -424,6 +426,27 @@
     return comPrincipal(x, resto, x.ativa === id ? resto[0].id : x.ativa);
   }
   function escolherCarteira(x, id) { acharCarteira(x, id); return Object.assign({}, x, { ativa: id }); }
+  /* moeda principal e câmbio: cambios[M].rate = quantos M valem 1 da moeda principal, sempre digitado pela pessoa */
+  function trocarMoedaPrincipal(x, moeda) {
+    conferirMoeda(moeda);
+    if (moeda === x.config.moedaPrincipal) return x;
+    return Object.assign({}, x, { config: Object.assign({}, x.config, { moedaPrincipal: moeda }), cambios: {} });
+  }
+  /* valor na moeda `de` convertido para a principal; null se falta o câmbio */
+  function paraPrincipal(v, de, x) {
+    if (de === x.config.moedaPrincipal) return v;
+    var c = x.cambios && x.cambios[de];
+    return c && +c.rate > 0 ? v / +c.rate : null;
+  }
+  /* as moedas que precisam de câmbio: das carteiras e dos pagamentos em observação em aberto */
+  function moedasSemPrincipal(x) {
+    var mp = x.config.moedaPrincipal, o = {};
+    x.carteiras.forEach(function (c) { if (c.moeda !== mp) o[c.moeda] = 1; });
+    ((x.div && x.div.items) || []).forEach(function (i) { if (i.status !== 'paga' && i.moeda && i.moeda !== mp) o[i.moeda] = 1; });
+    return Object.keys(o).sort();
+  }
+  var CAMBIO_ANTIGO = 30;
+  function diasDesde(iso, hoje) { return Math.round((Date.parse(hoje + 'T00:00:00Z') - Date.parse(iso + 'T00:00:00Z')) / 864e5); }
   /* espaço ocupado pelas chaves do painel (todas: a v3 fica salva ao lado da v4). O navegador permite cerca de
      5 milhões de caracteres por site; contamos caracteres de chave + valor e chamamos de "MB" */
   var ESPACO_AVISO = 4 * 1024 * 1024;
@@ -1110,6 +1133,36 @@
   /* de onde vem o extrato: o banco, ou o nome da carteira quando o banco é "Outro banco" */
   function origem() { var c = cartAtual(); return c && c.banco === 'outro' ? c.nome : nomeBanco(bancoAtual()); }
   function variasCarteiras() { return !!(S.dados && S.dados.carteiras.length > 1); }
+  /* moeda principal: a de Em observação, das metas de poupança e do Resumo; com uma carteira, a dela */
+  function moedaP() { return variasCarteiras() ? S.dados.config.moedaPrincipal : moeda(); }
+  function fP0(v) { return fmtDe(moedaP(), 0).format(Math.round(v)).replace('-', '−'); }
+  /* campos de câmbio "1 € = [ ] £", com o inverso e a data; taxa com mais de 30 dias em âmbar */
+  function camposCambio(moedas, attr) {
+    var mp = moedaP(), C = divState().cambios, hoje = todayIso();
+    return moedas.map(function (c) {
+      var cb = C[c], rt = cb && +cb.rate > 0 ? +cb.rate : 0, idade = rt && cb.data ? diasDesde(cb.data, hoje) : null, info;
+      if (!rt) info = 'Sem taxa: ' + esc(c) + ' fica fora das somas.';
+      else info = '1 ' + esc(simbolo(c)) + ' ≈ ' + esc(simbolo(mp)) + ' ' + esc(nr.format(1 / rt)) + (idade == null ? '' : idade > CAMBIO_ANTIGO
+        ? ' · <span class="velho">informado há ' + idade + ' dias (' + esc(dFull(cb.data)) + '): confira</span>' : ' · informado em ' + esc(dFull(cb.data)));
+      return '<label class="camb"><span class="cr"><span>1 ' + esc(simbolo(mp)) + ' =</span><input id="fin-' + attr + '-' + esc(c) + '" data-' + attr + '="' + esc(c) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="taxa" value="' + (rt ? esc(nr.format(rt)) : '') + '" aria-label="Quantos ' + esc(c) + ' valem 1 ' + esc(mp) + '"><span>' + esc(c) + '</span></span><small>' + info + '</small></label>';
+    }).join('');
+  }
+  /* lê os campos de câmbio: { novos: { M: { rate, data } }, ruim: moeda com valor inválido } */
+  function lerCambios(attr) {
+    var novos = {}, ruim = null, C = divState().cambios;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-' + attr + ']'), function (el) {
+      var c = el.getAttribute('data-' + attr), v = el.value.trim(), rt = parseNum(v), atual = C[c];
+      if (!v) return;
+      if (!(rt > 0)) { ruim = c; return; }
+      if (!atual || +atual.rate !== rt) novos[c] = { rate: rt, data: todayIso(), fonte: 'informado por você' };
+    });
+    return { novos: novos, ruim: ruim };
+  }
+  function resumoCambio(moedas) {
+    var mp = moedaP(), C = divState().cambios, velho = false;
+    var t = moedas.map(function (c) { var cb = C[c]; if (cb && cb.data && diasDesde(cb.data, todayIso()) > CAMBIO_ANTIGO) velho = true; return '1 ' + esc(simbolo(mp)) + ' = ' + esc(nr.format(+cb.rate)) + ' ' + esc(c); }).join(' · ');
+    return 'Câmbio: ' + t + ' · informado por você' + (velho ? ' · <span class="velho">taxa com mais de ' + CAMBIO_ANTIGO + ' dias</span>' : '');
+  }
   /* Em observação e as metas de poupança valem para todas as carteiras, mas até o Resumo existir aparecem só na principal */
   function naPrincipal() { return !S.dados || S.dados.ativa === S.dados.carteiras[0].id; }
   function abas() {
@@ -1180,7 +1233,15 @@
         '<label>Moeda da conta<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
         '<label>País<select id="fin-wn-pais">' + opcoes(PAISES, carteiraAtiva(x).pais) + '</select></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
-    return '<fieldset><legend>' + (varias ? 'Carteiras' : 'Carteira') + '</legend>' + h + nova + '</fieldset>';
+    var mp = '';
+    if (varias) {
+      var mpv = x.config.moedaPrincipal, precisa = moedasSemPrincipal(x);
+      mp = '<div class="wcart"><div class="mgrid"><label>Moeda principal (a soma do Resumo)<select id="fin-w-mp">' + opcoesMoeda(mpv) + '</select>' +
+        '<small>Ao trocar, o câmbio informado é apagado e pedido de novo. As metas de poupança não são convertidas: os números ficam os mesmos, na moeda nova.</small></label></div>' +
+        (precisa.length ? '<div id="fin-cambc-w"><p class="passo">Câmbio, digitado por você e nunca buscado na internet. As somas com câmbio são estimativas.</p><div class="mgrid">' + camposCambio(precisa, 'cambc') + '</div></div>' +
+          '<p class="aviso" id="fin-cambc-troca" hidden>Ao salvar, a moeda principal muda e o câmbio acima é apagado. Depois, informe as taxas de novo.</p>' : '') + '</div>';
+    }
+    return '<fieldset><legend>' + (varias ? 'Carteiras' : 'Carteira') + '</legend>' + h + mp + nova + '</fieldset>';
   }
   function lerCarteira(id) {
     var k = '#fin-w-' + id, mo = $(k + '-moeda'), bc = $(k + '-banco');
@@ -1814,7 +1875,7 @@
     return enqueue(function () { return saveDiv(d); }).then(function () { render(); });
   }
   function dividas() {
-    var BASE = moeda(), D = divState(), open = D.items.filter(function (i) { return i.status !== 'paga'; }).sort(function (a, b) { var x = a.venc || '9999', y = b.venc || '9999'; return x < y ? -1 : x > y ? 1 : 0; }), paid = D.items.filter(function (i) { return i.status === 'paga'; });
+    var f0 = fP0, BASE = moedaP(), D = divState(), open = D.items.filter(function (i) { return i.status !== 'paga'; }).sort(function (a, b) { var x = a.venc || '9999', y = b.venc || '9999'; return x < y ? -1 : x > y ? 1 : 0; }), paid = D.items.filter(function (i) { return i.status === 'paga'; });
     var mg = D.margem, porMoeda = {}, te = 0, tr = 0, falta = [], fora = [];
     function taxa(cod) { if (cod === BASE) return 1; var c = D.cambios[cod]; return c && +c.rate > 0 ? +c.rate : 0; }
     var h = '<section class="sec" id="fin-dividas"><div class="sec-top"><h2>Em observação</h2><span class="hint">pagamentos para fazer</span></div><div class="card dv">';
@@ -1827,11 +1888,12 @@
       if (cod !== BASE) partes.push(fMoeda(it.valor, cod));
       partes.push(it.venc ? '<span class="' + (diasAte(it.venc) <= 7 ? 'urg' : '') + '">' + esc(vencTxt(it.venc)) + ', ' + esc(dFull(it.venc)) + '</span>' : (it.criada ? 'anotada em ' + esc(dFull(it.criada)) : ''));
       h += '<div class="dvr"><div class="n">' + esc(it.nome) + '<small>' + partes.filter(Boolean).join(' · ') + '</small>' + (it.desc ? '<small>' + esc(it.desc) + '</small>' : '') + '</div>' +
-        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>pago em ' + esc(nomeMoeda()) + ', sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio de ' + esc(cod) + ' abaixo</small>') + '</div>' +
+        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>pago em ' + esc(nomeMoeda(BASE)) + ', sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio de ' + esc(cod) + ' abaixo</small>') + '</div>' +
         '<div class="act"><button type="button" class="btn sm" data-dpay="' + esc(it.id) + '" aria-label="Marcar ' + esc(it.nome) + ' como paga">Paguei</button><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
     });
-    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em ' + esc(nomeMoeda()) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
-    if (open.length && !falta.length) {
+    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em ' + esc(nomeMoeda(BASE)) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
+    /* o saldo da conta só se compara quando está na mesma moeda */
+    if (open.length && !falta.length && moeda() === BASE) {
       var cur = M.rows.length && !M.semSaldo ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
       if (cur != null) {
         var msg;
@@ -1844,12 +1906,8 @@
     }
     /* câmbio só das moedas dos pagamentos em aberto; nada é buscado na internet */
     if (fora.length) {
-      h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (falta.length ? 'Definir câmbio (' + esc(falta.join(', ')) + ')' :
-        'Câmbio: ' + fora.map(function (c) { return '1 ' + esc(simbolo()) + ' = ' + esc(fMoeda(taxa(c), c)); }).join(' · ') + ' · informado por você') + '</summary>' +
-        '<form id="fin-fcamb"><div class="mgrid">' + fora.map(function (c) {
-          var cb = D.cambios[c];
-          return '<label>Quantos ' + esc(c) + ' valem 1 ' + esc(simbolo()) + (cb && cb.data ? ' (' + esc(dFmt(cb.data)) + ')' : '') + '<input id="fin-c-' + esc(c) + '" data-camb="' + esc(c) + '" type="text" inputmode="decimal" value="' + (taxa(c) ? esc(nr.format(taxa(c))) : '') + '" autocomplete="off"></label>';
-        }).join('') +
+      h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (falta.length ? 'Definir câmbio (' + esc(falta.join(', ')) + ')' : resumoCambio(fora)) + '</summary>' +
+        '<form id="fin-fcamb"><div class="mgrid">' + camposCambio(fora, 'camb') +
         '<label>Margem para taxa e câmbio (%)<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">Atualizar câmbio</button></form></details>';
     }
     h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>Adicionar pagamento</summary><form id="fin-fdiv"><div class="mgrid"><label>Nome<input id="fin-d-nome" type="text" placeholder="Ex.: banco ou escola" autocomplete="off"></label>' +
@@ -1907,9 +1965,25 @@
   function metasPoupanca() { return listaMetasPoupanca(S.plan); }
   function pct(v) { return nn.format(v) + '%'; }
   function goalCfg(id) { var g = S.plan && S.plan.goals; return (g && g[id]) || {}; }
+  /* valor atual da meta; null quando falta o câmbio de uma carteira Revolut (fica em goalFalta) */
+  var goalFalta = null;
   function goalHas(g) {
     var sm = S.summary, t = 0;
+    goalFalta = null;
     if (!g.src) return +goalCfg(g.id).tem || 0;
+    if (variasCarteiras()) {
+      /* com várias carteiras: soma o Flexible Cash ou os investimentos de todas as carteiras Revolut, na moeda principal */
+      var x = dadosAtuais();
+      x.carteiras.forEach(function (c) {
+        if (c.banco !== 'revolut' || goalFalta) return;
+        var v = 0;
+        if (c.summary) v = g.src === 'flex' ? (c.summary.flex || 0) / 100 : ((c.summary.invest || 0) + (c.summary.cripto || 0)) / 100;
+        else { buildModel(c.months, c.over, S.plan && S.plan.titular, c.pais, CATST).rows.forEach(function (r) { if (r.kind === g.src) v -= r.a; }); v = Math.max(0, v); }
+        var p = paraPrincipal(v, c.moeda, x);
+        if (p == null) goalFalta = c.moeda; else t += p;
+      });
+      return goalFalta ? null : t;
+    }
     if (sm) return g.src === 'flex' ? (sm.flex || 0) / 100 : ((sm.invest || 0) + (sm.cripto || 0)) / 100;
     M.rows.forEach(function (r) { if (r.kind === g.src) t -= r.a; });
     return Math.max(0, t);
@@ -1928,10 +2002,13 @@
     return y + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd;
   }
   function metasPoup() {
-    var h = '<section class="sec" id="fin-goals"><div class="sec-top"><h2>Metas de poupança</h2><span class="hint">as de Flexible Cash e investimentos saem do extrato; as outras você atualiza</span></div><div class="gl4">';
+    var f0 = fP0, h = '<section class="sec" id="fin-goals"><div class="sec-top"><h2>Metas de poupança</h2><span class="hint">as de Flexible Cash e investimentos saem do extrato; as outras você atualiza</span></div><div class="gl4">';
     metasPoupanca().forEach(function (g) {
-      var c = goalCfg(g.id), alvo = +c.alvo || 0, tem = goalHas(g), falta = Math.max(0, alvo - tem), pc = alvo ? Math.min(100, tem / alvo * 100) : 0, ml = mesesAte(c.prazo), st;
-      if (!alvo) st = 'Defina o valor em Editar metas de poupança.';
+      var c = goalCfg(g.id), alvo = +c.alvo || 0, tem = goalHas(g), semCambio = tem == null ? goalFalta : null, ml = mesesAte(c.prazo), st;
+      if (semCambio) tem = 0;
+      var falta = Math.max(0, alvo - tem), pc = alvo ? Math.min(100, tem / alvo * 100) : 0;
+      if (semCambio) st = 'Defina o câmbio de ' + esc(semCambio) + ' em Configurações para somar esta meta.';
+      else if (!alvo) st = 'Defina o valor em Editar metas de poupança.';
       else if (falta < 0.5) st = '<span class="d good">Meta batida</span>';
       else st = 'Faltam ' + f0(falta) + (ml ? '<br>' + f0(falta / ml) + ' por mês até ' + esc(mesAno(c.prazo)) : '<br>sem prazo definido');
       h += '<div class="kpi goal"><span class="l">' + esc(g.nome) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>de ' + f0(alvo) + '</small>' : '') + '</span>' +
@@ -1945,9 +2022,9 @@
       h += '<fieldset><legend>' + esc(g.nome) + '</legend><div class="mgrid">' +
         '<label>Nome<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(g.nome) + '"></label>' +
         '<label>De onde vem o valor<select id="' + k + '-src">' + opcoes(ORIGENS, g.src || '') + '</select></label>' +
-        '<label>Meta (' + esc(simbolo()) + ')<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
+        '<label>Meta (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
         '<label>Prazo<input id="' + k + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
-        '<label>Já guardado (' + esc(simbolo()) + ')<input id="' + k + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"><small>Só vale quando o valor é digitado por você.</small></label>' +
+        '<label>Já guardado (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"><small>Só vale quando o valor é digitado por você.</small></label>' +
         '<label class="chk"><input id="' + k + '-excluir" type="checkbox">Excluir esta meta</label></div></fieldset>';
     });
     if (lista.length < MAX_METAS_POUP) h += '<fieldset><legend>Nova meta</legend><div class="mgrid"><label>Nome<input id="fin-g-nova" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Carro"><small>Até ' + MAX_METAS_POUP + ' metas.</small></label></div></fieldset>';
@@ -2170,6 +2247,10 @@
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
     var wm = /^(fin-w-.+|fin-wn)-(pais|banco)$/.exec(t.id || '');
+    if (t.id === 'fin-w-mp') {
+      var tr0 = t.value !== S.dados.config.moedaPrincipal, cw = $('#fin-cambc-w'), ct = $('#fin-cambc-troca');
+      if (cw) cw.hidden = tr0; if (ct) ct.hidden = !tr0; return;
+    }
     if (wm && wm[2] === 'pais') { var av = $('#' + wm[1] + '-aviso'); av.innerHTML = avisoSuporte(t.value); av.hidden = temRegras(t.value); return; }
     if (wm) { $('#' + wm[1] + '-leitor').hidden = temLeitor(t.value); return; }
     if (t.id === 'fin-json') { lerBackup(t.files && t.files[0]).then(function () { t.value = ''; }); return; }
@@ -2212,14 +2293,8 @@
     }
     if (fid === 'fin-fcamb') {
       e.preventDefault();
-      var mg = parseNum($('#fin-c-mg').value), novos = {}, ruim = null;
-      Array.prototype.forEach.call(document.querySelectorAll('[data-camb]'), function (el) {
-        var c = el.getAttribute('data-camb'), v = el.value.trim(), rt = parseNum(v), atual = divState().cambios[c];
-        if (!v) return;
-        if (!(rt > 0)) { ruim = c; return; }
-        if (!atual || +atual.rate !== rt) novos[c] = { rate: rt, data: todayIso(), fonte: 'informado por você' };
-      });
-      if (ruim) { toast('Informe quantos ' + ruim + ' valem 1 ' + nomeMoeda() + ' (ex.: 1,08).', true); return; }
+      var mg = parseNum($('#fin-c-mg').value), lc = lerCambios('camb'), novos = lc.novos;
+      if (lc.ruim) { toast('Informe quantos ' + lc.ruim + ' valem 1 ' + nomeMoeda(moedaP()) + ' (ex.: 1,08).', true); return; }
       if (isNaN(mg) || mg < 0 || mg > 20) mg = 2;
       S.dCamb = false;
       divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast('Câmbio atualizado.'); });
@@ -2232,6 +2307,14 @@
       x.carteiras.forEach(function (c) {
         try { x = editarCarteira(x, c.id, lerCarteira(c.id)); } catch (er) { erros.push(c.nome + ': ' + er.message + '.'); }
       });
+      /* moeda principal (com várias carteiras) e câmbio; trocar a moeda apaga as taxas, e as digitadas não valem */
+      var mpSel = $('#fin-w-mp'), trocouMP = false;
+      if (mpSel && mpSel.value !== x.config.moedaPrincipal) { x = trocarMoedaPrincipal(x, mpSel.value); trocouMP = true; }
+      else if (mpSel) {
+        var lc = lerCambios('cambc');
+        if (lc.ruim) erros.push('Câmbio de ' + lc.ruim + ' inválido: informe quantos ' + lc.ruim + ' valem 1 ' + x.config.moedaPrincipal + ' (ex.: 0,86).');
+        else if (Object.keys(lc.novos).length) x = Object.assign({}, x, { cambios: Object.assign({}, x.cambios, lc.novos) });
+      }
       var mudouPrincipal = x.config.moedaPrincipal !== mp0;
       usarDados(x);
       var lk = lerCategorias(Object.assign({}, S.plan, lerMetas('s'), { titular: $('#fin-s-titular').value.trim(), configurado: true }));
@@ -2252,7 +2335,8 @@
       enqueue(function () { usarDados(x); localSave(); }).then(function () {
         recompute(); render();
         var msg = 'Configuração salva.' + (criada ? ' Carteira ' + criada.nome + ' criada: adicione o extrato dela.' : '') +
-          (mudouPrincipal && tinhaCambio ? ' A moeda principal mudou: informe o câmbio de novo em Em observação.' : '');
+          (trocouMP ? ' A moeda principal agora é ' + nomeMoeda(x.config.moedaPrincipal) + ': informe o câmbio de novo. As metas de poupança não foram convertidas.' :
+            mudouPrincipal && tinhaCambio ? ' A moeda principal mudou: informe o câmbio de novo em Em observação.' : '');
         toast(erros.length ? msg + ' ' + erros.join(' ') : msg, !!erros.length);
       });
       return;

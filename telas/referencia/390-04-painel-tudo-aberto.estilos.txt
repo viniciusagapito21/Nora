@@ -1,4 +1,4 @@
- 1ithkrn 1l2e3g5 1l2e3g5
+ 1vf7u7l 1l2e3g5 1l2e3g5
 head 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
@@ -7,9 +7,9 @@ head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>style 1y599fs 1l2e3g5 1l2e3g5
-body 1iewt60 1ln8j76 1ln8j76
-body>main.wrap 1v39u6d 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin dllfpn 1yytz64 1yytz64
+body 19wh7gc 1ln8j76 1ln8j76
+body>main.wrap 1izejql 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 1j0gtp3 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top 1m7ax9p 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div nla6m4 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca cpev7d 1af5xs7 1af5xs7
@@ -47,11 +47,11 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfm>div>div#fin-bal
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfm>div>div.axl.mono 1tls9x jmsllv jmsllv
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfm>div>div.axl.mono>span 152pdm3 1uqub23 1uqub23
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfm>div>div.axl.mono>span 2x9qx9 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec 1pxya52 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec 1paqygy 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.sec-top gx98jy 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.sec-top>h2 tn33wi o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.sec-top>span.hint 109f9n9 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv 166dvbp 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv 10fqalz 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.dvr qdrf3e 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.dvr>div.n 14ssnt8 2o65we 2o65we
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.dvr>div.n>small 1f04ijf s33xn3 s33xn3
@@ -84,16 +84,28 @@ body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.dvr.dvt>div.n 1kj8b7r mv5e3l mv5e3l
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.dvr.dvt>div.n>small 1f04ijf s33xn3 s33xn3
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>div.dvr.dvt>div.v 1c0drhf 8e4kr7 8e4kr7
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas jlpkpy 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas 1khsusi 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>summary 1vlkvfq 15u02fs 1wfqnq2
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb 15h0sn2 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid awvttt 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label 1er3gxv 15snphz 15snphz
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label>input#fin-c-BRL 1dkb5me qc0uyc qc0uyc mbf54v
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label 1er3gxv 15snphz 15snphz
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label>input#fin-c-USD 1dkb5me qc0uyc qc0uyc mbf54v
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label 1er3gxv 15snphz 15snphz
-body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label>input#fin-c-CHF 1dkb5me qc0uyc qc0uyc mbf54v
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb yoiu3w 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid 1i1gv9k 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb gtuczr 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr 141y81 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>span 32xqiz fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>input#fin-camb-BRL 1trswi6 qc0uyc qc0uyc ja8zds
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>span 9xdpbf fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>small 1hkxh7p o2ei29 o2ei29
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb gtuczr 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr 141y81 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>span 32xqiz fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>input#fin-camb-USD bckw25 qc0uyc qc0uyc ja8zds
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>span 1mqkchx fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>small 1hkxh7p o2ei29 o2ei29
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb gtuczr 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr 141y81 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>span 32xqiz fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>input#fin-camb-CHF 1gkfdhd qc0uyc qc0uyc 1e9gudr
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>span.cr>span gldtwf fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label.camb>small 1hkxh7p o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label 1er3gxv 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>div.mgrid>label>input#fin-c-mg 1dkb5me qc0uyc qc0uyc mbf54v
 body>main.wrap>section#fin-app.view.fin>section#fin-dividas.sec>div.card.dv>details#fin-dcamb.metas>form#fin-fcamb>button.btn.sm.pri mkdybg pbreky pbreky
@@ -887,7 +899,7 @@ body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>su
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c ilbalo 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>p.passo 1lv0cvb 4eerhl 4eerhl
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca 6tmb2c 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca>label.vh 19nx7h8 fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca>label.vh 1xs1zfk fr2hbx fr2hbx
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca>input#fin-q ptncps qc0uyc qc0uyc qe9nl7
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div#fin-revlist.card estmqv 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div#fin-revlist.card>h3.rvt 1aqcuy7 1k5jjl7 1k5jjl7
@@ -1147,6 +1159,6 @@ body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
-body>input#fin-csv.vh 18jyf78 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 18jyf78 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh mel3ls 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh mel3ls 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug

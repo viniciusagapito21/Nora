@@ -600,3 +600,8 @@ html, body { overflow-x: clip; }
 /* Revisar categorias: saídas e entradas */
 .fin .rvt { margin: 4px 0 0; padding-top: 12px; font-family: var(--display); font-size: var(--fs-md); font-weight: 700; }
 .fin .rvt:first-child { padding-top: 0; }
+/* câmbio: "1 € = [ ] £", com o inverso e a data; taxa antiga em âmbar */
+.fin .camb .cr { display: flex; align-items: center; gap: 8px; }
+.fin .camb .cr > span { color: var(--fg); font-size: var(--fs-md); white-space: nowrap; }
+.fin .mgrid .camb .cr input { flex: 1 1 auto; min-width: 0; }
+.fin .velho { color: var(--amber); font-weight: 500; }

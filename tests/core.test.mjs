@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey, fechamentos, conferirSaldos };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde };')();
 }
 function months(api) {
   const m = {};
@@ -874,4 +874,35 @@ test('entradas: renda, outras, entre contas suas ou resgate, valendo para a mesm
   // saída marcada "entre contas suas" (_ignore) não entra no Gastou
   const G = buildModel({ '2026-09': [['2026-09-02', 'To BTG MARIA', 'Others', -50000, null], ['2026-09-03', 'Tesco', 'Merchant', -2000, null]] }, { 'TO BTG MARIA': '_ignore' }, 'MARIA SILVA', 'IE');
   assert.equal(G.by['2026-09'].gasto, 20);
+});
+
+// ---------- 9.3b: moeda principal e câmbio ----------
+test('moeda principal: escolha à parte com 2+ carteiras; trocar apaga o câmbio; com uma carteira acompanha a dela', () => {
+  const api = load(), um = comUmaCarteira(api);
+  const x = api.novaCarteira(um, { nome: 'Wise', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  assert.equal(x.config.moedaPrincipal, 'EUR');
+  const y = api.trocarMoedaPrincipal(x, 'GBP');
+  assert.deepEqual([y.config.moedaPrincipal, y.cambios], ['GBP', {}], 'trocar apaga as taxas (decisão 8)');
+  assert.equal(api.trocarMoedaPrincipal(x, 'EUR'), x, 'a mesma moeda não muda nada');
+  assert.throws(() => api.trocarMoedaPrincipal(x, 'euro'), /moeda/);
+  // pode ser uma moeda que nenhuma carteira usa
+  assert.equal(api.trocarMoedaPrincipal(x, 'USD').config.moedaPrincipal, 'USD');
+  // com 3 carteiras, excluir a primeira não muda a moeda principal
+  const tres = api.novaCarteira(api.trocarMoedaPrincipal(x, 'BRL'), { nome: 'Nubank', moeda: 'BRL', pais: 'BR', banco: 'nubank' });
+  const t2 = api.excluirCarteira(tres, 'c1');
+  assert.equal(t2.config.moedaPrincipal, 'BRL');
+  // ficando uma só, a principal passa a ser a dela, e o câmbio é pedido de novo se mudou
+  const so = api.excluirCarteira(t2, 'c3');
+  assert.deepEqual([so.config.moedaPrincipal, so.cambios], ['GBP', {}]);
+});
+
+test('câmbio: 1 da principal = X da outra; converte, avisa o que falta, e conta a idade da taxa', () => {
+  const api = load();
+  let x = api.novaCarteira(comUmaCarteira(api), { nome: 'Wise', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  x = { ...x, cambios: { GBP: { rate: 0.86, data: '2026-09-10' } }, div: { items: [{ id: 'd1', valor: 100, moeda: 'USD', status: 'aberta' }, { id: 'd2', valor: 5, moeda: 'CHF', status: 'paga' }] } };
+  assert.equal(api.paraPrincipal(86, 'GBP', x), 100);
+  assert.equal(api.paraPrincipal(50, 'EUR', x), 50);
+  assert.equal(api.paraPrincipal(10, 'BRL', x), null, 'sem taxa: null, nunca um palpite');
+  assert.deepEqual(api.moedasSemPrincipal(x), ['GBP', 'USD'], 'carteiras e pagamentos em aberto; o pago não conta');
+  assert.equal(api.diasDesde('2026-09-10', '2026-10-22'), 42);
 });

@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 63 telas do painel (32 em 1280px, 31 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 67 telas do painel (34 em 1280px, 33 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -34,7 +34,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV };')();
+const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -64,6 +64,16 @@ const tresCarteiras = ativa => {
   return { 'cortex-financas.v4': JSON.stringify(api.escolherCarteira(x, ativa)) };
 };
 const CARTEIRAS = tresCarteiras('c1'), SEM_LEITOR = tresCarteiras('c2');
+// câmbio: libra informada há 42 dias (fica em âmbar), real e dólar recentes
+const comCambio = (moedaPrincipal, cambios) => {
+  let x = JSON.parse(CARTEIRAS['cortex-financas.v4']);
+  if (moedaPrincipal) x = api.trocarMoedaPrincipal(x, moedaPrincipal);
+  x.cambios = cambios;
+  return { 'cortex-financas.v4': JSON.stringify(x) };
+};
+const CAMBIO = comCambio(null, { GBP: { rate: 0.86, data: '2026-09-10' }, BRL: { rate: 6.2, data: '2026-10-15' }, USD: { rate: 1.08, data: '2026-10-15' } });
+// moeda principal libra: Em observação e metas de poupança aparecem em libra na carteira principal (Revolut, em euro)
+const EM_LIBRA = comCambio('GBP', { EUR: { rate: 1.17, data: '2026-10-15' }, BRL: { rate: 7.2, data: '2026-10-15' }, USD: { rate: 1.27, data: '2026-10-15' } });
 // importador genérico: o extrato inventado de um banco brasileiro (Latin-1, ponto e vírgula, sem saldo)
 const GENERICO = join(RAIZ, 'exemplo/extrato-generico-exemplo.csv');
 const comGenerica = (comMeses, extra) => {
@@ -218,6 +228,8 @@ for (const w of [1280, 390]) {
   t('31-painel-saldo-estimado', { storage: comGenerica(true, { ancora: { data: '2026-10-14', valor: 1250000, informadoEm: '2026-10-15' } }) });
   t('32-painel-saldo-diario', { storage: comSaldoDiario() });
   // Revisar categorias com saídas e entradas: o salário marcado como renda e o Pix como entre contas suas
+  t('33-configuracoes-cambio', { storage: CAMBIO, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
+  t('34-painel-principal-libra', { storage: EM_LIBRA, prepara: async pg => { await pg.click('#fin-dcamb > summary'); } });
   t('29-revisar-entradas', { storage: comGenerica(true, { over: { '+SALÁRIO EMPRESA EXEMPLO LTDA': '_renda', '+PIX RECEBIDO JOÃO EXEMPLO': '_ignore' } }), prepara: async pg => { await pg.click('#fin-revd > summary'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
