@@ -919,6 +919,15 @@ test('saldo diário em linha própria: nunca vira movimento, vale para a data, e
   assert.equal(api.conferirSaldos(r.tx, r.saldos, { data: '2026-09-18', valor: 152000 }).ancora.dif, 258);
 });
 
+test('conferência de saldos: até R$ 0,05 de diferença é arredondamento, sem alerta e sem nota de rendimento', () => {
+  const api = load(), tx = [['2026-09-15', 'Padaria Exemplo', 'Others', -1000, null]];
+  const div = fim => api.conferirSaldos(tx, { '2026-09-14': 10000, '2026-09-15': fim }).divergencias;
+  for (const d of [-5, -1, 1, 5]) assert.deepEqual(div(9000 + d), [], (d / 100).toFixed(2) + ': arredondamento');
+  assert.equal(div(9000 - 6)[0].tipo, 'falta', '−0,06 já é diferença (falta)');
+  assert.deepEqual(div(9000 + 6)[0], { de: '2026-09-14', ate: '2026-09-15', dif: 6, tipo: 'rendimento' }, '+0,06 já conta como rendimento');
+  assert.deepEqual(div(9000), []);
+});
+
 test('reimportar não depende do saldo: o mesmo movimento com outro saldo do dia não duplica', () => {
   const api = load(), p = api.prepararImportacao(utf8(CSV_BTG));
   p.mapa.valor.saidas = 'negativas';

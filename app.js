@@ -882,6 +882,7 @@
      tipo 'rendimento': diferença positiva de até RENDIMENTO_DIA por dia corrido (o rendimento da conta, que o
      extrato não lista); 'falta': negativa ou maior que isso (pode faltar alguma linha). Nada vira movimento. */
   var RENDIMENTO_DIA = 500;
+  var ARREDONDAMENTO = 5;
   function conferirSaldos(tx, saldos, ancora) {
     var ks = Object.keys(saldos || {}).sort(), div = [], i, cmp = null;
     for (i = 1; i < ks.length; i++) {
@@ -889,7 +890,8 @@
       tx.forEach(function (t) { if (t[0] > ks[i - 1] && t[0] <= ks[i]) soma += t[3]; });
       var dif = saldos[ks[i]] - (saldos[ks[i - 1]] + soma);
       var dias = Math.round((Date.parse(ks[i]) - Date.parse(ks[i - 1])) / 864e5);
-      if (dif) div.push({ de: ks[i - 1], ate: ks[i], dif: dif, tipo: dif > 0 && dif <= RENDIMENTO_DIA * dias ? 'rendimento' : 'falta' });
+      /* até R$ 0,05 (5 centavos) é arredondamento do banco: nem alerta, nem nota de rendimento */
+      if (Math.abs(dif) > ARREDONDAMENTO) div.push({ de: ks[i - 1], ate: ks[i], dif: dif, tipo: dif > 0 && dif <= RENDIMENTO_DIA * dias ? 'rendimento' : 'falta' });
     }
     if (ancora && ancora.data && ancora.valor != null && ks.length) {
       var f = fechamentos(tx, saldos, null).fecha[ancora.data];
