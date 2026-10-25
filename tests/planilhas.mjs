@@ -115,6 +115,8 @@ const BTG_DIAS = [
   ['12/08/2026', [['18:02', 'Transferência', 'Pix recebido', 'MARIA EXEMPLO', 50000]]],
   ['15/08/2026', [['12:40', 'Outra Categoria', 'Pix enviado', 'ANA EXEMPLO', -8000]], 42], // rendimento de 0,42
   ['20/08/2026', [['09:15', 'Contas', 'Pix enviado', 'ENERGIA EXEMPLO S.A.', -18744]]],
+  // para o investimento, como no extrato real: transferência com o nome do titular e categoria "Investimentos"
+  ['22/08/2026', [['11:00', 'Investimentos', 'Transferência enviada', 'MARIA EXEMPLO', -50000]]],
   ['28/08/2026', [['16:20', 'Transferência', 'Transferência enviada', 'MARIA EXEMPLO', -60000]]],
   ['01/09/2026', [['09:05', 'Transferência', 'Pix recebido', 'EMPRESA EXEMPLO LTDA', 480000]]],
   ['02/09/2026', [['10:10', 'Transferência', 'Pix enviado', 'IMOBILIARIA EXEMPLO', -180000]]],
@@ -123,6 +125,7 @@ const BTG_DIAS = [
   ['14/09/2026', [['19:30', 'Transferência', 'Transferência recebida', 'MARIA EXEMPLO', 30000]], 3], // arredondamento de 0,03
   ['18/09/2026', [['08:12', 'Transferência', 'Pix enviado', 'PADARIA SÃO JOÃO', -4590], ['20:44', 'Outra Categoria', 'Pix enviado', 'PEDRO EXEMPLO', -6000]]],
   ['25/09/2026', [['08:29', 'Investimentos', 'CDB BANCO BTG PACTUAL S A', 'CDB EXEMPLO', -200000]]],
+  ['30/09/2026', [['10:30', 'Investimentos', 'Transferência recebida', 'MARIA EXEMPLO', 30000]]],
   ['01/10/2026', [['09:07', 'Transferência', 'Pix recebido', 'EMPRESA EXEMPLO LTDA', 480000]]],
   ['02/10/2026', [['10:05', 'Transferência', 'Pix enviado', 'IMOBILIARIA EXEMPLO', -180000]]],
   ['08/10/2026', [['21:10', 'Transferência', 'Pix enviado', 'MARIA EXEMPLO', -100000]]],
@@ -131,7 +134,8 @@ const BTG_DIAS = [
 ];
 // em que linha da tabela cada página termina, e onde a página 2 repete o cabeçalho no meio (como no arquivo real)
 const BTG_PAGINAS = [16, 32], BTG_CAB_NO_MEIO = 22;
-export function extratoBtgExemplo(X) {
+// saldoAtualExtra: centavos somados ao "Saldo atual" do topo (variante para a tela de saldo que não bate)
+export function extratoBtgExemplo(X, { saldoAtualExtra = 0 } = {}) {
   const linhas = []; // [{ tipo: 'mov'|'saldo', ... }] na ordem do extrato
   let saldo = BTG_INICIAL;
   for (const [dia, movs, extra = 0] of BTG_DIAS) {
@@ -159,7 +163,7 @@ export function extratoBtgExemplo(X) {
     put(r, B, s('Conta:')); put(r, C, s('0000000-0')); m(r, C, r, D); r++;
     put(r, B, s('Período do extrato:')); put(r, C, s('01/08/2026 a 15/10/2026')); m(r, C, r, G); r++;
     m(r, B, r, N); r++;
-    put(r, B, s('Lançamentos:')); put(r, H, s('Saldo atual:')); put(r, J, n(saldo)); m(r, H, r, I_(H)); m(r, J, r, N); r++;
+    put(r, B, s('Lançamentos:')); put(r, H, s('Saldo atual:')); put(r, J, n(saldo + saldoAtualExtra)); m(r, H, r, I_(H)); m(r, J, r, N); r++;
     r++;
     cabecalho();
   };

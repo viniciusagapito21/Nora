@@ -643,10 +643,10 @@ test('criar carteira: nome, moeda, país e banco; vira a ativa; até 5', () => {
   assert.equal(api.novaCarteira(quatro, { nome: 'N6', moeda: 'EUR', banco: 'revolut' }).carteiras[4].id, 'c6');
 });
 
-test('só o Revolut tem leitor por enquanto', () => {
+test('Revolut e BTG têm leitor próprio; os outros bancos usam o importador genérico', () => {
   const api = load();
-  assert.equal(api.temLeitor('revolut'), true);
-  ['aib', 'boi', 'wise', 'nubank', 'btg', 'outro'].forEach(b => assert.equal(api.temLeitor(b), false, b));
+  ['revolut', 'btg'].forEach(b => assert.equal(api.temLeitor(b), true, b));
+  ['aib', 'boi', 'wise', 'nubank', 'outro'].forEach(b => assert.equal(api.temLeitor(b), false, b));
   assert.deepEqual(api.BANCOS.map(b => b[0]), ['revolut', 'aib', 'boi', 'wise', 'nubank', 'btg', 'outro']);
 });
 
@@ -851,7 +851,7 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
 test('a página carrega as regras de cada país e os leitores de banco antes do app.js, do próprio projeto', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'app.js']);
+  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
@@ -1617,8 +1617,9 @@ test('leitores: todos seguem o contrato, e o banco é reconhecido pelo conteúdo
   }
   const linhas = f => L.parseCSV(L.decodificar(exemplo(f)).texto);
   assert.equal(L.detectarBanco(linhas('extrato-exemplo.csv')), 'revolut');
-  for (const f of ['extrato-generico-exemplo.csv', 'extrato-saldo-diario-exemplo.csv', 'extrato-transferencia-exemplo.csv'])
+  for (const f of ['extrato-generico-exemplo.csv', 'extrato-transferencia-exemplo.csv'])
     assert.equal(L.detectarBanco(L.parseCSV(L.decodificar(exemplo(f)).texto, ';')), null, f + ': sem leitor próprio');
+  assert.equal(L.detectarBanco(linhas('extrato-saldo-diario-exemplo.csv')), 'btg', 'o CSV na estrutura do BTG é reconhecido pelo cabeçalho');
   assert.equal(L.detectarBanco([['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount']]), 'revolut', 'extrato comum do Revolut');
   assert.equal(L.detectarBanco([]), null);
   // ler devolve o contrato, com o mesmo resultado das funções de antes
@@ -1658,7 +1659,7 @@ test('exemplo do BTG: páginas com topo e cabeçalho repetidos e mesclas; o impo
   assert.deepEqual(P.perguntasImportacao(p.rows, p.mapa).map(q => q.id), ['sinal']);
   p.mapa.valor.saidas = 'negativas';
   const r = interpretar(p);
-  assert.equal(r.tx.length, 22); assert.equal(Object.keys(r.saldos).length, 20);
+  assert.equal(r.tx.length, 24); assert.equal(Object.keys(r.saldos).length, 22);
   assert.deepEqual(r.periodo, { de: '2026-08-01', ate: '2026-10-15', fonte: 'arquivo' });
   assert.ok(r.ignoradas.every(x => x.motivo === 'sem data válida'), 'só os blocos de topo, cabeçalhos e rodapés ficam de fora');
   // saldos coerentes: só o rendimento de 0,42 aparece; os 0,03 são arredondamento
@@ -1666,11 +1667,89 @@ test('exemplo do BTG: páginas com topo e cabeçalho repetidos e mesclas; o impo
   assert.deepEqual(S.conferirSaldos(r.tx, r.saldos).divergencias, [{ de: '2026-08-12', ate: '2026-08-15', dif: 42, tipo: 'rendimento' }]);
   // "Saldo atual" do topo igual ao último saldo do dia
   const atual = linhasCom('Saldo atual:').map(rr => ws['J' + (rr + 1)].v);
-  assert.deepEqual(atual, [4993.47, 4993.47, 4993.47]); assert.equal(r.saldos['2026-10-14'], 499347);
+  assert.deepEqual(atual, [4793.47, 4793.47, 4793.47]); assert.equal(r.saldos['2026-10-14'], 479347);
   // a fatura do cartão vem com a categoria "Contas" do BTG; o genérico só olha a descrição: Pessoas, taxas e outros
   const fatura = Object.keys(ws).filter(k => ws[k].v === 'Pagamento de fatura do cartão').map(k => XL.utils.decode_cell(k).r);
   assert.equal(fatura.length, 3);
   assert.ok(fatura.every(rr => ws['C' + (rr + 1)].v === 'Contas'));
   const A = load(), c = A.classify(r.tx.find(t => t[1] === 'CARTÃO EXEMPLO'), {}, 'MARIA EXEMPLO', 'BR');
   assert.equal(c.cat, 'outros', 'a fatura não vai para Aluguel e contas');
+});
+
+// ---------- leitor do BTG (parsers/btg.js), com o exemplo inventado ----------
+const B = carregarNucleo(['LEITORES', 'detectarBanco', 'prepararPlanilha', 'prepararImportacao', 'interpretarCSV', 'perguntasImportacao', 'classify', 'juntarMovimentos']);
+const linhasBtg = (extra = {}) => B.prepararPlanilha(carregarXLSX(), extratoBtgExemplo(carregarXLSX(), extra), 'xls').rows;
+const semTipo = tx => tx.map(t => [t[0], t[1], t[3], t[4]]);
+
+test('BTG: reconhecido sozinho pelo cabeçalho, no .xls e no CSV; Revolut e genérico não se confundem', () => {
+  assert.equal(B.detectarBanco(linhasBtg()), 'btg');
+  assert.equal(B.detectarBanco(B.prepararImportacao(exemplo('extrato-saldo-diario-exemplo.csv')).rows), 'btg');
+  assert.equal(B.detectarBanco(B.prepararImportacao(exemplo('extrato-exemplo.csv')).rows), 'revolut');
+  for (const f of ['extrato-generico-exemplo.csv', 'extrato-transferencia-exemplo.csv']) assert.equal(B.detectarBanco(B.prepararImportacao(exemplo(f)).rows), null, f);
+  // só os cinco rótulos, na ordem do banco: com uma coluna a mais no cabeçalho, não é o BTG
+  assert.equal(B.detectarBanco([['Data e hora', 'Categoria', 'Transação', 'Descrição', 'Valor', 'Saldo']]), null);
+});
+
+test('BTG: o mesmo resultado do importador genérico (movimentos, saldos do dia e período), sem perguntas', () => {
+  const rows = linhasBtg(), L = B.LEITORES.btg.ler(rows, 'BRL');
+  const g = B.prepararPlanilha(XL, exemplo('extrato-btg-exemplo.xls'), 'xls'); g.mapa.valor.saidas = 'negativas';
+  const r = B.interpretarCSV(g.rows, g.mapa);
+  assert.deepEqual(semTipo(L.tx), semTipo(r.tx), 'mesmos movimentos: data, descrição, valor e saldo');
+  assert.deepEqual(L.saldosDia, r.saldos); assert.deepEqual(L.periodo, r.periodo);
+  assert.deepEqual(L.periodo, { de: '2026-08-01', ate: '2026-10-15', fonte: 'arquivo' });
+  assert.equal(L.saldoAtual, 479347, '"Saldo atual" do topo, igual ao último saldo do dia');
+  assert.deepEqual(B.perguntasImportacao(L.previa.rows, L.previa.mapa), [], 'primeira importação sem perguntas');
+  const pr = B.interpretarCSV(L.previa.rows, L.previa.mapa);
+  assert.deepEqual(pr.ignoradas, [], 'topo, cabeçalhos repetidos (inclusive o do meio da página) e rodapé pulados');
+  assert.deepEqual(pr.linhas, r.linhas, 'cada movimento com o número de linha do arquivo');
+  // o CSV de saldo diário (estrutura do BTG): mesmos movimentos que o genérico; o rodapé de outro texto continua listado
+  const c = B.prepararImportacao(exemplo('extrato-saldo-diario-exemplo.csv')); c.mapa.valor.saidas = 'negativas';
+  const Lc = B.LEITORES.btg.ler(c.rows, 'BRL');
+  assert.deepEqual(semTipo(Lc.tx), semTipo(B.interpretarCSV(c.rows, c.mapa).tx));
+  assert.equal(Lc.saldoAtual, 604210);
+  assert.ok(B.interpretarCSV(Lc.previa.rows, Lc.previa.mapa).ignoradas.every(x => /SAC|CNPJ/.test(x.celulas.join(' '))), 'rodapé que não é o do BTG não é adivinhado');
+});
+
+test('BTG: o tipo vem de "Transação" e de Categoria "Investimentos"; o resto segue o caminho genérico', () => {
+  const L = B.LEITORES.btg.ler(linhasBtg(), 'BRL'), cl = t => B.classify(t, {}, 'MARIA EXEMPLO', 'BR');
+  const achar = (desc, sinal, tipo) => L.tx.filter(t => t[1] === desc && Math.sign(t[3]) === sinal && (!tipo || t[2] === tipo));
+  // Categoria "Investimentos" + Transferência enviada/recebida com o titular: Investimentos e Resgate de investimento
+  const [apl] = achar('MARIA EXEMPLO', -1, 'Invest'), [res] = achar('MARIA EXEMPLO', 1, 'Invest');
+  assert.equal(apl[3], -50000); assert.equal(cl(apl).kind, 'invest', 'saída: Investimentos (guardado)');
+  assert.equal(res[3], 30000); assert.equal(cl(res).kind, 'invest'); assert.equal(cl(res).autoE, '_invest', 'entrada: Resgate de investimento');
+  // CDB pela Transação (as duas grafias do arquivo)
+  achar('CDB EXEMPLO', -1).concat(achar('CDB EXEMPLO', 1)).forEach(t => { assert.equal(t[2], 'Invest'); assert.equal(cl(t).kind, 'invest'); });
+  // a mesma transferência com o titular, com outra categoria: caminho genérico (envio para outra conta sua / entre contas)
+  const env = achar('MARIA EXEMPLO', -1).find(t => t[2] === 'Others' && t[3] === -60000);
+  assert.ok(env, 'Transferência enviada com Categoria "Transferência"'); assert.equal(cl(env).cat, 'brasil');
+  assert.equal(cl(achar('MARIA EXEMPLO', 1).find(t => t[2] === 'Others')).kind, 'interno');
+  // fatura com Categoria "Contas": Pessoas, taxas e outros (não Aluguel e contas), mesmo com descrição de comerciante
+  const fat = L.tx.filter(t => t[2] === 'Fatura');
+  assert.equal(fat.length, 3); fat.forEach(t => assert.equal(cl(t).cat, 'outros'));
+  assert.equal(cl(['2026-10-10', 'SUPERMERCADO EXEMPLO', 'Fatura', -50000, null]).cat, 'outros', 'a regra de mercado não vale para a fatura');
+  // Pix para empresa: regras do Brasil; Categoria "Contas" não é lida
+  assert.equal(cl(L.tx.find(t => t[1] === 'ENERGIA EXEMPLO S.A.')).cat, 'outros', 'Pix enviado com Categoria "Contas": só a descrição conta');
+  assert.equal(cl(L.tx.find(t => t[1] === 'IMOBILIARIA EXEMPLO')).cat, 'aluguel');
+  // nome de Transação que não existe no extrato real: tipo genérico, sem adivinhação
+  const rows = linhasBtg(), i = rows.findIndex(r => r.includes('ANA EXEMPLO'));
+  rows[i] = rows[i].map(c => (c === 'Pix enviado' ? 'Compra no débito' : c));
+  assert.equal(B.LEITORES.btg.ler(rows, 'BRL').tx.find(t => t[1] === 'ANA EXEMPLO')[2], 'Others');
+});
+
+test('BTG: "Saldo atual" lido para conferir, moeda errada não lê nada, e dados pessoais do topo nunca saem', () => {
+  assert.equal(B.LEITORES.btg.ler(linhasBtg({ saldoAtualExtra: 1234 }), 'BRL').saldoAtual, 479347 + 1234);
+  const eur = B.LEITORES.btg.ler(linhasBtg(), 'EUR');
+  assert.deepEqual([eur.tx, eur.moedas], [[], ['BRL']]);
+  const L = B.LEITORES.btg.ler(linhasBtg(), 'BRL'), tudo = JSON.stringify(L);
+  for (const x of ['000.000.000-00', '0000000-0', 'Cliente:', 'CPF:', 'Agência:', 'Conta:', 'Lançamentos:']) assert.ok(!tudo.includes(x), x + ' não sai do leitor');
+  assert.ok(!L.previa.rows.some(r => r.includes('MARIA EXEMPLO') && r.length < 5), 'o nome do topo não vai para a prévia (só as descrições de movimentos)');
+});
+
+test('BTG: um extrato já importado pelo genérico não duplica quando o leitor lê de novo', () => {
+  const g = B.prepararPlanilha(XL, exemplo('extrato-btg-exemplo.xls'), 'xls'); g.mapa.valor.saidas = 'negativas';
+  const antes = {};
+  B.interpretarCSV(g.rows, g.mapa).tx.forEach(t => { (antes[t[0].slice(0, 7)] = antes[t[0].slice(0, 7)] || []).push(t); });
+  const L = B.LEITORES.btg.ler(linhasBtg(), 'BRL'), porMes = {};
+  L.tx.forEach(t => { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
+  for (const m in porMes) { const j = B.juntarMovimentos(antes[m], porMes[m]); assert.equal(j.novos, 0, m); assert.equal(j.repetidos, porMes[m].length, m); }
 });

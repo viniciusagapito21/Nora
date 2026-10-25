@@ -129,7 +129,7 @@
   }
   /* leitores próprios de banco (parsers/<banco>.js, carregados antes deste arquivo; contrato no começo de
      parsers/revolut.js). Banco sem leitor usa o importador genérico */
-  var LEITORES = { revolut: LEITOR_REVOLUT({ cents: cents, isoDate: isoDate }) };
+  var LEITORES = { revolut: LEITOR_REVOLUT({ cents: cents, isoDate: isoDate }), btg: LEITOR_BTG({ cents: cents, interpretarCSV: interpretarCSV }) };
   /* o banco pelo conteúdo do arquivo (cabeçalho), ou null */
   function detectarBanco(rows) {
     var ks = Object.keys(LEITORES);
@@ -170,7 +170,11 @@
     var BR = (pais || 'IE') === 'BR', N = BR ? semAcento(D) : '';
     var invBR = BR && INVEST_BR.test(N) && !(a > 0 && RENDIMENTO_BR.test(N));
     var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] == null ? null : t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
-    if (a > 0) {
+    /* tipos que um leitor de banco já sabe (parsers/btg.js): investimento (saída é aplicação, entrada é resgate)
+       e pagamento de fatura do cartão (sempre "Pessoas, taxas e outros", sem regra de comerciante) */
+    if (rc === 'Invest') kind = 'invest';
+    else if (rc === 'Fatura' && a < 0) { kind = 'gasto'; cat = 'outros'; }
+    else if (a > 0) {
       if (/^PAYMENT FROM /.test(D) && !(OWN && D.indexOf(OWN) >= 0)) kind = 'renda';
       else if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
       else if (OWN && D.indexOf(OWN) >= 0) kind = 'interno';
@@ -1440,7 +1444,7 @@
     var files = Array.prototype.slice.call(list || []);
     if (!files.length) return Promise.resolve();
     if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
-    if (!temLeitor(bancoAtual())) return abrirGenerico(files);
+    if (!temLeitor(bancoAtual()) || LEITORES[bancoAtual()].previa) return abrirGenerico(files);
     var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {}, periodos = [];
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
@@ -1690,14 +1694,26 @@
       '<p class="passo">Digitado por você, nunca buscado na internet. As somas com câmbio são estimativas.</p><div class="mgrid">' + camposCambio(ms, 'cambr') + '</div>' +
       '<button class="btn sm pri" type="submit">Salvar câmbio</button></form></details></section>';
   }
-  /* "Adicionar extrato" no Resumo: cada importação vai para uma carteira só; a última usada (a ativa) vem marcada */
+  /* "Adicionar extrato" no Resumo: cada importação vai para uma carteira só; a última usada (a ativa) vem marcada,
+     ou a do banco reconhecido no arquivo arrastado */
   function escolherTela() {
-    var F = S.escolher.files;
+    var F = S.escolher.files, sug = S.escolher.sugerida, marcada = sug || S.dados.ativa;
     return '<section class="sec" id="fin-escolher"><div class="card ggrid"><h2>Para qual carteira é o extrato?</h2><p class="passo">' + (F ? esc(F[0].name) + (F.length > 1 ? ' e mais ' + (F.length - 1) : '') + '. ' : '') + 'Cada importação vai para uma carteira só.</p>' +
+      (sug ? '<p class="aviso">Parece um extrato do ' + esc(LEITORES[S.escolher.banco].nome) + ': a carteira dele já vem marcada.</p>' : '') +
       '<div class="radios">' + S.dados.carteiras.map(function (c) {
         var r = resumoDados(c);
-        return '<label class="chk"><input type="radio" name="fin-ecart" value="' + esc(c.id) + '"' + (c.id === S.dados.ativa ? ' checked' : '') + '><span>' + esc(c.nome) + ' <small class="hint">' + esc(nomeBanco(c.banco)) + ' · ' + esc(c.moeda) + (r.meses ? '' : ' · sem extrato') + '</small></span></label>';
+        return '<label class="chk"><input type="radio" name="fin-ecart" value="' + esc(c.id) + '"' + (c.id === marcada ? ' checked' : '') + '><span>' + esc(c.nome) + ' <small class="hint">' + esc(nomeBanco(c.banco)) + ' · ' + esc(c.moeda) + (r.meses ? '' : ' · sem extrato') + '</small></span></label>';
       }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-escolher="ok">' + (F ? 'Importar nesta carteira' : 'Escolher arquivo') + '</button><button class="btn" type="button" data-escolher="cancelar">Cancelar</button></div></div></section>';
+  }
+  /* arquivo arrastado no Resumo: lê o começo dele e, se o banco for reconhecido, marca a carteira desse banco */
+  function sugerirCarteira(E) {
+    var f = E.files && E.files[0];
+    if (!f) return;
+    linhasDoArquivo(f).then(function (rows) {
+      var lb = detectarBanco(rows), c = lb && S.dados.carteiras.filter(function (w) { return w.banco === lb; })[0];
+      if (!c || S.escolher !== E) return;
+      E.sugerida = c.id; E.banco = lb; render();
+    }).catch(function () { /* sem sugestão: a pessoa escolhe */ });
   }
   function telaResumo(R) {
     var h = S.escolher ? escolherTela() : '';
@@ -1916,6 +1932,7 @@
   }
   function confirmarImportacao() {
     var I = S.importar, r = interpretarCSV(I.rows, I.mapa), porMes = {}, novos = 0, rep = 0, meses = 0;
+    if (I.leitor) r.tx = I.lido.tx;
     r.tx.forEach(function (t) { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
     Object.keys(porMes).forEach(function (k) {
       var j = juntarMovimentos(S.months[k] || [], porMes[k]);
@@ -1927,7 +1944,8 @@
     var an = ancoraDigitada(I);
     x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) {
       if (c.id !== x.ativa) return c;
-      var n = Object.assign({}, c, { importacao: lembrarMapa(c.importacao, I.rows, I.mapa), periodos: juntarPeriodos(c.periodos, r.periodo) });
+      var n = Object.assign({}, c, { periodos: juntarPeriodos(c.periodos, r.periodo) });
+      if (!I.leitor) n.importacao = lembrarMapa(c.importacao, I.rows, I.mapa);
       if (Object.keys(r.saldos).length) n.saldosDia = Object.assign({}, c.saldosDia || {}, r.saldos);
       if (an != null) { n.ancora = { data: r.ate, valor: an, informadoEm: todayIso() }; delete n.ancoraDispensada; }
       return n;
@@ -1951,8 +1969,26 @@
       if (!ehPlanilha(tipo)) return Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, lem));
       return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });
     }).then(function (I) {
-      S.importar = I; render(); window.scrollTo(0, 0);
+      S.importar = comLeitor(I); render(); window.scrollTo(0, 0);
     }).catch(function (e) { toast('Não consegui ler ' + f.name + ': ' + ((e && e.message) || e) + '.', true); });
+  }
+  /* banco reconhecido pelo conteúdo (hoje, o BTG): o leitor dele define colunas, formatos e o tipo de cada movimento,
+     e a prévia é a mesma, sem perguntas */
+  function comLeitor(I) {
+    var lb = detectarBanco(I.rows);
+    if (!lb || !LEITORES[lb].previa) return I;
+    var L = LEITORES[lb].ler(I.rows, moeda());
+    if (!L.tx.length && L.moedas.length && L.moedas.indexOf(moeda()) < 0) throw new Error('é um extrato do ' + LEITORES[lb].nome + ' em ' + nomeMoeda(L.moedas[0]) + ', e esta carteira é em ' + nomeMoeda());
+    return Object.assign(I, { leitor: lb, lido: L, rows: L.previa.rows, mapa: L.previa.mapa, lembrado: false });
+  }
+  /* o arquivo virado em linhas, para reconhecer o banco antes de escolher a carteira (planilha carrega o leitor) */
+  function linhasDoArquivo(f) {
+    return f.arrayBuffer().then(function (buf) {
+      var b = new Uint8Array(buf), tipo = tipoArquivo(b);
+      if (ehPlanilha(tipo)) return carregarLeitorPlanilhas().then(function (X) { return prepararPlanilha(X, b, tipo).rows; });
+      if (tipo !== 'texto') return [];
+      return prepararImportacao(b).rows;
+    });
   }
   /* o leitor de planilhas (vendor/sheetjs, 0,5 MB) só entra na página quando a pessoa escolhe uma planilha */
   var leitorPlanilhas = null;
@@ -1989,12 +2025,23 @@
       return '<label class="chk"><input type="radio" name="' + nome + '" value="' + o[0] + '" data-imp-campo="' + nome + '"' + (o[0] === sel ? ' checked' : '') + '>' + o[1] + '</label>';
     }).join('') + '</div>';
   }
+  function avisoLeitor(I) {
+    var L = I.lido, ks = Object.keys(L.saldosDia || {}).sort(), ult = ks[ks.length - 1], h = '<p class="aviso">Reconheci um extrato do ' + esc(LEITORES[I.leitor].nome) + ': colunas e formatos já definidos. Confira a prévia.</p>';
+    if (L.saldoAtual != null && ult) {
+      var dif = L.saldoAtual - L.saldosDia[ult];
+      h += Math.abs(dif) <= ARREDONDAMENTO
+        ? '<p class="passo">O "Saldo atual" do extrato (' + esc(f2(L.saldoAtual / 100)) + ') bate com o último saldo do dia, em ' + esc(dFull(ult)) + '.</p>'
+        : '<p class="aviso erro">O "Saldo atual" do extrato (' + esc(f2(L.saldoAtual / 100)) + ') não bate com o último saldo do dia (' + esc(f2(L.saldosDia[ult] / 100)) + ', em ' + esc(dFull(ult)) + '): diferença de ' + esc(sgn(dif / 100, f2)) + '. Pode faltar alguma linha no fim do extrato.</p>';
+    }
+    return h;
+  }
   function celulas(r) { return r.map(function (c) { return String(c).trim(); }).filter(Boolean).join(' · ').slice(0, 90); }
   function telaImportar() {
     var I = S.importar, m = I.mapa, c = cartAtual(), h = '';
     var cabs = [], ix = 0;
     I.rows.slice(0, 40).forEach(function (r, i) { if (r.some(function (x) { return String(x).trim(); }) && ix++ < 25) cabs.push([String(i), 'Linha ' + (i + 1) + ': ' + celulas(r).slice(0, 60)]); });
-    h += (I.lembrado ? '<p class="aviso">Reconheci o formato deste arquivo e usei as colunas da última importação. Confira a prévia.</p>'
+    if (I.leitor) h += avisoLeitor(I);
+    else h += (I.lembrado ? '<p class="aviso">Reconheci o formato deste arquivo e usei as colunas da última importação. Confira a prévia.</p>'
       : '<p class="passo">Diga quais colunas são a data, a descrição e o valor. O que o painel detectou já vem marcado: confira.</p>') +
       '<fieldset><legend>Arquivo</legend><div class="mgrid">' + (I.tipo
         ? (I.abas.length > 1 ? '<label>Aba<select id="fin-i-aba" data-imp-campo="aba">' + opcoes(I.abas.map(function (a, i) { return [String(i), a]; }), String(I.aba)) + '</select><small>A planilha tem ' + I.abas.length + ' abas com dados.</small></label>' : '')
@@ -2002,7 +2049,7 @@
           '<label>Separador<select id="fin-i-sep" data-imp-campo="sep">' + opcoes(SEPARADORES, I.sep) + '</select></label>') +
       '<label>Linha do cabeçalho<select id="fin-i-cab" data-imp-campo="cab"><option value="-1"' + (m.cab < 0 ? ' selected' : '') + '>Escolha a linha com os nomes das colunas</option>' + opcoes(cabs, String(m.cab)) + '</select></label></div></fieldset>';
     var q = m.cab < 0 ? [{ id: 'cab' }] : perguntasImportacao(I.rows, m);
-    if (m.cab >= 0) {
+    if (m.cab >= 0 && !I.leitor) {
       var v = m.valor;
       h += '<fieldset><legend>Colunas</legend><div class="mgrid">' +
         '<label>Data<select id="fin-i-data" data-imp-campo="data">' + opColunas(I, m.data, 'Escolha') + '</select></label>' +
@@ -3083,7 +3130,7 @@
   window.addEventListener('drop', function (e) { var r = $('#fin-app'); if (!r) return; e.preventDefault(); r.classList.remove('arrasta');
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
     /* no Resumo, pergunta antes para qual carteira vai o arquivo */
-    if (emResumo() && !S.importar) { S.escolher = { files: Array.prototype.slice.call(e.dataTransfer.files) }; render(); window.scrollTo(0, 0); return; }
+    if (emResumo() && !S.importar) { S.escolher = { files: Array.prototype.slice.call(e.dataTransfer.files) }; render(); window.scrollTo(0, 0); sugerirCarteira(S.escolher); return; }
     handleFiles(e.dataTransfer.files); });
 
   var rsz; window.addEventListener('resize', function () { clearTimeout(rsz); rsz = setTimeout(drawBal, 150); });

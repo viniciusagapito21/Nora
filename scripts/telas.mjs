@@ -12,7 +12,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { createServer } from 'node:http';
-import { xlsxAMao, paraCelulas, comSenha, carregarXLSX } from '../tests/planilhas.mjs';
+import { xlsxAMao, paraCelulas, comSenha, carregarXLSX, extratoBtgExemplo } from '../tests/planilhas.mjs';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, cpSync, statSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -105,6 +105,25 @@ const linhasGenerico = paraCelulas(api.prepararImportacao(new Uint8Array(readFil
 const xlsx = (name, bytes) => ({ name, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(bytes) });
 const PLANILHA = xlsx('extrato-banco-exemplo.xlsx', xlsxAMao([{ nome: 'Extrato', linhas: linhasGenerico }]));
 const PLANILHA_ABAS = xlsx('extrato-banco-exemplo.xls', xlsxAMao([{ nome: 'Resumo', linhas: [['Resumo do período'], ['Total de entradas', 13600], ['Total de saídas', -9876.54]] }, { nome: 'Extrato', linhas: linhasGenerico }]));
+// BTG (item 3 da Fase 2): o extrato inventado na estrutura do .xls do banco, numa carteira BTG; a variante com
+// "Saldo atual" que não bate; e o Resumo com uma carteira BTG, para o arquivo arrastado sugerir a carteira certa
+const xls = (name, bytes) => ({ name, mimeType: 'application/vnd.ms-excel', buffer: Buffer.from(bytes) });
+const BTG_XLS = xls('Extrato_2026-08-01_a_2026-10-15.xls', readFileSync(join(RAIZ, 'exemplo/extrato-btg-exemplo.xls')));
+const BTG_XLS_DIFERENTE = xls('Extrato_2026-08-01_a_2026-10-15.xls', extratoBtgExemplo(carregarXLSX(), { saldoAtualExtra: 1250 }));
+const comBtg = () => {
+  let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
+  x = api.novaCarteira(x, { nome: 'BTG', moeda: 'BRL', pais: 'BR', banco: 'btg' });
+  return { 'cortex-financas.v4': JSON.stringify(x) };
+};
+// arrasta um arquivo para a página (o mesmo evento "drop" de quem solta o arquivo com o mouse)
+const arrastar = async (pg, arq) => {
+  const dt = await pg.evaluateHandle(({ b64, name }) => {
+    const d = new DataTransfer(), bin = atob(b64), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    d.items.add(new File([u], name)); return d;
+  }, { b64: arq.buffer.toString('base64'), name: arq.name });
+  await pg.dispatchEvent('#fin-app', 'drop', { dataTransfer: dt });
+};
 const COM_SENHA = { name: 'extrato-banco-exemplo.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(comSenha(carregarXLSX())) };
 const PDF = { name: 'extrato-banco-exemplo.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n% extrato inventado\n') };
 // extrato inventado na estrutura do BTG convertido para CSV: saldo do dia em linhas "Saldo Diário"
@@ -136,6 +155,8 @@ const comResumo = cambios => {
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
 const RESUMO = comResumo({ BRL: { rate: 6.2, data: '2026-09-10' }, USD: { rate: 1.08, data: '2026-10-15' }, GBP: { rate: 0.86, data: '2026-10-15' } });
+// o Resumo com uma carteira BTG a mais, para o arquivo arrastado sugerir a carteira certa
+const RESUMO_BTG = (() => { let x = JSON.parse(RESUMO['cortex-financas.v4']); x = api.novaCarteira(x, { nome: 'BTG', moeda: 'BRL', pais: 'BR', banco: 'btg' }); return { 'cortex-financas.v4': JSON.stringify(api.escolherCarteira(x, 'c1')) }; })();
 const RESUMO_SEM_CAMBIO = comResumo({ USD: { rate: 1.08, data: '2026-10-15' } });
 // transferências (9.4): o Revolut do exemplo e o extrato inventado de transferências (real), que recebe os envios
 // "To MARIA SILVA": julho com 0,5% de diferença, agosto com a entrada já marcada pelo titular, setembro fora da
@@ -289,8 +310,8 @@ for (const w of [1280, 390]) {
   t('28-painel-sem-saldo', { storage: comGenerica(true), prepara: aba('c2') });
   // saldo do dia em linhas próprias, conferido, com um saldo informado que não bate (falta rendimento no extrato)
   t('30-importar-saldo-diario', { storage: comGenerica(false), prepara: async pg => {
-    await pg.setInputFiles('#fin-csv', SALDO_DIARIO); await pg.waitForSelector('#fin-fimp');
-    await pg.click('input[name=sinal][value=negativas]'); await pg.waitForSelector('.imp-tot');
+    // o CSV na estrutura do BTG é reconhecido pelo leitor do BTG: sem a pergunta do sinal das saídas
+    await pg.setInputFiles('#fin-csv', SALDO_DIARIO); await pg.waitForSelector('#fin-fimp .imp-tot');
     await pg.fill('#fin-i-ancora', '6.050,00');
   } });
   t('31-painel-saldo-estimado', { storage: comGenerica(true, { ancora: { data: '2026-10-14', valor: 1250000, informadoEm: '2026-10-15' } }), prepara: aba('c2') });
@@ -324,6 +345,9 @@ for (const w of [1280, 390]) {
   } });
   t('49-importar-planilha-abas', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', PLANILHA_ABAS); await pg.waitForSelector('#fin-i-aba'); } });
   t('50-arquivo-pdf', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF); await pg.waitForSelector('#toast:not([hidden])'); } });
+  t('52-importar-btg', { storage: comBtg(), prepara: async pg => { await pg.setInputFiles('#fin-csv', BTG_XLS); await pg.waitForSelector('#fin-fimp .imp-tot'); await pg.click('#fin-fimp details > summary'); } });
+  t('53-btg-saldo-atual-diferente', { storage: comBtg(), prepara: async pg => { await pg.setInputFiles('#fin-csv', BTG_XLS_DIFERENTE); await pg.waitForSelector('#fin-fimp .imp-tot'); } });
+  t('54-resumo-arquivo-do-btg', { storage: RESUMO_BTG, prepara: async pg => { await arrastar(pg, BTG_XLS); await pg.waitForSelector('#fin-escolher .aviso'); } });
   t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
@@ -439,6 +463,35 @@ for (const s of TELAS) {
   if (JSON.stringify(salvo.periodos) !== JSON.stringify([{ de: '2026-07-01', ate: '2026-10-15' }])) problemas.push('importar Revolut: período salvo inesperado ' + JSON.stringify(salvo.periodos));
   if (!/^Nada novo/.test(aviso2)) problemas.push('importar Revolut: importar de novo não foi "Nada novo" (' + aviso2 + ')');
   console.log(`importar Revolut pela tela: ${igual ? n + ' movimentos salvos iguais aos do leitor' : 'FALHOU'} ("${aviso1}"); de novo: "${aviso2}"`);
+  await ctx.close();
+}
+
+// ---------- importar o extrato do BTG pela tela (parsers/btg.js): o que fica salvo é o que o leitor devolve ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage();
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('importar BTG: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comBtg());
+  await pg.reload(); await pg.waitForTimeout(150);
+  const B = new Function(core + '; return { LEITORES, prepararPlanilha };')(), X = carregarXLSX();
+  const L = B.LEITORES.btg.ler(B.prepararPlanilha(X, new Uint8Array(BTG_XLS.buffer), 'xls').rows, 'BRL');
+  await pg.setInputFiles('#fin-csv', BTG_XLS); await pg.waitForSelector('#fin-fimp .imp-tot');
+  await pg.click('#fin-fimp button[type=submit]'); await pg.waitForSelector('#toast:not([hidden])');
+  const aviso1 = await pg.textContent('#toast-txt');
+  const c = await pg.evaluate(() => JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[1]);
+  const salvos = Object.values(c.months).flat().sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const ok = JSON.stringify(salvos) === JSON.stringify(L.tx.slice().sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) && JSON.stringify(c.saldosDia) === JSON.stringify(L.saldosDia) && !c.importacao;
+  await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
+  // de novo: a prévia avisa que todos já estavam salvos e não deixa importar
+  await pg.setInputFiles('#fin-csv', BTG_XLS); await pg.waitForSelector('#fin-fimp .imp-tot');
+  const aviso2 = await pg.evaluate(() => [...document.querySelectorAll('#fin-fimp .aviso')].map(p => p.textContent).find(t => /já estavam salvos/.test(t)) || '');
+  const travado = await pg.evaluate(() => document.querySelector('#fin-fimp button[type=submit]').disabled);
+  if (!ok) problemas.push('importar BTG: o que ficou salvo não é o que o leitor devolve (movimentos com tipo, saldos do dia, sem mapeamento lembrado)');
+  if (!aviso2.startsWith(L.tx.length + ' movimentos já estavam salvos') || !travado) problemas.push('importar BTG: importar de novo não avisou que tudo já estava salvo');
+  const tipos = salvos.reduce((o, t) => ((o[t[2]] = (o[t[2]] || 0) + 1), o), {});
+  console.log(`importar BTG pela tela: ${ok ? salvos.length + ' movimentos salvos iguais aos do leitor (' + Object.entries(tipos).map(([k, v]) => v + ' ' + k).join(', ') + '), ' + Object.keys(c.saldosDia).length + ' saldos do dia' : 'FALHOU'} ("${aviso1}"); de novo, a prévia: "${aviso2}"${travado ? ', sem botão de importar' : ''}`);
   await ctx.close();
 }
 

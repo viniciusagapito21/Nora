@@ -1,6 +1,6 @@
-body 1w3a0gh 1ln8j76 1ln8j76
-body>main.wrap ozd2xu 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 1889dws 1yytz64 1yytz64
+body 1sfh21r 1ln8j76 1ln8j76
+body>main.wrap i0bn8i 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 1q5yhr8 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top 1m7ax9p 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div nla6m4 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca cpev7d 1af5xs7 1af5xs7
@@ -10,19 +10,19 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm 
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.primario z78tfl cjuxk0 cjuxk0
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec 11rcxy6 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec 91lgba 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top gx98jy 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>h2 1ryl5ln o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>span.hint 1kemqo0 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 19u42s1 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 148d094 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 11vua3v 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 19qv054 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1j39nze 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend 1wx5hs0 zl0uga zl0uga
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid 15pwga6 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1hx3cnx 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>input#fin-s-titular 1dkb5me qc0uyc qc0uyc ja8zds
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small b6dl0t o2ei29 o2ei29
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1u5sl4m 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset erwmqo 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend 1vek37w zl0uga zl0uga
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.wcart 16t5f7q 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.wcart>div.wtop 1skdvv0 1yytz64 1yytz64
@@ -163,13 +163,13 @@ body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.wcart>div#fin-cambc-w>div.mgrid>label.camb>span.cr>span 1mqkchx fr2hbx fr2hbx
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.wcart>div#fin-cambc-w>div.mgrid>label.camb>small 1hkxh7p o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.wcart>p#fin-cambc-troca.aviso 53nybp vnygsh vnygsh
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas 1rsa1dg 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas 1uqdq2a 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>summary 1vlkvfq 15u02fs 1wfqnq2
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>p.passo 1evsrr5 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid 8bhudt 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid awvttt 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label 1er3gxv 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>input#fin-wn-nome 1dkb5me qc0uyc qc0uyc nzzihh
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label 1hx3cnx 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label 1er3gxv 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-banco 1kxy53d 4056kx 4056kx
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-banco>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-banco>option oypd0 1n2tj1g 1n2tj1g
@@ -178,7 +178,7 @@ body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-banco>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-banco>option oypd0 1n2tj1g 1n2tj1g
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-banco>option oypd0 1n2tj1g 1n2tj1g
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>small#fin-wn-leitor b6dl0t o2ei29 o2ei29
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>small#fin-wn-leitor y3gkya o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label 1er3gxv 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-moeda 1kxy53d 4056kx 4056kx
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>details#fin-wnova.metas>div.mgrid>label>select#fin-wn-moeda>option oypd0 1n2tj1g 1n2tj1g
@@ -351,6 +351,6 @@ body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-
 body>div#toast.toast 14ixo05 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>input#fin-csv.vh 1vy6i4s 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 1vy6i4s 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh 1drfcmo 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh 1drfcmo 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug
