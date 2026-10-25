@@ -64,18 +64,9 @@
     var l = plan && Array.isArray(plan.metasPoupanca) ? plan.metasPoupanca : METAS_POUP_PADRAO;
     return l.slice(0, MAX_METAS_POUP).map(function (g) { return { id: g.id, nome: g.nome, src: g.src === 'flex' || g.src === 'invest' ? g.src : null }; });
   }
-  /* regras de comerciantes por país (o país vem da configuração); país sem conjunto próprio usa só as marcas
-     internacionais de REGRAS_GERAIS, e a tela avisa para categorizar o resto à mão */
-  var REGRAS_PAIS = {};
-  REGRAS_PAIS.IE = [
-    [/BOOTS|^NORMAL$|PHARMACY|HICKEY|LLOYDS|BARBER|\bHAIR|SALON|DENTAL|DENTIST|CLINIC|OPTIC|SPECSAVERS|\bNAILS?\b|BEAUTY|\bSPA\b|WAXING|LASH|BROWS/, 'saude'],
-    [/TESCO|LIDL|DUNNES|\bALDI\b|\bSPAR\b|CENTRA|SUPERVALU|BUYMIE|KALABASA|APPLEGREEN|SUMMIT STORES|LONDIS|\bMACE\b|SUPERMARKET/, 'mercado'],
-    [/TRANSPORT FOR IRELAND|\bTFI\b|IRISH RAIL|UBER|\bLEAP\b|FREE ?NOW|\bBOLT\b|DUBLIN BUS|\bLUAS\b|BUS [EÉ]IREANN|DART STATION/, 'transporte'],
-    [/^THREE$|VODAFONE|\bEIR\b|GIFFGAFF|LEBARA|48 ?ONLINE|PLAN FEE|PLAN TERMINATION/, 'assin'],
-    [/DISNEY|NETFLIX|SPOTIFY|APPLE|FLYEFIT|CLASSPASS|YOUTUBE|OPENAI|ANTHROPIC|ICLOUD|PUREGYM/, 'assin'],
-    [/BURGER|MCDONALD|DELIVEROO|FIVE GUYS|CARIBOU|TAKEAWAY|COSTA|STARBUCKS|JUST[ -]EAT|SUBWAY|PIZZA|KFC|NANDO'?S\b|COFFEE|CAF[EÉ]|MUG & MINGLE|PIG AND HEIFER|RESTAURANT|ETICKS|TICKETMASTER|^EB |ODEON|CINEMA|CINEWORLD|SAVOY|FIDELITY DUBLIN|ADRIANO|TEMPLE BAR|COPPER FACE|AULD DUBLINER|WILEY FOX|WOOLSHED|MCGUINNESS|GELATO|FORNAIO|\bGRILL\b|PASTEL|SUPERMAC|PADOCA|DOOM SLICE|RESIDENT ADVISOR|\bGENERATOR\b|MADDENS|PYGMALION|WETHERSPOONS|BUFFET|\bPUB\b|TAVERN/, 'lazer'],
-    [/REVENUE/, 'outros']
-  ];
+  /* regras de comerciantes por país (o país vem da carteira): cada lista fica em rules/<país>.js, carregada antes
+     deste arquivo; país sem conjunto próprio usa só as marcas internacionais de REGRAS_GERAIS, e a tela avisa
+     para categorizar o resto à mão */
   var REGRAS_GERAIS = [
     [/PHARMACY|FARMACIA|FARMÁCIA|DROGARIA/, 'saude'],
     [/\bALDI\b|CARREFOUR|SUPERMARKET|SUPERMERCADO/, 'mercado'],
@@ -83,8 +74,14 @@
     [/DISNEY|NETFLIX|SPOTIFY|APPLE|YOUTUBE|OPENAI|ANTHROPIC|ICLOUD|AMAZON PRIME|PRIME VIDEO|\bHBO\b/, 'assin'],
     [/MCDONALD|BURGER KING|\bKFC\b|STARBUCKS|SUBWAY|DELIVEROO|JUST[ -]EAT|IFOOD|FIVE GUYS|DOMINO'?S/, 'lazer']
   ];
+  var REGRAS_PAIS = { IE: REGRAS_IE, BR: REGRAS_BR.concat(REGRAS_GERAIS, COMPRA_BR) };
   var PAISES_COM_REGRAS = Object.keys(REGRAS_PAIS);
   function regrasDo(pais) { return REGRAS_PAIS[pais || 'IE'] || REGRAS_GERAIS; }
+  /* "Compras grandes" automático a partir de 100 na moeda da carteira; no Brasil não há (100 reais é compra comum) */
+  var GRANDES_PAIS = { BR: 0 };
+  function limiteGrandes(pais) { var v = GRANDES_PAIS[pais || 'IE']; return v === undefined ? 100 : v; }
+  /* maiúsculas sem acento, só para comparar com as regras (a chave salva da descrição não muda) */
+  function semAcento(D) { return D.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   var INV = /DIGITAL ASSETS|INVESTMENT ACCOUNT|AVATRADE|REVOLUT SECURITIES|TRADING 212|DEGIRO|ETORO/;
   var EN = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 
@@ -196,18 +193,19 @@
     return n ? o : null;
   }
 
-  function bigCheck(id, a) { if ((id === 'compras' || id === 'assin') && a <= -100) return 'grandes'; return id; }
+  function bigCheck(id, a, lim) { if (lim === undefined) lim = 100; if (lim && (id === 'compras' || id === 'assin') && a <= -lim) return 'grandes'; return id; }
   function byRule(D, a, rc, pais) {
-    var RULES = regrasDo(pais);
+    var RULES = regrasDo(pais), lim = limiteGrandes(pais);
+    D = semAcento(D);
     if (/^CARD PAYMENT$/.test(D)) return a <= -100 ? 'grandes' : 'compras';
     var P = /^(TO|TRANSFER TO|TRANSFER FROM|FROM) /.test(D);
     for (var i = 0; i < RULES.length; i++) {
       var R = RULES[i];
       if (P && R[1] !== 'aluguel') continue;
-      if (R[0].test(D) && (!R[2] || Math.abs(a) >= R[2])) return bigCheck(R[1], a);
+      if (R[0].test(D) && (!R[2] || Math.abs(a) >= R[2])) return bigCheck(R[1], a, lim);
     }
     if (/^(TO|TRANSFER TO|TRANSFER FROM|FROM) /.test(D) || rc === 'Others') return 'outros';
-    return bigCheck('compras', a);
+    return bigCheck('compras', a, lim);
   }
   /* nome do titular como aparece nas transferências ("To FULANO DE TAL"), no formato da chave da descrição */
   function normTitular(s) { return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
@@ -217,18 +215,22 @@
     cats = cats || montarCats(null);
     var vis = {}; cats.forEach(function (c) { if (!c.oculta) vis[c.id] = 1; });
     var OWN = normTitular(titular), a = t[3] / 100, D = String(t[1]).toUpperCase(), rc = t[2], kind, cat = null;
+    /* no Brasil: salário é Renda; aplicação e resgate são Investimentos, mas rendimento fica em Outras entradas */
+    var BR = (pais || 'IE') === 'BR', N = BR ? semAcento(D) : '';
+    var invBR = BR && INVEST_BR.test(N) && !(a > 0 && RENDIMENTO_BR.test(N));
     var r = { date: t[0], m: t[0].slice(0, 7), desc: t[1], rc: rc, a: a, bal: t[4] == null ? null : t[4] / 100, key: D.replace(/\s+/g, ' ').trim() };
     if (a > 0) {
       if (/^PAYMENT FROM /.test(D) && !(OWN && D.indexOf(OWN) >= 0)) kind = 'renda';
       else if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
       else if (OWN && D.indexOf(OWN) >= 0) kind = 'interno';
-      else if (INV.test(D)) kind = 'invest';
+      else if (INV.test(D) || invBR) kind = 'invest';
+      else if (BR && RENDA_BR.test(N)) kind = 'renda';
       else if (rc === 'Refund' || rc === 'Merchant') { kind = 'gasto'; cat = byRule(D, a, rc, pais); }
       else kind = 'outras';
     } else {
       if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
       else if (OWN && D.indexOf(OWN) >= 0) { kind = 'gasto'; cat = 'brasil'; }
-      else if (INV.test(D) || rc === 'Exchange') kind = 'invest';
+      else if (INV.test(D) || invBR || rc === 'Exchange') kind = 'invest';
       else { kind = 'gasto'; cat = byRule(D, a, rc, pais); }
     }
     r.baseKind = kind;

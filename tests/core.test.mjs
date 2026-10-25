@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
+// as regras de comerciantes de cada país ficam em rules/ e são carregadas antes do app.js (como no index.html)
+const regras = ['ie', 'br'].map(p => readFileSync(new URL(`../rules/${p}.js`, import.meta.url), 'utf8')).join('\n');
+const core = regras + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
 const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.url), 'utf8');
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
@@ -249,7 +251,7 @@ test('pagamentos em R$ e em euro da v2 viram valor + moeda na v3, sem perder nad
 
 test('a página não carrega nada de servidor externo, e o nome Nora não trocou a chave salva', () => {
   const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-  for (const f of ['index.html', 'styles.css', 'logo.svg', 'icon.svg']) {
+  for (const f of ['index.html', 'styles.css', 'logo.svg', 'icon.svg', 'rules/ie.js', 'rules/br.js']) {
     assert.doesNotMatch(ler(f).replace(/xmlns(:\w+)?="http:\/\/www\.w3\.org\/[^"]*"/g, ''), /(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i, f + ' aponta para fora');
   }
   // as fontes declaradas no CSS existem no projeto
@@ -309,15 +311,108 @@ test('valores com símbolo de moeda e milhar viram centavos', () => {
 test('o país escolhe as regras de comerciantes; sem conjunto próprio, só marcas internacionais', () => {
   const api = load();
   const tesco = ['2026-07-03', 'Tesco', 'Merchant', -3840, 0], netflix = ['2026-07-07', 'Netflix', 'Merchant', -1299, 0];
-  assert.deepEqual(api.PAISES_COM_REGRAS, ['IE']);
+  assert.deepEqual(api.PAISES_COM_REGRAS, ['IE', 'BR']);
   assert.equal(api.classify(tesco, {}, '', 'IE').cat, 'mercado');
   assert.equal(api.classify(tesco, {}, '').cat, 'mercado', 'sem país vale a Irlanda, como nos dados antigos');
-  assert.equal(api.classify(tesco, {}, '', 'BR').cat, 'compras', 'no Brasil não há regra para Tesco');
-  assert.equal(api.classify(netflix, {}, '', 'BR').cat, 'assin');
-  assert.equal(api.classify(tesco, { TESCO: 'mercado' }, '', 'BR').cat, 'mercado', 'a categoria escolhida à mão vale em qualquer país');
-  const m = api.buildModel(months(api), {}, 'MARIA SILVA', 'BR');
+  assert.equal(api.classify(tesco, {}, '', 'PT').cat, 'compras', 'em Portugal não há regra para Tesco');
+  assert.equal(api.classify(tesco, {}, '', 'BR').cat, 'compras', 'nem no Brasil');
+  assert.equal(api.classify(netflix, {}, '', 'PT').cat, 'assin');
+  assert.equal(api.classify(netflix, {}, '', 'BR').cat, 'assin', 'as marcas internacionais valem também no Brasil');
+  assert.equal(api.classify(tesco, { TESCO: 'mercado' }, '', 'PT').cat, 'mercado', 'a categoria escolhida à mão vale em qualquer país');
+  const m = api.buildModel(months(api), {}, 'MARIA SILVA', 'PT');
   assert.equal(m.by['2026-09'].gasto, api.buildModel(months(api), {}, 'MARIA SILVA', 'IE').by['2026-09'].gasto, 'o total gasto não depende do país, só a divisão por categoria');
-  assert.equal(m.by['2026-09'].spend.mercado || 0, 0, 'Tesco e Lidl não são reconhecidos no Brasil: vão para compras');
+  assert.equal(m.by['2026-09'].spend.mercado || 0, 0, 'Tesco e Lidl não são reconhecidos em Portugal: vão para compras');
+});
+
+// ---------- regras do Brasil (rules/br.js); todas as descrições são inventadas ----------
+// como vêm do importador genérico: tipo 'Others', país BR
+const br = (api, desc, cents = -5000, titular = 'MARIA SILVA') => api.classify(['2026-10-05', desc, 'Others', cents, null], {}, titular, 'BR');
+
+test('Brasil: cada palavra-chave cai na categoria certa, com ou sem acento', () => {
+  const api = load();
+  const casos = {
+    aluguel: ['Aluguel outubro', 'IMOBILIÁRIA EXEMPLO LTDA', 'Condomínio Edifício Exemplo', 'IPTU 2026 parcela 3', 'Conta de luz Enel Exemplo', 'CEMIG DISTRIBUICAO', 'Copel', 'CPFL Paulista', 'Light Energia S.A.', 'Equatorial Pará', 'Neoenergia', 'SABESP', 'Cedae', 'Copasa', 'Sanepar', 'Embasa', 'Conta de água', 'Comgás', 'Naturgy'],
+    mercado: ['Supermercado Exemplo', 'Compra cartão SUPERMERCADOS BOM PRECO', 'Mercado do Bairro', 'Atacadão', 'ASSAÍ ATACADISTA', 'Carrefour Hiper', 'Pão de Açúcar', 'Extra Hiper', 'Hortifruti Exemplo', 'Sacolão Central', 'Zaffari', 'Padaria Pão Quente', 'Panificadora Exemplo', 'Mercearia da Esquina', 'Açougue Boi Gordo'],
+    transporte: ['Posto Exemplo', 'Auto Posto Avenida', 'Shell Box', 'Petrobras', 'Uber Trip', '99 Pop', '99app', 'Cabify', 'Metrô SP', 'CPTM', 'Bilhete Único recarga', 'Riocard', 'Sem Parar', 'ConectCar', 'Veloe', 'Estacionamento Shopping', 'Estapar', 'Pedágio Rodovia'],
+    saude: ['Farmácia Exemplo', 'Drogaria São Bento', 'Droga Raia', 'Drogasil', 'Pague Menos', 'Panvel', 'Laboratório Exemplo', 'Clínica Sorriso', 'Odontoclinica', 'Unimed', 'Amil', 'Hapvida', 'Hospital Exemplo', 'Ótica Visão', 'Salão Beleza Pura', 'Barbearia do Zé'],
+    lazer: ['Restaurante Exemplo', 'Lanchonete da Praça', 'Bar do Zé', 'Pizzaria Exemplo', 'iFood', 'IFD*IFOOD', 'Rappi', 'Zé Delivery', '99Food', 'Uber Eats', 'Café Exemplo', 'Sorveteria Gelato', 'Cinemark', 'Sympla', 'Eventim'],
+    assin: ['Vivo', 'Claro S.A.', 'Claro Celular', 'TIM Celular', 'Oi Fibra', 'Globoplay', 'Deezer', 'Smart Fit', 'SmartFit', 'TotalPass', 'Wellhub'],
+    compras: ['Mercado Livre', 'MERCADOLIVRE*LOJA', 'Mercado Pago', 'Magalu', 'Shopee', 'Shein', 'AliExpress', 'Americanas', 'Casas Bahia', 'Renner', 'Riachuelo', 'C&A'],
+    outros: ['Tarifa pacote de serviços', 'IOF compra internacional', 'Anuidade cartão', 'Juros cheque especial', 'Multa de trânsito', 'DARF IRPF', 'DAS MEI', 'IPVA 2026']
+  };
+  for (const [cat, l] of Object.entries(casos)) for (const d of l) assert.equal(br(api, d).cat, cat, d);
+});
+
+test('Brasil: palavras curtas casam só como palavra inteira, e nomes comuns só com contexto', () => {
+  const api = load();
+  const casos = [
+    ['Barbearia Corte Fino', 'saude', 'barbearia não é "bar"'],
+    ['Pix enviado JOAO BARRA', 'outros', '"Barra" não é "bar"'],
+    ['Adubo composto', 'outros', '"composto" não é "posto"'],
+    ['Mercado Pago', 'compras', 'Mercado Pago antes de "mercado"'],
+    ['Mercado Livre', 'compras', 'Mercado Livre antes de "mercado"'],
+    ['Pix enviado LUZ CLARA LIGHTFOOT', 'outros', '"Light" sozinho não é a Light'],
+    ['Pix enviado ANA CLARO', 'outros', '"Claro" sozinho não é a Claro'],
+    ['Pix enviado TIMOTEO SOUZA', 'outros', '"TIM" sozinho não é a TIM'],
+    ['Pix enviado OI MARIA', 'outros', '"Oi" sozinho não é a Oi'],
+    ['Pix enviado 99 EVENTOS LTDA', 'outros', '"99" sozinho não é a 99'],
+    ['Pix enviado EXTRA MOVEIS', 'outros', '"Extra" sozinho não é o mercado'],
+    ['Ingresso show ao vivo', 'outros', '"ao vivo" não é a Vivo'],
+    ['Padaria das Flores', 'mercado', '"das" não é o DAS do MEI'],
+    ['Tarifa extrato', 'outros', 'tarifa fica em outros']
+  ];
+  for (const [d, cat, msg] of casos) assert.equal(br(api, d).cat, cat, msg);
+});
+
+test('Brasil: Pix, TED e DOC para empresa passam pelas regras; para pessoa ficam em outros; para você, entre contas', () => {
+  const api = load();
+  assert.equal(br(api, 'Pix enviado SUPERMERCADO BOM PRECO').cat, 'mercado');
+  assert.equal(br(api, 'TED enviada IMOBILIARIA EXEMPLO').cat, 'aluguel');
+  assert.equal(br(api, 'DOC FARMACIA EXEMPLO').cat, 'saude');
+  assert.equal(br(api, 'Pix enviado MARIA OLIVEIRA').cat, 'outros', 'pessoa: sem regra');
+  assert.equal(br(api, 'Pagamento de boleto').cat, 'outros', 'boleto sem nome de empresa: sem regra');
+  assert.equal(br(api, 'Pagamento fatura cartão').cat, 'outros', 'fatura do cartão: sem regra (pode formar par de transferência)');
+  const meu = br(api, 'Pix enviado MARIA SILVA');
+  assert.equal(meu.kind, 'gasto'); assert.equal(meu.cat, 'brasil', 'para o seu nome: envio para outra conta sua');
+});
+
+test('Brasil: compra no cartão ou maquininha sem comerciante conhecido vai para Compras, sem "Compras grandes" por valor', () => {
+  const api = load();
+  for (const d of ['Compra cartão LOJA XYZ', 'Compra débito COMERCIAL ABC', 'Compra no crédito LOJA', 'PAG*JoseDaSilva', 'MP*LOJINHA', 'SUMUP *FEIRA', 'PICPAY*COMERCIO'])
+    assert.equal(br(api, d).cat, 'compras', d);
+  assert.equal(br(api, 'Compra cartão LOJA XYZ', -250000).cat, 'compras', 'R$ 2.500 continua Compras: o limite de 100 não vale em real');
+  assert.equal(br(api, 'Magalu', -350000).cat, 'compras');
+  assert.equal(br(api, 'Netflix', -15000).cat, 'assin');
+  assert.equal(br(api, 'Compra cartão NETFLIX').cat, 'assin', 'marca conhecida vence a regra de compra genérica');
+  assert.equal(br(api, 'Compra cartão FARMACIA EXEMPLO').cat, 'saude');
+  assert.equal(api.classify(['2026-10-05', 'Amazon', 'Merchant', -25000, 0], {}, '', 'IE').cat, 'grandes', 'na Irlanda o limite de 100 continua');
+});
+
+test('Brasil: salário é Renda; aplicação é Investimento (guardado); resgate é Resgate de investimento; rendimento é Outras entradas', () => {
+  const api = load();
+  for (const d of ['Salário', 'PAGTO SALARIO EMPRESA EXEMPLO', 'Proventos', 'Folha de pagamento']) {
+    const r = br(api, d, 500000); assert.equal(r.kind, 'renda', d); assert.equal(r.autoE, '_renda', d);
+  }
+  const ap = br(api, 'Aplicação CDB Banco Exemplo', -100000);
+  assert.equal(ap.kind, 'invest'); assert.equal(ap.auto, '_invest');
+  for (const d of ['Aplicação Tesouro Direto', 'Aplic. poupança']) assert.equal(br(api, d, -20000).kind, 'invest', d);
+  const rs = br(api, 'Resgate CDB', 100000);
+  assert.equal(rs.kind, 'invest', 'resgate não vira Renda (não infla o Entrou)'); assert.equal(rs.autoE, '_invest');
+  for (const d of ['Rendimento poupança', 'Rendimentos CDB']) assert.equal(br(api, d, 4200).kind, 'outras', d);
+  assert.equal(br(api, 'Pix recebido JOAO PEREIRA', 10000).kind, 'outras');
+  assert.equal(br(api, 'Pix recebido MARIA SILVA', 10000).kind, 'interno', 'do seu nome: entre contas suas');
+  // salário no extrato e aplicação somam como antes no mês
+  const M = api.buildModel({ '2026-10': [['2026-10-01', 'Salário', 'Others', 500000, null], ['2026-10-02', 'Aplicação CDB', 'Others', -100000, null], ['2026-10-03', 'Resgate CDB', 'Others', 30000, null]] }, {}, 'MARIA SILVA', 'BR');
+  assert.equal(M.by['2026-10'].renda, 5000, 'o resgate não entra na renda');
+});
+
+test('Brasil: as regras não valem para a Irlanda nem para outros países', () => {
+  const api = load();
+  const ie = d => api.classify(['2026-10-05', d, 'Others', -5000, null], {}, '', 'IE');
+  assert.equal(ie('Supermercado Exemplo').cat, 'outros', 'a Irlanda continua com a lista dela');
+  assert.equal(ie('Salário').kind, 'gasto');
+  assert.equal(api.classify(['2026-10-05', 'Salário', 'Others', 500000, null], {}, '', 'IE').kind, 'outras');
+  assert.equal(api.classify(['2026-10-05', 'Resgate CDB', 'Others', 500000, null], {}, '', 'PT').kind, 'outras');
 });
 
 test('com meses salvos a moeda fica travada (os valores não seriam convertidos)', () => {
@@ -746,6 +841,12 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
   assert.equal(M.by['2026-09'].gasto, 2226.35);
   assert.ok(Object.is(M.by['2026-09'].saved, 0), 'nada guardado é 0, e não −0 (a tabela mostrava "−0")');
   assert.equal(api.buildModel(months(api), {}).semSaldo, false, 'o Revolut continua com saldo');
+});
+
+test('a página carrega as regras de cada país antes do app.js, do próprio projeto', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {

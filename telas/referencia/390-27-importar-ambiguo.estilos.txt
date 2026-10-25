@@ -1,4 +1,4 @@
- 98525k 1l2e3g5 1l2e3g5
+ bpwaze 1l2e3g5 1l2e3g5
 head 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>meta 1y599fs 1l2e3g5 1l2e3g5
@@ -7,9 +7,9 @@ head>meta 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>link 1y599fs 1l2e3g5 1l2e3g5
 head>style 1y599fs 1l2e3g5 1l2e3g5
-body 1jnx5vx 1ln8j76 1ln8j76
-body>main.wrap 1s1ma96 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 1scjvbc 1yytz64 1yytz64
+body 1vve56f 1ln8j76 1ln8j76
+body>main.wrap 1az06nm 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 12cvomw 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top 7rmyat 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div bfjmbk 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca 19nj7yh 1af5xs7 1af5xs7
@@ -19,8 +19,6 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm 
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.primario z78tfl cjuxk0 cjuxk0
-body>main.wrap>section#fin-app.view.fin>p.aviso 1yi9kke vnygsh vnygsh
-body>main.wrap>section#fin-app.view.fin>p.aviso>b 1b057rk 1wyfq5s 1wyfq5s
 body>main.wrap>section#fin-app.view.fin>section#fin-imp.sec po7niq 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-imp.sec>div.sec-top 12ld5ik 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-imp.sec>div.sec-top>h2 b3g6tw o14nw0 o14nw0
@@ -114,8 +112,6 @@ body>main.wrap>section#fin-app.view.fin>section#fin-imp.sec>div.card>form#fin-fi
 body>div#toast.toast 14ixo05 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>script 19y7pzz 1ln8j76 1ln8j76
-body>script 19y7pzz 1ln8j76 1ln8j76
-body>input#fin-csv.vh 1sstvm6 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 1sstvm6 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh b6s10a 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh b6s10a 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug

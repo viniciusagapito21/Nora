@@ -35,7 +35,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
-const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
+const core = ['ie', 'br'].map(p => readFileSync(join(RAIZ, `rules/${p}.js`), 'utf8')).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
 const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
@@ -170,7 +170,8 @@ function estilosDaPagina() {
     }
     return p.join('>');
   };
-  return Array.from(document.querySelectorAll('*')).map(el => caminho(el) + ' ' + h(sig(el)) + ' ' + h(sig(el, '::before')) + ' ' + h(sig(el, '::after')) +
+  // <script> não aparece na tela: fica fora, para um arquivo de regras novo não contar como mudança
+  return Array.from(document.querySelectorAll('*')).filter(el => el.tagName !== 'SCRIPT').map(el => caminho(el) + ' ' + h(sig(el)) + ' ' + h(sig(el, '::before')) + ' ' + h(sig(el, '::after')) +
     (el.matches('input,textarea') ? ' ' + h(sig(el, '::placeholder')) : '')).join('\n');
 }
 // conferência: elementos além da borda (o CSS usa overflow-x: clip, então o excesso some em vez de rolar),
@@ -397,8 +398,9 @@ const nomes = new Set([...readdirSync(REF), ...readdirSync(ATUAL)].filter(f => f
 for (const f of [...nomes].sort()) {
   if (!existsSync(join(REF, f)) || !existsSync(join(ATUAL, f))) { mudaram++; console.log(`✖ ${f}: ${existsSync(join(REF, f)) ? 'sumiu' : 'tela nova, sem referência'}`); continue; }
   const A = PNG.sync.read(readFileSync(join(REF, f))), B = PNG.sync.read(readFileSync(join(ATUAL, f)));
-  const ea = readFileSync(join(REF, f.replace('.png', '.estilos.txt')), 'utf8').split('\n');
-  const eb = readFileSync(join(ATUAL, f.replace('.png', '.estilos.txt')), 'utf8').split('\n');
+  const semScript = l => !/(^|>)script /.test(l); // referências antigas ainda listam os <script>
+  const ea = readFileSync(join(REF, f.replace('.png', '.estilos.txt')), 'utf8').split('\n').filter(semScript);
+  const eb = readFileSync(join(ATUAL, f.replace('.png', '.estilos.txt')), 'utf8').split('\n').filter(semScript);
   const difEst = ea.length !== eb.length ? ['quantidade de elementos: ' + ea.length + ' → ' + eb.length]
     : ea.map((l, i) => (l === eb[i] ? null : l.split(' ')[0])).filter(Boolean);
   let n = 0;
