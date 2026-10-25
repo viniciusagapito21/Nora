@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas } from './planilhas.mjs';
+import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas, comSenha } from './planilhas.mjs';
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 // as regras de comerciantes de cada país ficam em rules/ e são carregadas antes do app.js (como no index.html)
@@ -1536,6 +1536,14 @@ test('planilha com problema: nada é lido pela metade', () => {
   const p = P.prepararPlanilha(XL, xlsxAMao([{ nome: '__proto__', linhas: [['__proto__', 'constructor', 'Valor'], [{ data: '2026-10-01' }, 'x', 1]] }]), 'xlsx');
   assert.deepEqual(p.abas, ['__proto__']);
   assert.equal({}.polluted, undefined); assert.equal(Object.prototype.Valor, undefined); assert.equal(typeof {}.constructor, 'function');
+});
+
+test('planilha com senha: reconhecida pelo conteúdo, com um aviso que diz o que fazer (e não "danificada")', () => {
+  const b = comSenha(XL);
+  assert.equal(P.tipoArquivo(b), 'senha', 'mesmo com extensão .xlsx, é um contêiner do Office com EncryptedPackage');
+  assert.equal(P.tipoArquivo(gravarComBiblioteca(XL, [['Data', 'Valor']], 'xls')), 'xls', 'um .xls comum continua .xls');
+  // se chegar ao leitor por outro caminho, o erro da biblioteca vira o mesmo aviso
+  assert.throws(() => P.prepararPlanilha(XL, b, 'xls'), /protegida por senha. Abra no Excel e salve sem senha, ou baixe o extrato em CSV/);
 });
 
 test('leitor de planilhas: o arquivo do projeto é o conferido, e a página não o carrega de início', () => {

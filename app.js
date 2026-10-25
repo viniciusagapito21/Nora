@@ -988,6 +988,7 @@
      carrega quando a pessoa escolhe uma planilha e passa para cá como parâmetro (X). A planilha vira a mesma
      tabela de linhas do CSV, com o separador 'planilha', e segue o mesmo caminho: cabeçalho, colunas, prévia. */
   var LIMITE_PLANILHA = 15 * 1024 * 1024, LIMITE_LINHAS = 20000;
+  var SENHA = 'a planilha está protegida por senha. Abra no Excel e salve sem senha, ou baixe o extrato em CSV';
   function comeca(bytes, sig) {
     if (bytes.length < sig.length) return false;
     for (var i = 0; i < sig.length; i++) if (bytes[i] !== sig[i]) return false;
@@ -1001,7 +1002,8 @@
   }
   function tipoArquivo(bytes) {
     if (!bytes || !bytes.length) return 'vazio';
-    if (comeca(bytes, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) return 'xls';
+    /* contêiner do Office: .xls, ou um .xlsx protegido por senha (só tem a parte EncryptedPackage, nome em UTF-16) */
+    if (comeca(bytes, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) return inicioTexto(bytes, bytes.length).indexOf('E\0n\0c\0r\0y\0p\0t\0e\0d\0P\0a\0c\0k\0a\0g\0e\0') >= 0 ? 'senha' : 'xls';
     if (comeca(bytes, [0x50, 0x4B, 0x03, 0x04])) return inicioTexto(bytes, bytes.length).indexOf('xl/workbook.xml') >= 0 ? 'xlsx' : 'zip';
     if (comeca(bytes, [0x25, 0x50, 0x44, 0x46])) return 'pdf';
     var ini = inicioTexto(bytes, 1 << 20).replace(/^\xEF\xBB\xBF/, '').replace(/^\s+/, '').toLowerCase();
@@ -1045,7 +1047,7 @@
     if (bytes.length > LIMITE_PLANILHA) throw new Error('o arquivo passa de 15 MB');
     var op = { cellNF: true, cellDates: false, cellFormula: false, sheetRows: LIMITE_LINHAS + 1, raw: true }, wb;
     try { wb = tipo === 'html' || tipo === 'xml' ? X.read(decodificar(bytes).texto, Object.assign({ type: 'string' }, op)) : X.read(bytes, Object.assign({ type: 'array' }, op)); }
-    catch (e) { throw new Error('a planilha está danificada ou incompleta'); }
+    catch (e) { throw new Error(/password|encrypt/i.test(e && e.message) ? SENHA : 'a planilha está danificada ou incompleta'); }
     var d1904 = !!(wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.date1904);
     var abas = (wb.SheetNames || []).map(function (n) { return { nome: String(n), rows: linhasDaAba(X, wb.Sheets[n], d1904) }; })
       .filter(function (a) { return linhasCheias(a.rows).length; });
@@ -2002,6 +2004,7 @@
       var b = new Uint8Array(buf), c = cartAtual(), tipo = tipoArquivo(b), lem = c && c.importacao;
       if (tipo === 'pdf') throw new Error('PDF não dá para ler; baixe o extrato em CSV ou planilha (.xls, .xlsx)');
       if (tipo === 'zip') throw new Error('é um arquivo compactado, não uma planilha');
+      if (tipo === 'senha') throw new Error(SENHA);
       if (tipo === 'vazio') throw new Error('o arquivo está vazio');
       if (!ehPlanilha(tipo)) return Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, lem));
       return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });

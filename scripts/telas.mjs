@@ -12,7 +12,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { createServer } from 'node:http';
-import { xlsxAMao, paraCelulas } from '../tests/planilhas.mjs';
+import { xlsxAMao, paraCelulas, comSenha, carregarXLSX } from '../tests/planilhas.mjs';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, cpSync, statSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,6 +103,7 @@ const linhasGenerico = paraCelulas(api.prepararImportacao(new Uint8Array(readFil
 const xlsx = (name, bytes) => ({ name, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(bytes) });
 const PLANILHA = xlsx('extrato-banco-exemplo.xlsx', xlsxAMao([{ nome: 'Extrato', linhas: linhasGenerico }]));
 const PLANILHA_ABAS = xlsx('extrato-banco-exemplo.xls', xlsxAMao([{ nome: 'Resumo', linhas: [['Resumo do período'], ['Total de entradas', 13600], ['Total de saídas', -9876.54]] }, { nome: 'Extrato', linhas: linhasGenerico }]));
+const COM_SENHA = { name: 'extrato-banco-exemplo.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(comSenha(carregarXLSX())) };
 const PDF = { name: 'extrato-banco-exemplo.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n% extrato inventado\n') };
 // extrato inventado na estrutura do BTG convertido para CSV: saldo do dia em linhas "Saldo Diário"
 const SALDO_DIARIO = join(RAIZ, 'exemplo/extrato-saldo-diario-exemplo.csv');
@@ -321,6 +322,7 @@ for (const w of [1280, 390]) {
   } });
   t('49-importar-planilha-abas', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', PLANILHA_ABAS); await pg.waitForSelector('#fin-i-aba'); } });
   t('50-arquivo-pdf', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF); await pg.waitForSelector('#toast:not([hidden])'); } });
+  t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });

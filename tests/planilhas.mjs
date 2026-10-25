@@ -91,3 +91,11 @@ export function paraCelulas(rows, fmtNum) {
     return c;
   }));
 }
+
+// contêiner do Office como o de um .xlsx protegido por senha: só as partes de criptografia (conteúdo inventado)
+export function comSenha(X) {
+  const c = X.CFB.utils.cfb_new();
+  X.CFB.utils.cfb_add(c, 'EncryptionInfo', new Uint8Array([4, 0, 4, 0, 0x40, 0, 0, 0]));
+  X.CFB.utils.cfb_add(c, 'EncryptedPackage', new Uint8Array(64).map((_, i) => (i * 37) & 255));
+  return new Uint8Array(X.CFB.write(c, { type: 'array' }));
+}
