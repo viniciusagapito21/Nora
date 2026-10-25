@@ -952,18 +952,109 @@
     var dec = decodificar(bytes, cod), lem = lembrados || {};
     var ks = Object.keys(lem);
     if (!sep) for (var i = 0; i < ks.length; i++) {
-      var rws = parseCSV(dec.texto, lem[ks[i]].sep);
-      for (var j = 0; j < Math.min(rws.length, 40); j++) if (assinatura(rws[j]) === ks[i]) {
-        return { cod: dec.cod, sep: lem[ks[i]].sep, rows: rws, lembrado: true, mapa: Object.assign(JSON.parse(JSON.stringify(lem[ks[i]])), { cab: j }) };
-      }
+      if (lem[ks[i]].sep === 'planilha') continue;
+      var rws = parseCSV(dec.texto, lem[ks[i]].sep), j = linhaLembrada(rws, ks[i]);
+      if (j >= 0) return { cod: dec.cod, sep: lem[ks[i]].sep, rows: rws, lembrado: true, mapa: Object.assign(JSON.parse(JSON.stringify(lem[ks[i]])), { cab: j }) };
     }
     sep = sep || detectarSeparador(dec.texto);
-    var rows = parseCSV(dec.texto, sep), cab = detectarCabecalho(rows);
+    var rows = parseCSV(dec.texto, sep);
+    return { cod: dec.cod, sep: sep, rows: rows, lembrado: false, mapa: mapaInicial(rows, sep) };
+  }
+  function linhaLembrada(rows, k) {
+    for (var j = 0; j < Math.min(rows.length, 40); j++) if (assinatura(rows[j]) === k) return j;
+    return -1;
+  }
+  function mapaInicial(rows, sep) {
+    var cab = detectarCabecalho(rows);
     var mapa = cab < 0 ? { cab: -1, data: -1, desc: -1, saldo: -1, valor: { modo: 'uma', col: -1, saidas: null } } : sugerirColunas(rows[cab]);
     mapa.cab = cab; mapa.sep = sep;
     if (cab >= 0) { perguntasImportacao(rows, mapa); /* preenche os formatos que o arquivo deixa claros */
       if (mapa.saldo < 0) mapa.saldoLinhas = detectarLinhasSaldo(rows, mapa); }
-    return { cod: dec.cod, sep: sep, rows: rows, lembrado: false, mapa: mapa };
+    return mapa;
+  }
+  /* ---------- planilhas (.xls, .xlsx, HTML ou XML do Excel) ----------
+     O tipo vem do conteúdo, nunca da extensão. A leitura usa o SheetJS (vendor/sheetjs), que a interface só
+     carrega quando a pessoa escolhe uma planilha e passa para cá como parâmetro (X). A planilha vira a mesma
+     tabela de linhas do CSV, com o separador 'planilha', e segue o mesmo caminho: cabeçalho, colunas, prévia. */
+  var LIMITE_PLANILHA = 15 * 1024 * 1024, LIMITE_LINHAS = 20000;
+  function comeca(bytes, sig) {
+    if (bytes.length < sig.length) return false;
+    for (var i = 0; i < sig.length; i++) if (bytes[i] !== sig[i]) return false;
+    return true;
+  }
+  /* o começo do arquivo como texto de 1 byte por letra, só para procurar marcas (não decodifica o conteúdo) */
+  function inicioTexto(bytes, n) {
+    var s = '', i, fim = Math.min(bytes.length, n);
+    for (i = 0; i < fim; i += 8192) s += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(fim, i + 8192)));
+    return s;
+  }
+  function tipoArquivo(bytes) {
+    if (!bytes || !bytes.length) return 'vazio';
+    if (comeca(bytes, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1])) return 'xls';
+    if (comeca(bytes, [0x50, 0x4B, 0x03, 0x04])) return inicioTexto(bytes, bytes.length).indexOf('xl/workbook.xml') >= 0 ? 'xlsx' : 'zip';
+    if (comeca(bytes, [0x25, 0x50, 0x44, 0x46])) return 'pdf';
+    var ini = inicioTexto(bytes, 1 << 20).replace(/^\xEF\xBB\xBF/, '').replace(/^\s+/, '').toLowerCase();
+    if (ini.charAt(0) === '<') {
+      if (ini.indexOf('urn:schemas-microsoft-com:office:spreadsheet') >= 0 && ini.indexOf('<workbook') >= 0) return 'xml';
+      if (ini.indexOf('<table') >= 0) return 'html';
+    }
+    return 'texto';
+  }
+  function ehPlanilha(tipo) { return tipo === 'xls' || tipo === 'xlsx' || tipo === 'html' || tipo === 'xml'; }
+  /* número de série do Excel para ano-mês-dia, contado em UTC: o fuso do computador não desloca o dia.
+     d1904: calendário de 1904 (planilhas antigas do Mac), em que o dia 0 é 1/1/1904 */
+  function serialParaData(n, d1904) {
+    var base = d1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
+    return new Date(base + Math.floor(n + 1e-7) * 864e5).toISOString().slice(0, 10);
+  }
+  function textoCelula(X, c, d1904) {
+    if (!c || c.v == null || c.t === 'z' || c.t === 'e') return '';
+    if (c.t === 'n') {
+      if (c.z && X.SSF.is_date(c.z)) return c.v >= 1 ? serialParaData(c.v, d1904) : String(c.w || '');
+      return String(Math.round(c.v * 1e6) / 1e6);
+    }
+    if (c.t === 'b') return c.v ? 'VERDADEIRO' : 'FALSO';
+    return String(c.v);
+  }
+  /* todas as linhas e colunas desde A1, para as posições baterem com o que a pessoa vê; célula mesclada vale só
+     na primeira (as outras ficam vazias, como no Excel) */
+  function linhasDaAba(X, ws, d1904) {
+    if (!ws || !ws['!ref']) return [];
+    var R = X.utils.decode_range(ws['!ref']), rows = [], r, c, row;
+    if (R.e.r + 1 > LIMITE_LINHAS) throw new Error('a planilha passa de ' + LIMITE_LINHAS.toLocaleString('pt-BR') + ' linhas');
+    for (r = 0; r <= R.e.r; r++) {
+      row = [];
+      for (c = 0; c <= R.e.c; c++) row.push(textoCelula(X, ws[X.utils.encode_cell({ r: r, c: c })], d1904));
+      rows.push(row);
+    }
+    return rows;
+  }
+  /* as abas com algum conteúdo; fórmulas não são calculadas (vale o valor que o arquivo já traz) */
+  function lerPlanilha(X, bytes, tipo) {
+    if (bytes.length > LIMITE_PLANILHA) throw new Error('o arquivo passa de 15 MB');
+    var op = { cellNF: true, cellDates: false, cellFormula: false, sheetRows: LIMITE_LINHAS + 1, raw: true }, wb;
+    try { wb = tipo === 'html' || tipo === 'xml' ? X.read(decodificar(bytes).texto, Object.assign({ type: 'string' }, op)) : X.read(bytes, Object.assign({ type: 'array' }, op)); }
+    catch (e) { throw new Error('a planilha está danificada ou incompleta'); }
+    var d1904 = !!(wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.date1904);
+    var abas = (wb.SheetNames || []).map(function (n) { return { nome: String(n), rows: linhasDaAba(X, wb.Sheets[n], d1904) }; })
+      .filter(function (a) { return linhasCheias(a.rows).length; });
+    if (!abas.length) throw new Error('a planilha não tem nenhuma tabela');
+    return abas;
+  }
+  /* sem aba escolhida: a que tem o formato lembrado, senão a primeira com cabeçalho, senão a primeira */
+  function prepararPlanilha(X, bytes, tipo, lembrados, aba) {
+    var abas = lerPlanilha(X, bytes, tipo), lem = lembrados || {}, ks = Object.keys(lem).filter(function (k) { return lem[k].sep === 'planilha'; }), i, j;
+    var res = function (a, p) { return Object.assign(p, { cod: null, abas: abas.map(function (x) { return x.nome; }), aba: a }); };
+    if (aba == null) {
+      for (i = 0; i < abas.length; i++) for (j = 0; j < ks.length; j++) {
+        var lj = linhaLembrada(abas[i].rows, ks[j]);
+        if (lj >= 0) return res(i, { sep: 'planilha', rows: abas[i].rows, lembrado: true, mapa: Object.assign(JSON.parse(JSON.stringify(lem[ks[j]])), { cab: lj }) });
+      }
+      aba = 0;
+      for (i = 0; i < abas.length; i++) if (detectarCabecalho(abas[i].rows) >= 0) { aba = i; break; }
+    }
+    aba = Math.max(0, Math.min(abas.length - 1, aba));
+    return res(aba, { sep: 'planilha', rows: abas[aba].rows, lembrado: false, mapa: mapaInicial(abas[aba].rows, 'planilha') });
   }
   /* o que fica guardado na carteira: só posições de coluna e formatos, debaixo do código do cabeçalho */
   function lembrarMapa(importacao, rows, m) {
@@ -988,12 +1079,19 @@
      escolhido; sem ele, da primeira à última data entre movimentos e saldos do dia */
   var DATA_TXT = '(\\d{1,4}[\\/\\-.]\\d{1,2}[\\/\\-.]\\d{1,4})';
   var PERIODO_TXT = new RegExp('per[ií]odo[^0-9]{0,40}' + DATA_TXT + '\\s*(?:a|até|ate|-|–)\\s*' + DATA_TXT, 'i');
+  /* numa planilha as datas das células já vêm como ano-mês-dia, mas o período do cabeçalho continua texto no
+     formato do banco: vale o formato em que ele cobre todas as datas do arquivo */
   function periodoDoArquivo(rows, m, tx, saldos) {
+    var datas = periodoDasDatas(tx.map(function (t) { return t[0]; }).concat(Object.keys(saldos || {})));
+    var pl = m.sep === 'planilha', fmts = pl ? FORMATOS_DATA : [m.fmtData];
     for (var i = 0; i < Math.min(m.cab, 40); i++) {
-      var p = rows[i].join(' ').match(PERIODO_TXT), de = p && lerData(p[1], m.fmtData), ate = p && lerData(p[2], m.fmtData);
-      if (de && ate && de <= ate) return { de: de, ate: ate, fonte: 'arquivo' };
+      var p = rows[i].join(' ').match(PERIODO_TXT);
+      if (p) for (var f = 0; f < fmts.length; f++) {
+        var de = lerData(p[1], fmts[f]), ate = lerData(p[2], fmts[f]);
+        if (de && ate && de <= ate && (!pl || !datas || (de <= datas.de && ate >= datas.ate))) return { de: de, ate: ate, fonte: 'arquivo' };
+      }
     }
-    return periodoDasDatas(tx.map(function (t) { return t[0]; }).concat(Object.keys(saldos || {})));
+    return datas;
   }
   function periodoDasDatas(ds) { ds = ds.slice().sort(); return ds.length ? { de: ds[0], ate: ds[ds.length - 1], fonte: 'datas' } : null; }
   /* ---------- Resumo: todas as carteiras juntas, na moeda principal ---------- */
@@ -1644,7 +1742,7 @@
       '<div class="radios">' + S.dados.carteiras.map(function (c) {
         var r = resumoDados(c);
         return '<label class="chk"><input type="radio" name="fin-ecart" value="' + esc(c.id) + '"' + (c.id === S.dados.ativa ? ' checked' : '') + '><span>' + esc(c.nome) + ' <small class="hint">' + esc(nomeBanco(c.banco)) + ' · ' + esc(c.moeda) + (r.meses ? '' : ' · sem extrato') + '</small></span></label>';
-      }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-escolher="ok">' + (F ? 'Importar nesta carteira' : 'Escolher arquivo CSV') + '</button><button class="btn" type="button" data-escolher="cancelar">Cancelar</button></div></div></section>';
+      }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-escolher="ok">' + (F ? 'Importar nesta carteira' : 'Escolher arquivo') + '</button><button class="btn" type="button" data-escolher="cancelar">Cancelar</button></div></div></section>';
   }
   function telaResumo(R) {
     var h = S.escolher ? escolherTela() : '';
@@ -1798,7 +1896,10 @@
   /* cada escolha na tela refaz a prévia; trocar codificação ou separador relê o arquivo e refaz as sugestões */
   function mudarImportacao(t) {
     var I = S.importar, m = I.mapa, k = t.getAttribute('data-imp-campo'), v = t.value, n = +v, foco = t.id;
-    if (k === 'cod' || k === 'sep') {
+    if (k === 'aba') {
+      try { Object.assign(I, prepararPlanilha(window.XLSX, I.bytes, I.tipo, null, n)); }
+      catch (er) { toast('Não consegui ler essa aba: ' + er.message + '.', true); }
+    } else if (k === 'cod' || k === 'sep') {
       try { Object.assign(I, prepararImportacao(I.bytes, null, k === 'cod' ? v : I.cod, k === 'sep' ? v : I.sep)); }
       catch (er) { toast('Não consegui ler o arquivo assim: ' + er.message + '.', true); }
     } else if (k === 'cab') {
@@ -1887,10 +1988,29 @@
     if (files.length > 1) toast('Um arquivo por vez neste banco: abri só ' + files[0].name + '.');
     var f = files[0];
     return f.arrayBuffer().then(function (buf) {
-      var b = new Uint8Array(buf), c = cartAtual();
-      S.importar = Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, c && c.importacao));
-      render(); window.scrollTo(0, 0);
+      var b = new Uint8Array(buf), c = cartAtual(), tipo = tipoArquivo(b), lem = c && c.importacao;
+      if (tipo === 'pdf') throw new Error('PDF não dá para ler; baixe o extrato em CSV ou planilha (.xls, .xlsx)');
+      if (tipo === 'zip') throw new Error('é um arquivo compactado, não uma planilha');
+      if (tipo === 'vazio') throw new Error('o arquivo está vazio');
+      if (!ehPlanilha(tipo)) return Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, lem));
+      return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });
+    }).then(function (I) {
+      S.importar = I; render(); window.scrollTo(0, 0);
     }).catch(function (e) { toast('Não consegui ler ' + f.name + ': ' + ((e && e.message) || e) + '.', true); });
+  }
+  /* o leitor de planilhas (vendor/sheetjs, 0,5 MB) só entra na página quando a pessoa escolhe uma planilha */
+  var leitorPlanilhas = null;
+  function carregarLeitorPlanilhas() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (leitorPlanilhas) return leitorPlanilhas;
+    leitorPlanilhas = new Promise(function (ok, falhou) {
+      var s = document.createElement('script');
+      s.src = 'vendor/sheetjs/xlsx.core.min.js';
+      s.onload = function () { if (window.XLSX) ok(window.XLSX); else s.onerror(); };
+      s.onerror = function () { leitorPlanilhas = null; s.remove(); falhou(new Error('o leitor de planilhas não abriu')); };
+      document.head.appendChild(s);
+    });
+    return leitorPlanilhas;
   }
   var NOME_FMT_DATA = { dmy: 'dia/mês/ano', mdy: 'mês/dia/ano', ymd: 'ano-mês-dia', texto: 'com o mês por extenso' };
   var NOME_FMT_NUM = { virgula: '1.234,56', ponto: '1,234.56' };
@@ -1920,9 +2040,10 @@
     I.rows.slice(0, 40).forEach(function (r, i) { if (r.some(function (x) { return String(x).trim(); }) && ix++ < 25) cabs.push([String(i), 'Linha ' + (i + 1) + ': ' + celulas(r).slice(0, 60)]); });
     h += (I.lembrado ? '<p class="aviso">Reconheci o formato deste arquivo e usei as colunas da última importação. Confira a prévia.</p>'
       : '<p class="passo">Diga quais colunas são a data, a descrição e o valor. O que o painel detectou já vem marcado: confira.</p>') +
-      '<fieldset><legend>Arquivo</legend><div class="mgrid">' +
-      '<label>Codificação<select id="fin-i-cod" data-imp-campo="cod">' + opcoes([['utf-8', 'UTF-8'], ['latin1', 'Latin-1 (Windows)']], I.cod) + '</select><small>Se aparecerem letras trocadas (ex.: "HistÃ³rico"), troque aqui.</small></label>' +
-      '<label>Separador<select id="fin-i-sep" data-imp-campo="sep">' + opcoes(SEPARADORES, I.sep) + '</select></label>' +
+      '<fieldset><legend>Arquivo</legend><div class="mgrid">' + (I.tipo
+        ? (I.abas.length > 1 ? '<label>Aba<select id="fin-i-aba" data-imp-campo="aba">' + opcoes(I.abas.map(function (a, i) { return [String(i), a]; }), String(I.aba)) + '</select><small>A planilha tem ' + I.abas.length + ' abas com dados.</small></label>' : '')
+        : '<label>Codificação<select id="fin-i-cod" data-imp-campo="cod">' + opcoes([['utf-8', 'UTF-8'], ['latin1', 'Latin-1 (Windows)']], I.cod) + '</select><small>Se aparecerem letras trocadas (ex.: "HistÃ³rico"), troque aqui.</small></label>' +
+          '<label>Separador<select id="fin-i-sep" data-imp-campo="sep">' + opcoes(SEPARADORES, I.sep) + '</select></label>') +
       '<label>Linha do cabeçalho<select id="fin-i-cab" data-imp-campo="cab"><option value="-1"' + (m.cab < 0 ? ' selected' : '') + '>Escolha a linha com os nomes das colunas</option>' + opcoes(cabs, String(m.cab)) + '</select></label></div></fieldset>';
     var q = m.cab < 0 ? [{ id: 'cab' }] : perguntasImportacao(I.rows, m);
     if (m.cab >= 0) {
@@ -2110,9 +2231,9 @@
   }
   function emptyState() {
     if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
-      '<ol><li>No app ou no site de ' + esc(origem()) + ', baixe o extrato da conta em CSV.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li>' +
+      '<ol><li>No app ou no site de ' + esc(origem()) + ', baixe o extrato da conta em CSV ou planilha (.xls, .xlsx).</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li>' +
       '<li>Na primeira vez, diga quais colunas são a data, a descrição e o valor, e confira a prévia antes de importar.</li></ol>' +
-      '<button class="btn pri" type="button" data-fin-add>Escolher arquivo CSV</button></section>';
+      '<button class="btn pri" type="button" data-fin-add>Escolher arquivo</button></section>';
     return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
       '<ol><li>No Revolut, abra Extratos e escolha o extrato consolidado.</li><li>Baixe em CSV, de 1º de janeiro até hoje.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li></ol>' +
       '<button class="btn pri" type="button" data-fin-add>Escolher arquivo CSV</button></section>';
@@ -2693,7 +2814,7 @@
     root.innerHTML = header() + abas() + perguntaAluguel() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
-      '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + ' em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
+      '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + (bancoAtual() === 'revolut' ? ' em CSV' : ' em CSV ou planilha') + ' e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
     var s2 = $('.fin .cscroll');
     if (s2) s2.scrollLeft = keep != null ? keep : s2.scrollWidth;
     drawBal();
@@ -3028,7 +3149,7 @@
     localLoad(); S.ready = true; S.resumo = true; recompute(); render(); cartao();
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
-  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,text/csv" multiple tabindex="-1" aria-label="Escolher extrato CSV"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');
+  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple tabindex="-1" aria-label="Escolher extrato"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');
   window.__cortexFin = { montar: function () { render(); }, cartao: cartao };
   render();
   start();

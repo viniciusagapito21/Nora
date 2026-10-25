@@ -11,6 +11,7 @@
 import { chromium } from 'playwright';
 import { PNG } from 'pngjs';
 import { createServer } from 'node:http';
+import { xlsxAMao, paraCelulas } from '../tests/planilhas.mjs';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, cpSync, statSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -90,6 +91,13 @@ const comGenerica = (comMeses, extra) => {
   Object.assign(x.carteiras[1], extra || {});
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
+// planilhas (item 2 da Fase 2): o mesmo extrato genérico inventado, como .xlsx com datas e valores de verdade;
+// outra com uma aba de resumo antes da do extrato; e um PDF, que não dá para ler
+const linhasGenerico = paraCelulas(api.prepararImportacao(new Uint8Array(readFileSync(GENERICO))).rows, 'virgula');
+const xlsx = (name, bytes) => ({ name, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(bytes) });
+const PLANILHA = xlsx('extrato-banco-exemplo.xlsx', xlsxAMao([{ nome: 'Extrato', linhas: linhasGenerico }]));
+const PLANILHA_ABAS = xlsx('extrato-banco-exemplo.xls', xlsxAMao([{ nome: 'Resumo', linhas: [['Resumo do período'], ['Total de entradas', 13600], ['Total de saídas', -9876.54]] }, { nome: 'Extrato', linhas: linhasGenerico }]));
+const PDF = { name: 'extrato-banco-exemplo.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n% extrato inventado\n') };
 // extrato inventado na estrutura do BTG convertido para CSV: saldo do dia em linhas "Saldo Diário"
 const SALDO_DIARIO = join(RAIZ, 'exemplo/extrato-saldo-diario-exemplo.csv');
 const comSaldoDiario = () => {
@@ -298,6 +306,14 @@ for (const w of [1280, 390]) {
   // restaurar (9.5): o resumo por carteira antes de substituir as três carteiras do Resumo, e um backup corrompido
   t('46-restaurar-varias-carteiras', { storage: RESUMO, prepara: async pg => { await pg.setInputFiles('#fin-json', arquivo(BACKUP)); await pg.waitForSelector('[data-restaurar=confirmar]'); } });
   t('47-restaurar-corrompido', { storage: RESUMO, viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-json', arquivo(BACKUP.slice(0, 5000))); await pg.waitForSelector('#toast:not([hidden])'); } });
+  // planilhas: prévia de um .xlsx, uma planilha com duas abas (com extensão .xls: o tipo vem do conteúdo) e um PDF
+  t('48-importar-planilha', { storage: comGenerica(false), prepara: async pg => {
+    await pg.setInputFiles('#fin-csv', PLANILHA); await pg.waitForSelector('#fin-fimp');
+    await pg.click('input[name=sinal][value=negativas]'); await pg.waitForSelector('.imp-tot');
+    await pg.click('#fin-fimp details > summary');
+  } });
+  t('49-importar-planilha-abas', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', PLANILHA_ABAS); await pg.waitForSelector('#fin-i-aba'); } });
+  t('50-arquivo-pdf', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });
@@ -373,6 +389,27 @@ for (const s of TELAS) {
   if (corrompido[0] !== salvoDepois || corrompido[1]) problemas.push('ida e volta: um backup corrompido mudou o que estava salvo');
   console.log(`ida e volta do backup: ${iguais && salvoAntes === salvoDepois && !vazio ? 'painel idêntico (3 telas, pixel a pixel) e os mesmos dados salvos' : 'FALHOU'}; ` +
     `backup corrompido: ${corrompido[0] === salvoDepois && !corrompido[1] ? 'nada gravado' : 'GRAVOU'} ("${corrompido[2]}")`);
+  await ctx.close();
+}
+// ---------- o leitor de planilhas só é pedido quando a pessoa escolhe uma planilha, e uma vez só ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage(), pedidos = [];
+  pg.on('request', r => { if (r.url().includes('/vendor/')) pedidos.push(r.url()); });
+  pg.on('pageerror', e => erros.push('leitor de planilhas: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comGenerica(false));
+  await pg.reload(); await pg.waitForTimeout(150);
+  const ao = { abrir: pedidos.length };
+  await pg.setInputFiles('#fin-csv', GENERICO); await pg.waitForSelector('#fin-fimp'); await pg.click('[data-imp=cancelar]');
+  ao.csv = pedidos.length;
+  await pg.setInputFiles('#fin-csv', PLANILHA); await pg.waitForSelector('#fin-fimp'); await pg.click('[data-imp=cancelar]');
+  ao.planilha = pedidos.length;
+  await pg.setInputFiles('#fin-csv', PLANILHA_ABAS); await pg.waitForSelector('#fin-i-aba');
+  ao.segunda = pedidos.length;
+  const ok = ao.abrir === 0 && ao.csv === 0 && ao.planilha === 1 && ao.segunda === 1;
+  if (!ok) problemas.push(`leitor de planilhas: pedidos ao abrir ${ao.abrir}, depois do CSV ${ao.csv}, da 1ª planilha ${ao.planilha}, da 2ª ${ao.segunda} (esperado 0, 0, 1, 1)`);
+  console.log(`leitor de planilhas: ${ok ? 'não carrega ao abrir nem com CSV; carrega uma vez na primeira planilha' : 'FALHOU'}`);
   await ctx.close();
 }
 await browser.close();

@@ -37,7 +37,7 @@ body>main.wrap>section#fin-app.view.fin>section.vazio-grande>ol o9c0r6 143t0ta 1
 body>main.wrap>section#fin-app.view.fin>section.vazio-grande>ol>li 7uoe0j l3d5le l3d5le
 body>main.wrap>section#fin-app.view.fin>section.vazio-grande>ol>li 7uoe0j l3d5le l3d5le
 body>main.wrap>section#fin-app.view.fin>section.vazio-grande>ol>li 7uoe0j l3d5le l3d5le
-body>main.wrap>section#fin-app.view.fin>section.vazio-grande>button.btn.pri nf89l3 cjuxk0 cjuxk0
+body>main.wrap>section#fin-app.view.fin>section.vazio-grande>button.btn.pri 1is0zae cjuxk0 cjuxk0
 body>div#toast.toast c8u0id 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76

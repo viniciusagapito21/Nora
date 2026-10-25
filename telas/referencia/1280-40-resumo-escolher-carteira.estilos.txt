@@ -46,7 +46,7 @@ body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>
 body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>div.radios>label.chk>span 6yh4uk 7yjkya 7yjkya
 body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>div.radios>label.chk>span>small.hint 1orexmz 1t4ru83 1t4ru83
 body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>div.grupo i6aoip 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>div.grupo>button.btn.pri nf89l3 cjuxk0 cjuxk0
+body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>div.grupo>button.btn.pri 1is0zae cjuxk0 cjuxk0
 body>main.wrap>section#fin-app.view.fin>section#fin-escolher.sec>div.card.ggrid>div.grupo>button.btn qawypb 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div#fin-restima.aviso.pergunta sf056b 1gej12z 1gej12z
 body>main.wrap>section#fin-app.view.fin>div#fin-restima.aviso.pergunta>p kair5w bsyljp bsyljp

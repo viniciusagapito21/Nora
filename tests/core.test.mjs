@@ -3,6 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas } from './planilhas.mjs';
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 // as regras de comerciantes de cada país ficam em rules/ e são carregadas antes do app.js (como no index.html)
@@ -1397,4 +1401,151 @@ test('backup corrompido: lerSalvo recusa com o motivo, antes de qualquer coisa s
   ];
   casos.forEach(([t, erro]) => assert.throws(() => api.lerSalvo(t, ''), erro));
   assert.doesNotThrow(() => api.lerSalvo(texto, ''), 'o original continua bom');
+});
+
+// ---------- planilhas (.xls, .xlsx, HTML e XML do Excel); todas geradas aqui, com dados inventados ----------
+const P = carregarNucleo(['tipoArquivo', 'prepararPlanilha', 'lerPlanilha', 'prepararImportacao', 'interpretarCSV', 'lembrarMapa', 'serialParaData', 'checarImportacao', 'perguntasImportacao']);
+const XL = carregarXLSX();
+const exemplo = f => new Uint8Array(readFileSync(new URL('../exemplo/' + f, import.meta.url)));
+const interpretar = p => P.interpretarCSV(p.rows, p.mapa);
+const htmlXls = (linhas, cod = 'utf-8') => {
+  const t = '<html><head><meta http-equiv="Content-Type" content="text/html; charset=' + cod + '"><style>td{mso-number-format:"\\@"}</style></head><body><table>' +
+    linhas.map(l => '<tr>' + l.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('') + '</table></body></html>';
+  return cod === 'utf-8' ? new Uint8Array(Buffer.from(t)) : new Uint8Array(Buffer.from(t, 'latin1'));
+};
+
+test('planilha: o tipo vem do conteúdo, não da extensão', () => {
+  const xlsx = xlsxAMao([{ nome: 'A', linhas: [['Data', 'Descrição', 'Valor']] }]);
+  assert.equal(P.tipoArquivo(xlsx), 'xlsx');
+  assert.equal(P.tipoArquivo(gravarComBiblioteca(XL, [['Data', 'Valor']], 'xls')), 'xls', 'xls binário (Excel 97 em diante)');
+  assert.equal(P.tipoArquivo(htmlXls([['Data', 'Descrição', 'Valor']])), 'html', 'HTML disfarçado de .xls');
+  assert.equal(P.tipoArquivo(new Uint8Array(Buffer.from('\uFEFF  \n<HTML><BODY><TABLE><TR><TD>x</TD></TR></TABLE>'))), 'html', 'com BOM, espaços e maiúsculas');
+  assert.equal(P.tipoArquivo(new Uint8Array(Buffer.from('<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="A"></Worksheet></Workbook>'))), 'xml');
+  assert.equal(P.tipoArquivo(new Uint8Array(Buffer.from('Data\tDescrição\tValor\n01/10/2026\tPadaria\t-12,50\n'))), 'texto', 'texto com tabulação segue o caminho do CSV');
+  assert.equal(P.tipoArquivo(exemplo('extrato-generico-exemplo.csv')), 'texto');
+  assert.equal(P.tipoArquivo(new Uint8Array(Buffer.from('%PDF-1.7\n...'))), 'pdf');
+  assert.equal(P.tipoArquivo(zip({ 'word/document.xml': '<w:document/>' })), 'zip', 'zip que não é planilha (um .docx, por exemplo)');
+  assert.equal(P.tipoArquivo(new Uint8Array(0)), 'vazio');
+  assert.equal(P.tipoArquivo(new Uint8Array(Buffer.from('<p>sem tabela</p>'))), 'texto');
+});
+
+test('planilha: .xlsx montado à mão, com datas de verdade, números e acentos', () => {
+  const linhas = [['Banco Exemplo - Extrato'], [], ['Data', 'Histórico', 'Valor (R$)', 'Saldo'],
+    [{ data: '2026-10-01' }, 'Padaria Pão Quente', -18.9, 981.1], [{ data: '2026-10-02' }, 'Salário Empresa Exemplo', 4800, 5781.1],
+    [{ data: '2026-10-03' }, 'Farmácia São João', -1234.56, 4546.54]];
+  const p = P.prepararPlanilha(XL, xlsxAMao([{ nome: 'Extrato', linhas }]), 'xlsx');
+  assert.equal(p.sep, 'planilha'); assert.equal(p.mapa.cab, 2); assert.deepEqual(p.abas, ['Extrato']);
+  assert.deepEqual(p.rows[3], ['2026-10-01', 'Padaria Pão Quente', '-18.9', '981.1'], 'data como ano-mês-dia, número com ponto');
+  assert.equal(p.mapa.fmtData, 'ymd', 'data de verdade não pergunta dia/mês');
+  const r = interpretar(p);
+  assert.deepEqual(r.tx.map(t => t.slice(0, 4)), [['2026-10-01', 'Padaria Pão Quente', 'Others', -1890], ['2026-10-02', 'Salário Empresa Exemplo', 'Others', 480000], ['2026-10-03', 'Farmácia São João', 'Others', -123456]]);
+});
+
+test('planilha: .xlsx e .xls gravados com o extrato genérico de exemplo dão os mesmos movimentos que o CSV', () => {
+  const csv = P.prepararImportacao(exemplo('extrato-generico-exemplo.csv')), daCsv = interpretar(csv);
+  assert.ok(daCsv.tx.length > 20);
+  for (const tipo of ['xlsx', 'xls']) {
+    const bytes = gravarComBiblioteca(XL, paraCelulas(csv.rows, 'virgula'), tipo);
+    assert.equal(P.tipoArquivo(bytes), tipo);
+    const p = P.prepararPlanilha(XL, bytes, tipo);
+    assert.equal(p.mapa.cab, csv.mapa.cab, tipo);
+    assert.deepEqual(interpretar(p).tx, daCsv.tx, tipo + ': mesmos movimentos, datas, valores e descrições');
+    assert.deepEqual(interpretar(p).periodo, daCsv.periodo, tipo + ': o período escrito no cabeçalho ("01/08/2026 a 15/10/2026") também');
+  }
+});
+
+test('planilha: HTML disfarçado de .xls, em UTF-8 e em Latin-1, com 1.234,56 como texto', () => {
+  const linhas = [['Data', 'Descrição', 'Valor'], ['01/10/2026', 'Açougue Boi Gordo', '-1.234,56'], ['02/10/2026', 'Pix recebido JOÃO', '80,00']];
+  for (const cod of ['utf-8', 'iso-8859-1']) {
+    const b = htmlXls(linhas, cod), p = P.prepararPlanilha(XL, b, P.tipoArquivo(b));
+    assert.deepEqual(p.rows[1], ['01/10/2026', 'Açougue Boi Gordo', '-1.234,56'], cod + ': o texto fica como está, com acentos');
+    assert.equal(p.mapa.fmtNum, 'virgula');
+    // data em texto 01/10/2026 é ambígua: o importador pergunta, como no CSV; aqui a "pessoa" responde
+    assert.deepEqual(P.perguntasImportacao(p.rows, p.mapa).map(q => q.id), ['fmtData', 'sinal']);
+    p.mapa.fmtData = 'dmy'; p.mapa.valor.saidas = 'negativas';
+    assert.deepEqual(interpretar(p).tx.map(t => [t[0], t[3]]), [['2026-10-01', -123456], ['2026-10-02', 8000]]);
+  }
+});
+
+test('planilha: várias abas; usa a primeira com cabeçalho e deixa escolher outra', () => {
+  const abas = [{ nome: 'Resumo', linhas: [['Resumo do mês'], ['Total gasto', 1200]] },
+    { nome: 'Extrato', linhas: [['Data', 'Descrição', 'Valor'], [{ data: '2026-10-01' }, 'Padaria Exemplo', -10]] },
+    { nome: 'Vazia', linhas: [] }];
+  const b = xlsxAMao(abas), p = P.prepararPlanilha(XL, b, 'xlsx');
+  assert.deepEqual(p.abas, ['Resumo', 'Extrato'], 'aba vazia não aparece');
+  assert.equal(p.aba, 1); assert.equal(interpretar(p).tx.length, 1);
+  const q = P.prepararPlanilha(XL, b, 'xlsx', null, 0);
+  assert.equal(q.aba, 0); assert.equal(q.mapa.cab, -1, 'na aba de resumo não há cabeçalho');
+});
+
+test('planilha: saldo diário em linha própria, cabeçalho repetido por página e células mescladas, igual ao CSV', () => {
+  const csv = P.prepararImportacao(exemplo('extrato-saldo-diario-exemplo.csv')), daCsv = interpretar(csv);
+  assert.ok(Object.keys(daCsv.saldos).length > 3, 'o exemplo tem saldos do dia');
+  const linhas = paraCelulas(csv.rows, 'ponto');
+  // mescla o título da página e as colunas vazias ao lado de "Transação" e "Descrição", como nos extratos em PDF convertidos
+  const mescladas = ['B1:I1'];
+  csv.rows.forEach((r, i) => { if (String(r[1]).trim() === 'Data e hora' || /^\d{2}\/\d{2}\/\d{4}/.test(String(r[1]))) mescladas.push(`D${i + 1}:F${i + 1}`, `G${i + 1}:J${i + 1}`); });
+  const p = P.prepararPlanilha(XL, xlsxAMao([{ nome: 'Extrato', linhas, mescladas }]), 'xlsx');
+  assert.ok(csv.rows.filter(r => String(r[1]).trim() === 'Data e hora').length > 1, 'o cabeçalho se repete');
+  assert.equal(p.mapa.saldoLinhas, csv.mapa.saldoLinhas, 'reconhece as linhas "Saldo Diário"');
+  const r = interpretar(p);
+  assert.deepEqual(r.tx, daCsv.tx, 'mesmos movimentos');
+  assert.deepEqual(r.saldos, daCsv.saldos, 'mesmos saldos do dia');
+});
+
+test('planilha: as datas não mudam com o fuso do computador, nem no calendário de 1904', () => {
+  const esperado = ['2026-03-29', '2026-03-29', '2026-10-25', '2026-12-31', '2027-01-01'];
+  const roteiro = fileURLToPath(new URL('./fuso-planilha.mjs', import.meta.url));
+  for (const TZ of ['Europe/Dublin', 'America/Sao_Paulo', 'Pacific/Auckland']) {
+    const r = JSON.parse(execFileSync(process.execPath, [roteiro], { env: { ...process.env, TZ }, encoding: 'utf8' }));
+    assert.equal(r.fuso, TZ);
+    assert.deepEqual(r.d1900, esperado, TZ + ', calendário de 1900');
+    assert.deepEqual(r.d1904, esperado, TZ + ', calendário de 1904');
+    assert.deepEqual(r.biblioteca, esperado, TZ + ', gravada pelo SheetJS');
+  }
+  assert.equal(P.serialParaData(46296), '2026-10-01');
+  assert.equal(P.serialParaData(46296 - 1462, true), '2026-10-01', 'no calendário de 1904 o mesmo dia tem número 1462 menor');
+  assert.equal(P.serialParaData(46296.9999), '2026-10-01', '23:59 continua no mesmo dia');
+});
+
+test('planilha: o formato lembrado pula as perguntas na próxima planilha com o mesmo cabeçalho', () => {
+  const linhas = [['Data', 'Histórico', 'Débito', 'Crédito'], [{ data: '2026-10-01' }, 'Padaria Exemplo', 10.5, null], [{ data: '2026-10-02' }, 'Salário', null, 4800]];
+  const b = xlsxAMao([{ nome: 'Extrato', linhas }]), p = P.prepararPlanilha(XL, b, 'xlsx');
+  p.mapa.valor = { modo: 'duas', saida: 2, entrada: 3 };
+  const lem = P.lembrarMapa({}, p.rows, p.mapa);
+  assert.equal(Object.values(lem)[0].sep, 'planilha');
+  assert.doesNotThrow(() => P.checarImportacao(lem, 'c1'), 'o backup aceita o separador "planilha"');
+  const q = P.prepararPlanilha(XL, b, 'xlsx', lem);
+  assert.equal(q.lembrado, true); assert.deepEqual(q.mapa.valor, { modo: 'duas', saida: 2, entrada: 3 });
+  assert.deepEqual(interpretar(q).tx.map(t => t[3]), [-1050, 480000]);
+  // um CSV com o mesmo cabeçalho não usa o formato da planilha (as posições podem ser outras)
+  const c = P.prepararImportacao(new Uint8Array(Buffer.from('Data;Histórico;Débito;Crédito\n01/10/2026;Padaria;10,50;\n')), lem);
+  assert.equal(c.lembrado, false);
+});
+
+test('planilha com problema: nada é lido pela metade', () => {
+  const b = gravarComBiblioteca(XL, [['Data', 'Descrição', 'Valor'], ...Array.from({ length: 300 }, (_, i) => [{ data: '2026-10-01' }, 'Compra ' + i, -i])], 'xlsx');
+  assert.throws(() => P.prepararPlanilha(XL, b.slice(0, Math.floor(b.length / 2)), 'xlsx'), /danificada|nenhuma tabela/, 'arquivo cortado ao meio');
+  assert.throws(() => P.prepararPlanilha(XL, gravarComBiblioteca(XL, [[1, 2]], 'xls').slice(0, 600), 'xls'), /danificada|nenhuma tabela/, 'xls cortado');
+  assert.throws(() => P.prepararPlanilha(XL, xlsxAMao([{ nome: 'A', linhas: [] }]), 'xlsx'), /nenhuma tabela/);
+  const grande = new Uint8Array(15 * 1024 * 1024 + 1); grande.set([0x50, 0x4B, 0x03, 0x04]);
+  assert.throws(() => P.prepararPlanilha(XL, grande, 'xlsx'), /15 MB/);
+  const muitas = gravarComBiblioteca(XL, Array.from({ length: 20001 }, (_, i) => ['linha', i]), 'xlsx');
+  assert.throws(() => P.prepararPlanilha(XL, muitas, 'xlsx'), /20\.000 linhas/);
+  // aba e cabeçalho com nomes que tentariam mexer no protótipo dos objetos
+  const p = P.prepararPlanilha(XL, xlsxAMao([{ nome: '__proto__', linhas: [['__proto__', 'constructor', 'Valor'], [{ data: '2026-10-01' }, 'x', 1]] }]), 'xlsx');
+  assert.deepEqual(p.abas, ['__proto__']);
+  assert.equal({}.polluted, undefined); assert.equal(Object.prototype.Valor, undefined); assert.equal(typeof {}.constructor, 'function');
+});
+
+test('leitor de planilhas: o arquivo do projeto é o conferido, e a página não o carrega de início', () => {
+  const lib = readFileSync(new URL('../vendor/sheetjs/xlsx.core.min.js', import.meta.url));
+  const sha = createHash('sha256').update(lib).digest('hex');
+  const versao = readFileSync(new URL('../vendor/sheetjs/VERSAO.md', import.meta.url), 'utf8');
+  assert.match(versao, new RegExp('xlsx\\.core\\.min\\.js.*' + sha), 'o SHA-256 anotado em VERSAO.md é o do arquivo');
+  assert.equal(XL.version, '0.20.3');
+  assert.match(readFileSync(new URL('../vendor/sheetjs/LICENSE', import.meta.url), 'utf8'), /Apache License/);
+  assert.doesNotMatch(lib.toString(), /\bfetch\(|XMLHttpRequest|importScripts/, 'o leitor não acessa a rede');
+  assert.doesNotMatch(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /vendor\//);
+  assert.match(appJs, /s\.src = 'vendor\/sheetjs\/xlsx\.core\.min\.js'/);
 });
