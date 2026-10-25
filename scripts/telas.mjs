@@ -1,6 +1,8 @@
-// Comparação de telas: fotografa as 89 telas do painel (45 em 1280px, 44 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 93 telas do painel (47 em 1280px, 46 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
+// Também faz a ida e volta do backup no navegador: baixa, apaga tudo, restaura, e o painel tem que ficar idêntico;
+// um backup corrompido não pode gravar nada.
 //
 //   npm run telas            fotografa em telas/atual/, confere e compara; sai com erro se algo mudou
 //   npm run telas:aprovar    fotografa, confere e, se a conferência passar, troca as referências pelas novas
@@ -34,7 +36,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia };')();
+const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -136,6 +138,15 @@ const comTransferencias = (over, confirmar = 0) => {
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
 const TRANSFERENCIAS = comTransferencias({}), CONFIRMADAS = comTransferencias({}, 2), SAIDA_MARCADA = comTransferencias({ 'TO MARIA SILVA': '_ignore' });
+// backup com tudo (9.5): as transferências confirmadas, outubro dispensado e as colunas do banco lembradas
+const BACKUP = (() => {
+  const x = JSON.parse(CONFIRMADAS['cortex-financas.v4']), p = api.prepararImportacao(new Uint8Array(readFileSync(TRANSF)));
+  p.mapa.valor.saidas = 'negativas';
+  x.carteiras[1].importacao = api.lembrarMapa({}, p.rows, p.mapa);
+  const q = api.sugerirTransferencias(api.resumir(x), x).pares[0];
+  return JSON.stringify(api.dispensarSugestao(x, { s: { c: q.s.w.id, id: q.s.r.id }, e: { c: q.e.w.id, id: q.e.r.id }, ja: q.ja }));
+})();
+const arquivo = (texto, nome = 'financas-2026-10-22.json') => ({ name: nome, mimeType: 'application/json', buffer: Buffer.from(texto) });
 // com duas ou mais carteiras o painel abre no Resumo; as telas de uma carteira clicam na aba dela antes
 const aba = (id, depois) => async pg => { await pg.click(`[data-carteira="${id}"]`); if (depois) await depois(pg); };
 // cartão inventado e ambíguo de propósito: 03/04/2026, 1.234 e compras sem sinal
@@ -283,6 +294,9 @@ for (const w of [1280, 390]) {
   // julho e agosto confirmados, outubro só sugerido: a previsão da carteira avisa e não pinta o estouro de vermelho
   t('45-previsao-transferencia-sugerida', { storage: CONFIRMADAS, prepara: aba('c1') });
   t('44-excluir-carteira-transferencias', { storage: CONFIRMADAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('[data-wexcluir=c2]'); } });
+  // restaurar (9.5): o resumo por carteira antes de substituir as três carteiras do Resumo, e um backup corrompido
+  t('46-restaurar-varias-carteiras', { storage: RESUMO, prepara: async pg => { await pg.setInputFiles('#fin-json', arquivo(BACKUP)); await pg.waitForSelector('[data-restaurar=confirmar]'); } });
+  t('47-restaurar-corrompido', { storage: RESUMO, viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-json', arquivo(BACKUP.slice(0, 5000))); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });
@@ -314,6 +328,50 @@ for (const s of TELAS) {
   c.contraste.forEach(x => problemas.push(`${arq}: contraste ${x}`));
   c.cortados.forEach(x => problemas.push(`${arq}: texto cortado ${x}`));
   c.sobrepostos.slice(0, 5).forEach(x => problemas.push(`${arq}: controles sobrepostos ${x}`));
+  await ctx.close();
+}
+
+// ---------- ida e volta do backup, no navegador ----------
+// carrega o backup completo, fotografa o Resumo e cada carteira, baixa o backup pelo botão, apaga tudo, restaura o
+// arquivo baixado e, depois de recarregar a página, fotografa de novo: tudo tem que ser idêntico, pixel a pixel.
+// Depois tenta restaurar o mesmo arquivo cortado ao meio: nada pode mudar no que está salvo.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, locale: 'pt-BR', timezoneId: 'Europe/Dublin', colorScheme: 'light', acceptDownloads: true });
+  const pg = await ctx.newPage();
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('ida e volta: ' + e.message));
+  const fotos = async () => {
+    const o = [];
+    for (const aba of ['resumo', 'c1', 'c2']) {
+      await pg.click(`[data-carteira="${aba}"]`);
+      await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
+      await pg.mouse.move(0, 0); await pg.waitForTimeout(300);
+      o.push(await pg.screenshot({ fullPage: true, animations: 'disabled' }));
+    }
+    return o;
+  };
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); localStorage.setItem('cortex-financas.v4', st); }, BACKUP);
+  await pg.reload(); await pg.waitForTimeout(150);
+  const antes = await fotos(), salvoAntes = await pg.evaluate(() => localStorage.getItem('cortex-financas.v4'));
+  await pg.click('[data-fin-setup]');
+  const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('[data-backup=baixar]')]);
+  const baixado = readFileSync(await dl.path(), 'utf8');
+  await pg.click('[data-apagar=pedir]'); await pg.click('[data-apagar=confirmar]');
+  const vazio = await pg.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('cortex-financas')).length);
+  await pg.setInputFiles('#fin-json', arquivo(baixado)); await pg.click('[data-restaurar=confirmar]');
+  await pg.reload(); await pg.waitForTimeout(150);
+  const depois = await fotos(), salvoDepois = await pg.evaluate(() => localStorage.getItem('cortex-financas.v4'));
+  const iguais = antes.every((b, i) => b.equals(depois[i]));
+  if (vazio) problemas.push(`ida e volta: depois de apagar tudo ficaram ${vazio} chave(s)`);
+  if (salvoAntes !== salvoDepois) problemas.push('ida e volta: os dados salvos depois de restaurar não são os de antes');
+  if (!iguais) problemas.push('ida e volta: o painel restaurado não ficou idêntico (Resumo, Revolut, Banco Exemplo)');
+  await pg.setInputFiles('#fin-json', arquivo(baixado.slice(0, Math.floor(baixado.length / 2))));
+  await pg.waitForSelector('#toast:not([hidden])');
+  const corrompido = await pg.evaluate(() => [localStorage.getItem('cortex-financas.v4'), !!document.querySelector('[data-restaurar]'), document.getElementById('toast').textContent]);
+  if (corrompido[0] !== salvoDepois || corrompido[1]) problemas.push('ida e volta: um backup corrompido mudou o que estava salvo');
+  console.log(`ida e volta do backup: ${iguais && salvoAntes === salvoDepois && !vazio ? 'painel idêntico (3 telas, pixel a pixel) e os mesmos dados salvos' : 'FALHOU'}; ` +
+    `backup corrompido: ${corrompido[0] === salvoDepois && !corrompido[1] ? 'nada gravado' : 'GRAVOU'} ("${corrompido[2]}")`);
   await ctx.close();
 }
 await browser.close();

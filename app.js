@@ -382,6 +382,27 @@
       try { var a = JSON.parse(k); return !Array.isArray(a) || a.length !== 4 || a.some(function (v) { return typeof v !== 'string'; }); } catch (e) { return true; }
     })) throw new Error('sugestões dispensadas em formato errado na carteira ' + w.id);
   }
+  /* importacao: { código do cabeçalho: { sep, data, desc, valor, ... } }, as colunas lembradas do importador */
+  function checarImportacao(imp, id) {
+    var erro = 'colunas do importador em formato errado na carteira ' + id;
+    if (imp == null) return imp;
+    if (typeof imp !== 'object' || Array.isArray(imp)) throw new Error(erro);
+    Object.keys(imp).forEach(function (k) {
+      var m = imp[k];
+      if (!m || typeof m !== 'object' || typeof m.sep !== 'string' || !(m.data >= 0) || !(m.desc >= 0) || !m.valor || typeof m.valor !== 'object') throw new Error(erro);
+    });
+    return imp;
+  }
+  /* cambios: { moeda: { rate, data } }, quantos dessa moeda valem 1 da principal e quando a pessoa informou */
+  function checarCambios(cs) {
+    if (cs == null) return {};
+    if (typeof cs !== 'object' || Array.isArray(cs)) throw new Error('câmbio em formato errado');
+    Object.keys(cs).forEach(function (m) {
+      var c = cs[m];
+      if (!/^[A-Z]{3}$/.test(m) || !c || typeof c !== 'object' || !isFinite(+c.rate) || +c.rate < 0 || (c.data != null && !ISO.test(c.data))) throw new Error('câmbio de ' + m + ' em formato errado');
+    });
+    return cs;
+  }
   function semCarteira(transf, ids) {
     var o = {}; Object.keys(transf).forEach(function (k) { if (ids[transf[k].c]) o[k] = transf[k]; }); return o;
   }
@@ -400,13 +421,14 @@
         over: c.over || {}, summary: c.summary || null, metas: c.metas || {}, transf: c.transf || {}, sugDispensadas: c.sugDispensadas || [] });
       w.periodos = c.periodos === undefined ? periodosMigrados(w) : checarPeriodos(c.periodos, c.id);
       checarTransf(w);
+      checarImportacao(w.importacao, c.id);
       return w;
     });
     /* transferência com uma carteira que não existe mais (backup antigo): sai, e a ponta volta ao que era */
     carteiras.forEach(function (w) { w.transf = semCarteira(w.transf, ids); w.sugDispensadas = w.sugDispensadas.filter(function (k) { return ids[JSON.parse(k)[0]] && ids[JSON.parse(k)[2]]; }); });
     var config = Object.assign({}, x.config || {});
     if (!config.moedaPrincipal) config.moedaPrincipal = carteiras[0].moeda;
-    return { v: 4, config: config, carteiras: carteiras, ativa: ids[x.ativa] ? x.ativa : carteiras[0].id, cambios: x.cambios || {}, div: x.div || null };
+    return { v: 4, config: config, carteiras: carteiras, ativa: ids[x.ativa] ? x.ativa : carteiras[0].id, cambios: checarCambios(x.cambios), div: x.div || null };
   }
   function migrate(x, titularAntigo) {
     if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
@@ -542,6 +564,22 @@
     });
     var ks = Object.keys(meses).sort();
     return { meses: ks.length, de: ks[0] || null, ate: ks[ks.length - 1] || null, mov: mov };
+  }
+  /* o que um backup traz, para confirmar antes de substituir: cada carteira (nome, moeda, meses, período dos
+     extratos, movimentos), o câmbio com a data, transferências confirmadas e dispensadas e as carteiras com
+     colunas do importador lembradas. x = v4 (lerSalvo) */
+  function resumoBackup(x) {
+    var disp = {}, transf = 0;
+    var cs = x.carteiras.map(function (c) {
+      var r = resumoDados(c), ps = c.periodos || [];
+      Object.keys(c.transf || {}).forEach(function (k) { if (c.transf[k].lado === 's') transf++; });
+      (c.sugDispensadas || []).forEach(function (k) { disp[k] = 1; });
+      return { id: c.id, nome: c.nome, moeda: c.moeda, meses: r.meses, mov: r.mov, de: ps.length ? ps[0].de : null, ate: ps.length ? ps[ps.length - 1].ate : null,
+        trechos: ps.length, colunas: Object.keys(c.importacao || {}).length };
+    });
+    return { carteiras: cs, moedaPrincipal: x.config.moedaPrincipal, titular: x.config.titular || '',
+      cambios: Object.keys(x.cambios || {}).sort().map(function (m) { return { moeda: m, rate: +x.cambios[m].rate, data: x.cambios[m].data || null }; }),
+      transf: transf, dispensadas: Object.keys(disp).length };
   }
   /* contas fixas e assinaturas: o mesmo nome (sem os números) cobrado uma vez por mês, com valor parecido,
      perto do mesmo dia do mês (3 dias de folga), em pelo menos 2 dos últimos 3 meses.
@@ -2029,11 +2067,25 @@
       '</div></fieldset>';
   }
   function telaRestaurar() {
-    var R = S.restaurar, atual = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : (temDados() ? 'o que está salvo neste navegador: ' + resumoTxt(dadosAtuais()) : '');
+    var R = S.restaurar, B = resumoBackup(R.dados), ag = dadosAtuais(), nAg = ag.carteiras.length;
+    var atual = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : (temDados() ? 'tudo o que está salvo neste navegador: ' + (nAg > 1 ? nAg + ' carteiras (' + nomes(ag.carteiras.map(function (c) { return c.nome; })) + '), ' : '') + resumoTxt(ag) : '');
+    var mp = B.moedaPrincipal, extra = [];
+    if (B.cambios.length) extra.push('Câmbio: ' + B.cambios.map(function (c) {
+      return '1 ' + esc(simbolo(mp)) + ' = ' + esc(nr.format(c.rate)) + ' ' + esc(simbolo(c.moeda)) + (c.data ? ' (informado em ' + esc(dFull(c.data)) + ')' : '');
+    }).join(' · ') + '.');
+    if (B.transf || B.dispensadas) extra.push([B.transf ? B.transf + (B.transf === 1 ? ' transferência entre carteiras confirmada' : ' transferências entre carteiras confirmadas') : '',
+      B.dispensadas ? B.dispensadas + (B.dispensadas === 1 ? ' sugestão dispensada' : ' sugestões dispensadas') : ''].filter(Boolean).join(' e ') + '.');
+    var col = B.carteiras.filter(function (c) { return c.colunas; });
+    if (col.length) extra.push('Colunas do importador lembradas para ' + esc(nomes(col.map(function (c) { return c.nome; }))) + '.');
     return '<section class="sec"><div class="sec-top"><h2>Restaurar backup</h2><span class="hint">' + esc(R.nome) + '</span></div><div class="card ggrid">' +
-      '<p>No arquivo: <b>' + esc(resumoTxt(R.dados)) + '</b>' + (R.dados.config.titular ? ', titular ' + esc(R.dados.config.titular) : '') + '.</p>' +
+      '<p>No arquivo: <b>' + (B.carteiras.length === 1 ? 'uma carteira' : B.carteiras.length + ' carteiras') + '</b>, somas em ' + esc(nomeMoeda(mp)) + (B.titular ? ', titular ' + esc(B.titular) : '') + '.</p>' +
+      '<div class="tw"><table class="rpor rbk"><thead><tr><th>Carteira</th><th>Moeda</th><th>Meses</th><th>Período dos extratos</th><th>Movimentos</th></tr></thead><tbody>' +
+      B.carteiras.map(function (c) {
+        return '<tr><td>' + esc(c.nome) + '</td><td data-l="Moeda">' + esc(c.moeda) + '</td>' + (c.mov ? '<td data-l="Meses">' + c.meses + '</td><td data-l="Período">' + (c.de ? esc(dFull(c.de)) + ' a ' + esc(dFull(c.ate)) + (c.trechos > 1 ? ' <small>em ' + c.trechos + ' trechos</small>' : '') : '–') + '</td><td data-l="Movimentos">' + c.mov + '</td>' : '<td colspan="3" class="sem">sem extrato</td>') + '</tr>';
+      }).join('') + '</tbody></table></div>' +
+      (extra.length ? '<ul class="bkx">' + extra.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' : '') +
       (atual ? '<p class="aviso">Isso substitui ' + esc(atual) + '. Não dá para desfazer.</p>' : '') +
-      '<div class="grupo"><button class="btn pri" type="button" data-restaurar="confirmar">' + (atual ? 'Substituir pelos dados do backup' : 'Restaurar') + '</button>' +
+      '<div class="grupo"><button class="btn pri" type="button" data-restaurar="confirmar">' + (atual ? 'Substituir tudo pelos dados do backup' : 'Restaurar') + '</button>' +
       (temDados() && !S.bloqueado ? '<button class="btn" type="button" data-backup="baixar">Baixar backup dos dados atuais antes</button>' : '') +
       '<button class="btn" type="button" data-restaurar="cancelar">Cancelar</button></div></div></section>';
   }

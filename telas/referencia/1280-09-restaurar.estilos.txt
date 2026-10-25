@@ -8,8 +8,8 @@ head>link e23mv3 18aoc6 18aoc6
 head>link e23mv3 18aoc6 18aoc6
 head>style e23mv3 18aoc6 18aoc6
 body 1y4omft 1ln8j76 1ln8j76
-body>main.wrap hzjkww 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 1vycdyy 1yytz64 1yytz64
+body>main.wrap 10wbnw8 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin e8zyku 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top hxtfdx 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div 1nihfk7 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca tm2cx9 13gxe7u 13gxe7u
@@ -19,16 +19,34 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm 
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.primario z78tfl cjuxk0 cjuxk0
-body>main.wrap>section#fin-app.view.fin>section.sec 1fr83da 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section.sec 2m3qvs 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top y0e8na 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top>h2 xta6dw o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top>span.hint 1f0ujsh 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid rlb43h 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid 6v1n9n 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>p 1ofk6h0 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>p>b 1d6zcrf 1xiaztz 1xiaztz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw b30m5t 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk 1yfy9dg 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead 1lgmb6o 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead>tr ar8yrp 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead>tr>th 17sj6y5 1qh1isz 1qh1isz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead>tr>th 17sk1jd 1qh1isz 1qh1isz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead>tr>th 6wv3ay 7u301e 7u301e
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead>tr>th 1x3jc4u 1qh1isz 1qh1isz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>thead>tr>th 1u6g1py 7u301e 7u301e
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody 1ny52lr 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody>tr 1bhe21p 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody>tr>td 15pefmt b0gxfb b0gxfb
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody>tr>td qx6sv1 b0gxfb b0gxfb
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody>tr>td 1wipcyu 1wiae4e 1wiae4e
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody>tr>td j3rtu2 b0gxfb b0gxfb
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.tw>table.rpor.rbk>tbody>tr>td hf8c6 1wiae4e 1wiae4e
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>ul.bkx 1iyp731 vnygsh vnygsh
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>ul.bkx>li lri15w vnygsh vnygsh
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>p.aviso 9taty vnygsh vnygsh
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.grupo i6aoip 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.grupo>button.btn.pri 1u87dk4 cjuxk0 cjuxk0
+body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.grupo>button.btn.pri oyv5th cjuxk0 cjuxk0
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.grupo>button.btn 13znsbp 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.ggrid>div.grupo>button.btn qawypb 7k9go8 7k9go8
 body>div#toast.toast c8u0id 1ln8j76 1ln8j76
@@ -36,6 +54,6 @@ body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
 body>script 19y7pzz 1ln8j76 1ln8j76
-body>input#fin-csv.vh 1p1nvjy 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 1p1nvjy 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh 1781gwa 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh 1781gwa 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 1xksmq8 kiu4ug kiu4ug

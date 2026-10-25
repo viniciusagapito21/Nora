@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, resumoBackup, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos };')();
 }
 function months(api) {
   const m = {};
@@ -1210,4 +1210,90 @@ test('previsão com transferência sugerida ainda não confirmada: diz quanto ve
   const y = parDeCarteiras(api, { tx: [...fixo, saida('2026-10-05', 15000)], over: { 'TO FULANO EXEMPLO': '_ignore' } }, { tx: [entrada('2026-10-06', 15000)] });
   const Ry = api.resumir(y), Sy = api.sugerirTransferencias(Ry, y);
   assert.equal(Sy.pares[0].ja, 's'); assert.equal(api.previsaoResumo(Ry, y, Sy).nPend, 0);
+});
+
+// backup com várias carteiras (9.5): o Revolut inventado, o banco do exemplo de transferências (real) com as colunas
+// lembradas, câmbio com data, uma transferência confirmada e uma sugestão dispensada
+function backupCompleto(api) {
+  const bytes = new Uint8Array(readFileSync(new URL('../exemplo/extrato-transferencia-exemplo.csv', import.meta.url)));
+  const p = api.prepararImportacao(bytes); p.mapa.valor.saidas = 'negativas';
+  const r = api.interpretarCSV(p.rows, p.mapa);
+  const sai = [saida('2026-07-05', 15000, 'To MARIA SILVA'), saida('2026-10-05', 15000, 'To MARIA SILVA'), ['2026-10-12', 'Tesco', 'Groceries', -4210, null]];
+  let x = parDeCarteiras(api, { tx: sai }, { moeda: 'BRL', tx: r.tx }, { BRL: { rate: 6.2, data: '2026-09-10' }, USD: { rate: 1.08, data: '2026-10-15' } });
+  x.carteiras[1] = { ...x.carteiras[1], nome: 'Banco Exemplo', periodos: api.juntarPeriodos([], r.periodo), importacao: api.lembrarMapa({}, p.rows, p.mapa) };
+  const ps = sugeridas(api, x).pares;
+  assert.equal(ps.length, 2, 'julho e outubro');
+  x = api.confirmarTransferencia(x, parDe(ps[1]));
+  x = api.dispensarSugestao(x, parDe(ps[0]));
+  return x;
+}
+const painel = (api, x) => {
+  const R = api.resumir(x), S = api.sugerirTransferencias(R, x);
+  return { R, S, C: api.transferenciasConfirmadas(R), P: api.previsaoResumo(R, x, S), meses: R.meses.map(m => api.mesResumo(R, x, m)) };
+};
+
+test('backup com várias carteiras: baixar, apagar tudo e restaurar deixa o painel idêntico', () => {
+  const api = load(), x = backupCompleto(api);
+  const texto = JSON.stringify({ ...x, exportadoEm: '2026-10-22T10:00:00.000Z' }, null, 1);
+  // apagar tudo: nada sobra do lado de cá; o que volta vem só do texto do arquivo
+  const volta = api.lerSalvo(texto, '');
+  assert.deepEqual(volta, api.migrate(JSON.parse(JSON.stringify(x))), 'os dados voltam iguais');
+  for (const k of ['cambios', 'config', 'ativa', 'div']) assert.deepEqual(volta[k], x[k], k);
+  volta.carteiras.forEach((c, i) => {
+    for (const k of ['nome', 'moeda', 'months', 'over', 'periodos', 'transf', 'sugDispensadas', 'importacao', 'metas']) assert.deepEqual(c[k], x.carteiras[i][k], c.id + ' ' + k);
+  });
+  assert.equal(Object.keys(volta.carteiras[0].transf).length, 1); assert.equal(volta.carteiras[0].sugDispensadas.length, 1);
+  assert.deepEqual(painel(api, volta), painel(api, x), 'o painel fica idêntico');
+  assert.deepEqual(api.lerSalvo(JSON.stringify(volta)), volta, 'um segundo backup do restaurado é o mesmo');
+});
+
+test('restaurar mostra um resumo por carteira antes de substituir', () => {
+  const api = load(), B = api.resumoBackup(api.lerSalvo(JSON.stringify(backupCompleto(api))));
+  assert.deepEqual(B.carteiras.map(c => [c.nome, c.moeda, c.meses, c.de, c.ate, c.mov, c.colunas]), [
+    ['Revolut', 'EUR', 2, '2026-07-05', '2026-10-12', 3, 0],
+    ['Banco Exemplo', 'BRL', 4, '2026-07-01', '2026-10-20', B.carteiras[1].mov, 1]]);
+  assert.ok(B.carteiras[1].mov > 5);
+  assert.deepEqual(B.cambios, [{ moeda: 'BRL', rate: 6.2, data: '2026-09-10' }, { moeda: 'USD', rate: 1.08, data: '2026-10-15' }]);
+  assert.equal(B.transf, 1, 'o par conta uma vez, não uma por carteira');
+  assert.equal(B.dispensadas, 1);
+  assert.equal(B.moedaPrincipal, 'EUR'); assert.equal(B.titular, 'MARIA SILVA');
+});
+
+test('backups antigos continuam aceitos: v1, v2, v3 e a v4 de antes dos períodos e das transferências', () => {
+  const api = load();
+  const tx = [['2026-09-01', 'Tesco', 'Merchant', -1000, 0], ['2026-09-20', 'Lidl', 'Merchant', -500, 0]];
+  const v1 = { months: { '2026-09': tx }, over: {}, plan: { cats: { mercado: 200 } }, summary: null };
+  const v2 = { v: 2, months: { '2026-09': tx }, over: {}, plan: { titular: 'ANA', moeda: 'EUR', pais: 'IE', nomes: {} }, summary: null, div: { items: [{ id: 'd1', nome: 'X', brl: 100 }], cambio: { rate: 6 } } };
+  const v3 = { v: 3, months: { '2026-09': tx }, over: {}, plan: { titular: 'ANA', moeda: 'EUR', pais: 'IE' }, summary: null, div: null };
+  // v4 como era antes do 9.3/9.4: sem periodos, transf, sugDispensadas e importacao
+  const v4 = { v: 4, config: { titular: 'ANA', moedaPrincipal: 'EUR' }, ativa: 'c1', cambios: { BRL: { rate: 6.1 } }, div: null,
+    carteiras: [{ id: 'c1', nome: 'Revolut', moeda: 'EUR', pais: 'IE', banco: 'revolut', months: { '2026-09': tx }, over: {}, summary: null, metas: {} },
+      { id: 'c2', nome: 'Nubank', moeda: 'BRL', pais: 'BR', banco: 'outro', months: {}, over: {}, summary: null, metas: {} }] };
+  for (const [nome, x, n] of [['v1', v1, 1], ['v2', v2, 1], ['v3', v3, 1], ['v4 anterior', v4, 2]]) {
+    const y = api.lerSalvo(JSON.stringify(x), 'MARIA SILVA'), B = api.resumoBackup(y);
+    assert.equal(B.carteiras.length, n, nome);
+    assert.deepEqual([B.carteiras[0].meses, B.carteiras[0].mov, B.carteiras[0].de, B.carteiras[0].ate], [1, 2, '2026-09-01', '2026-09-20'], nome + ': período vem das datas');
+    assert.deepEqual(y.carteiras[0].transf, {}, nome); assert.deepEqual(y.carteiras[0].sugDispensadas, [], nome);
+  }
+  assert.deepEqual(api.resumoBackup(api.lerSalvo(JSON.stringify(v2))).cambios, [{ moeda: 'BRL', rate: 6, data: null }], 'o câmbio da v2 migra');
+});
+
+test('backup corrompido: lerSalvo recusa com o motivo, antes de qualquer coisa ser gravada', () => {
+  const api = load(), x = JSON.parse(JSON.stringify(backupCompleto(api))), texto = JSON.stringify(x);
+  const estraga = fn => { const y = JSON.parse(texto); fn(y); return JSON.stringify(y); };
+  const casos = [
+    [texto.slice(0, texto.length / 2), /não é JSON válido/],
+    [estraga(y => { y.carteiras = {}; }), /nenhuma carteira/],
+    [estraga(y => { y.carteiras[1].months['2026-07'] = 'x'; }), /mês 2026-07 em formato errado/],
+    [estraga(y => { y.carteiras[1].periodos = [{ de: '01/07/2026', ate: '2026-10-20' }]; }), /períodos em formato errado na carteira c2/],
+    [estraga(y => { y.carteiras[0].transf[Object.keys(y.carteiras[0].transf)[0]].lado = 'x'; }), /transferências em formato errado na carteira c1/],
+    [estraga(y => { y.carteiras[0].sugDispensadas = ['[1,2]']; }), /sugestões dispensadas em formato errado/],
+    [estraga(y => { y.cambios.BRL.rate = 'abc'; }), /câmbio de BRL em formato errado/],
+    [estraga(y => { y.cambios.BRL.data = '10/09/2026'; }), /câmbio de BRL em formato errado/],
+    [estraga(y => { y.cambios = [6.2]; }), /câmbio em formato errado/],
+    [estraga(y => { y.carteiras[1].importacao = { k: { sep: ';' } }; }), /colunas do importador em formato errado na carteira c2/],
+    [estraga(y => { y.carteiras[1].moeda = 'real'; }), /moeda real inválida/],
+  ];
+  casos.forEach(([t, erro]) => assert.throws(() => api.lerSalvo(t, ''), erro));
+  assert.doesNotThrow(() => api.lerSalvo(texto, ''), 'o original continua bom');
 });

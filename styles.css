@@ -663,3 +663,16 @@ html, body { overflow-x: clip; }
   .fin .tpar .tl + .tseta + .tl { padding-top: 8px; border-top: 1px dashed var(--line); }
   .fin .tpar .grupo .btn { flex: 1 1 100%; }
 }
+.fin table.rbk th:nth-child(2), .fin table.rbk td:nth-child(2), .fin table.rbk th:nth-child(4), .fin table.rbk td:nth-child(4) { text-align: left; }
+.fin ul.bkx { margin: 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--soft); line-height: 1.5; }
+.fin ul.bkx li + li { margin-top: 4px; }
+/* no celular, cada carteira do backup vira um bloco: nome em cima, os números com rótulo embaixo */
+@media (max-width: 520px) {
+  .fin table.rbk thead { display: none; }
+  .fin table.rbk tr { display: block; padding: 10px 12px; border-top: 1px solid var(--line); }
+  .fin table.rbk tr:first-child { border-top: 0; }
+  .fin table.rbk td { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; border: 0; white-space: normal; text-align: right; position: static; }
+  .fin table.rbk td:first-child { font-weight: 600; padding-bottom: 4px; }
+  .fin table.rbk td[data-l]::before { content: attr(data-l); color: var(--muted); text-align: left; }
+  .fin table.rbk td:nth-child(4) { text-align: right; }
+}
