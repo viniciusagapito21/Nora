@@ -1549,3 +1549,39 @@ test('leitor de planilhas: o arquivo do projeto é o conferido, e a página não
   assert.doesNotMatch(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /vendor\//);
   assert.match(appJs, /s\.src = 'vendor\/sheetjs\/xlsx\.core\.min\.js'/);
 });
+
+// ---------- segurança de conteúdo (CSP) ----------
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'";
+
+test('CSP: a política vem logo depois do charset, com no-referrer, e a página não tem script nem estilo inline', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const metas = [...html.matchAll(/<meta [^>]*>/g)].map(m => m[0]);
+  assert.equal(metas[0], '<meta charset="utf-8">');
+  assert.equal(metas[1], `<meta http-equiv="Content-Security-Policy" content="${CSP}">`, 'a política, igual à aprovada');
+  assert.equal(metas[2], '<meta name="referrer" content="no-referrer">');
+  assert.ok(html.indexOf('Content-Security-Policy') < html.search(/<(link|script|style)\b/), 'antes de qualquer arquivo');
+  assert.doesNotMatch(html, /<style\b/, 'nenhum bloco <style>');
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/, 'nenhum <script> sem src');
+  assert.doesNotMatch(html, /\son[a-z]+\s*=/i, 'nenhum atributo onclick=, onload=…');
+  for (const f of ['app.js', 'rules/ie.js', 'rules/br.js']) {
+    const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+    assert.doesNotMatch(s, /\son(click|change|input|load|error|submit|focus|blur|key\w*|mouse\w*|pointer\w*|touch\w*)\s*=/i, f + ' gera atributo on…=');
+    assert.doesNotMatch(s, /javascript:/i, f);
+    assert.doesNotMatch(s, /\beval\s*\(|new Function\s*\(/, f + ' usa eval ou new Function (a CSP bloquearia)');
+    assert.doesNotMatch(s, /<style\b/, f + ' gera bloco <style>');
+  }
+});
+
+test('CSP não restringe navegação: nenhum código do projeto navega, abre janela ou manda beacon', () => {
+  // navegação de verdade: location sozinho ou de window/document/self/top/parent (não a propriedade "location" de
+  // outro objeto, que o SheetJS usa para hiperlinks e arquivos do Numbers), open( sozinho ou window.open, e sendBeacon
+  const NAVEGA = [
+    /(?<![\w$.\]])location\s*(?:=(?!=)|\.\s*(?:href|assign|replace)\b)/,
+    /\b(?:window|document|self|top|parent|globalThis)\s*\.\s*location\b/,
+    /(?<![\w$.])open\s*\(/, /\bwindow\s*\.\s*open\b/, /sendBeacon/
+  ];
+  for (const f of ['app.js', 'rules/ie.js', 'rules/br.js', 'vendor/sheetjs/xlsx.core.min.js']) {
+    const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+    for (const re of NAVEGA) assert.doesNotMatch(s, re, f + ': ' + re);
+  }
+});

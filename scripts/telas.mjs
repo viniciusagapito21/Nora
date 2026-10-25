@@ -8,7 +8,8 @@
 //   npm run telas:aprovar    fotografa, confere e, se a conferência passar, troca as referências pelas novas
 //
 // Roda num servidor local próprio (127.0.0.1, porta livre); nenhum dado sai da máquina.
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
+import { pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { createServer } from 'node:http';
 import { xlsxAMao, paraCelulas } from '../tests/planilhas.mjs';
@@ -32,7 +33,12 @@ const servidor = createServer((req, res) => {
   res.end(readFileSync(f));
 });
 await new Promise(r => servidor.listen(0, '127.0.0.1', r));
-const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
+const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`, ORIGEM = new URL(URL_PAGINA).origin;
+// CSP: toda violação vira problema; e cada tela só pode pedir arquivos da própria pasta (nada de fetch, XHR,
+// WebSocket, EventSource, beacon), nem de outra origem
+const anotarViolacoes = () => { window.__violacoes = []; document.addEventListener('securitypolicyviolation', e => window.__violacoes.push(e.violatedDirective + ' ' + (e.blockedURI || ''))); };
+const TIPOS_PERMITIDOS = ['document', 'script', 'stylesheet', 'font', 'image'];
+const pedidoPermitido = r => (r.url().startsWith(ORIGEM + '/') && TIPOS_PERMITIDOS.includes(r.resourceType())) || /^(blob|data):/.test(r.url());
 
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
@@ -178,8 +184,9 @@ function estilosDaPagina() {
     }
     return p.join('>');
   };
-  // <script> não aparece na tela: fica fora, para um arquivo de regras novo não contar como mudança
-  return Array.from(document.querySelectorAll('*')).filter(el => el.tagName !== 'SCRIPT').map(el => caminho(el) + ' ' + h(sig(el)) + ' ' + h(sig(el, '::before')) + ' ' + h(sig(el, '::after')) +
+  // <script> e o <head> (meta, título, links) não aparecem na tela: ficam fora, para um arquivo de regras ou uma
+  // <meta> nova não contarem como mudança
+  return [document.body, ...document.querySelectorAll('body *')].filter(el => el.tagName !== 'SCRIPT').map(el => caminho(el) + ' ' + h(sig(el)) + ' ' + h(sig(el, '::before')) + ' ' + h(sig(el, '::after')) +
     (el.matches('input,textarea') ? ' ' + h(sig(el, '::placeholder')) : '')).join('\n');
 }
 // conferência: elementos além da borda (o CSS usa overflow-x: clip, então o excesso some em vez de rolar),
@@ -322,12 +329,16 @@ for (const w of [1280, 390]) {
 rmSync(ATUAL, { recursive: true, force: true }); mkdirSync(ATUAL, { recursive: true });
 const browser = await chromium.launch();
 const erros = [], problemas = [];
+// motores que não abriram: não reprovam a conferência (não é defeito da página), mas saem em destaque no fim
+const naoVerificados = [];
 for (const s of TELAS) {
   const arq = `${s.w}-${s.nome}`;
   const ctx = await browser.newContext({ viewport: { width: s.w, height: s.w > 600 ? 900 : 844 }, deviceScaleFactor: 1, locale: 'pt-BR', timezoneId: 'Europe/Dublin', colorScheme: 'light' });
   const pg = await ctx.newPage();
   await pg.clock.setFixedTime(AGORA);
   pg.on('pageerror', e => erros.push(arq + ': ' + e.message));
+  await pg.addInitScript(anotarViolacoes);
+  pg.on('request', r => { if (!pedidoPermitido(r)) problemas.push(`${arq}: pedido fora do permitido: ${r.resourceType()} ${r.url()}`); });
   pg.on('console', m => { if (m.type() === 'error') erros.push(arq + ': ' + m.text()); });
   await pg.goto(URL_PAGINA);
   await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, s.storage || {});
@@ -340,6 +351,7 @@ for (const s of TELAS) {
   await pg.waitForTimeout(800);
   await pg.screenshot({ path: join(ATUAL, arq + '.png'), fullPage: !s.viewport, animations: 'disabled' });
   writeFileSync(join(ATUAL, arq + '.estilos.txt'), await pg.evaluate(estilosDaPagina));
+  (await pg.evaluate(() => window.__violacoes)).forEach(v => problemas.push(`${arq}: violação da CSP: ${v}`));
   const c = await pg.evaluate(conferir);
   if (c.fora > 0) problemas.push(`${arq}: passa ${c.fora}px da borda da tela (${c.ex})`);
   c.contraste.forEach(x => problemas.push(`${arq}: contraste ${x}`));
@@ -357,6 +369,8 @@ for (const s of TELAS) {
   const pg = await ctx.newPage();
   await pg.clock.setFixedTime(AGORA);
   pg.on('pageerror', e => erros.push('ida e volta: ' + e.message));
+  await pg.addInitScript(anotarViolacoes);
+  pg.on('request', r => { if (!pedidoPermitido(r)) problemas.push(`ida e volta: pedido fora do permitido: ${r.resourceType()} ${r.url()}`); });
   const fotos = async () => {
     const o = [];
     for (const aba of ['resumo', 'c1', 'c2']) {
@@ -387,6 +401,7 @@ for (const s of TELAS) {
   await pg.waitForSelector('#toast:not([hidden])');
   const corrompido = await pg.evaluate(() => [localStorage.getItem('cortex-financas.v4'), !!document.querySelector('[data-restaurar]'), document.getElementById('toast').textContent]);
   if (corrompido[0] !== salvoDepois || corrompido[1]) problemas.push('ida e volta: um backup corrompido mudou o que estava salvo');
+  (await pg.evaluate(() => window.__violacoes)).forEach(v => problemas.push(`ida e volta: violação da CSP: ${v}`));
   console.log(`ida e volta do backup: ${iguais && salvoAntes === salvoDepois && !vazio ? 'painel idêntico (3 telas, pixel a pixel) e os mesmos dados salvos' : 'FALHOU'}; ` +
     `backup corrompido: ${corrompido[0] === salvoDepois && !corrompido[1] ? 'nada gravado' : 'GRAVOU'} ("${corrompido[2]}")`);
   await ctx.close();
@@ -413,12 +428,87 @@ for (const s of TELAS) {
   await ctx.close();
 }
 await browser.close();
+
+// ---------- CSP nos três motores (Chromium, Firefox, WebKit), pelo servidor local e aberta do disco (file://) ----------
+// Em cada um: o painel abre, uma planilha é lida (o SheetJS carrega), o backup é baixado, sem nenhuma violação.
+// Depois a prova da isca: um segundo servidor, em outra porta, conta toda conexão que recebe; a página tenta
+// alcançá-lo de 12 jeitos e tem que dar zero. Navegação (location, window.open, links, envio de formulário) não é
+// tentada: a CSP em <meta> não a restringe, e isso é coberto por um teste estático (veja o CLAUDE.md).
+{
+  let conexoes = 0;
+  const isca = createServer((req, res) => res.end('isca'));
+  isca.on('connection', () => { conexoes++; });
+  await new Promise(r => isca.listen(0, '127.0.0.1', r));
+  const ISCA = `http://127.0.0.1:${isca.address().port}`;
+  const tentativas = async ISCA => {
+    const r = {}, ate = p => Promise.race([p, new Promise(ok => setTimeout(() => ok('sem resposta'), 1500))]);
+    const evento = (el, ok) => { el.onload = () => ok('passou'); el.onerror = () => ok('bloqueado'); };
+    r.fetch = await ate(fetch(ISCA + '/fetch').then(() => 'passou', () => 'bloqueado'));
+    r.fetchMesmaOrigem = await ate(fetch('index.html').then(() => 'passou', () => 'bloqueado'));
+    r.xhr = await ate(new Promise(ok => { const x = new XMLHttpRequest(); evento(x, ok); try { x.open('GET', ISCA + '/xhr'); x.send(); } catch (e) { ok('bloqueado'); } }));
+    r.websocket = await ate(new Promise(ok => { try { const w = new WebSocket(ISCA.replace('http', 'ws') + '/ws'); w.onopen = () => ok('passou'); w.onerror = () => ok('bloqueado'); } catch (e) { ok('bloqueado'); } }));
+    r.eventsource = await ate(new Promise(ok => { try { const e = new EventSource(ISCA + '/es'); e.onopen = () => ok('passou'); e.onerror = () => { e.close(); ok('bloqueado'); }; } catch (er) { ok('bloqueado'); } }));
+    try { r.beacon = navigator.sendBeacon(ISCA + '/beacon', 'x') ? 'aceito pelo navegador' : 'bloqueado'; } catch (e) { r.beacon = 'bloqueado'; }
+    r.imagem = await ate(new Promise(ok => { const i = new Image(); evento(i, ok); i.src = ISCA + '/imagem'; }));
+    r.script = await ate(new Promise(ok => { const s = document.createElement('script'); evento(s, ok); s.src = ISCA + '/script.js'; document.head.appendChild(s); }));
+    r.fonte = await ate(new FontFace('Isca', `url(${ISCA}/fonte.woff2)`).load().then(() => 'passou', () => 'bloqueado'));
+    const f = document.createElement('iframe'); f.src = ISCA + '/iframe'; document.body.appendChild(f); r.iframe = 'tentado';
+    const l = document.createElement('link'); l.rel = 'prefetch'; l.href = ISCA + '/prefetch'; document.head.appendChild(l); r.prefetch = 'tentado';
+    // o atributo style é permitido (style-src-attr), mas o url() dentro dele não alcança nada (img-src 'self')
+    const d = document.createElement('div'); d.setAttribute('style', `width:10px;height:10px;background-image:url(${ISCA}/estilo)`); document.body.appendChild(d);
+    getComputedStyle(d).backgroundImage; r.urlNoStyle = 'tentado';
+    await new Promise(ok => setTimeout(ok, 1500));
+    return r;
+  };
+  for (const tipo of [chromium, firefox, webkit]) {
+    let b;
+    try { b = await tipo.launch({ timeout: 60000 }); }
+    catch (e) { naoVerificados.push(`${tipo.name()}: o navegador não abriu (${e.message.split('\n')[0]})`); console.log(`CSP ${tipo.name()}: NÃO VERIFICADO, o navegador não abriu`); continue; }
+    for (const modo of ['servidor', 'file://']) {
+      const rot = `CSP ${tipo.name()} ${modo}`, antes = conexoes, falhas = [];
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin', acceptDownloads: true });
+      const pg = await ctx.newPage();
+      await pg.addInitScript(anotarViolacoes);
+      pg.on('pageerror', e => falhas.push('erro na página: ' + e.message));
+      try {
+        await pg.goto(modo === 'servidor' ? URL_PAGINA : pathToFileURL(join(RAIZ, 'index.html')).href);
+        await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comGenerica(false));
+        await pg.reload(); await pg.waitForSelector('.vazio-grande, #fin-app .sec', { timeout: 10000 });
+        const fontes = await pg.evaluate(async () => { await document.fonts.ready; return [...document.fonts].filter(f => f.status === 'loaded').length; });
+        if (!fontes) falhas.push('nenhuma fonte do projeto carregou');
+        await pg.setInputFiles('#fin-csv', PLANILHA); await pg.waitForSelector('#fin-fimp', { timeout: 10000 });
+        if (!(await pg.evaluate(() => typeof window.XLSX === 'object'))) falhas.push('o SheetJS não carregou');
+        await pg.click('[data-imp=cancelar]');
+        await pg.click('[data-fin-setup]');
+        const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 10000 }), pg.click('[data-backup=baixar]')]);
+        const bk = JSON.parse(readFileSync(await dl.path(), 'utf8'));
+        if (bk.v !== 4 || !bk.carteiras || bk.carteiras.length !== 2) falhas.push('o backup baixado não é o esperado');
+        const v = await pg.evaluate(() => window.__violacoes);
+        v.forEach(x => falhas.push('violação da CSP no uso normal: ' + x));
+        const r = await pg.evaluate(tentativas, ISCA);
+        const passaram = Object.entries(r).filter(([, x]) => x === 'passou').map(([k]) => k);
+        if (passaram.length) falhas.push('passaram pela CSP: ' + passaram.join(', '));
+        const nV = (await pg.evaluate(() => window.__violacoes)).length;
+        const n = conexoes - antes;
+        if (n) falhas.push(`a isca recebeu ${n} conexão(ões)`);
+        console.log(`${rot}: ${falhas.length ? 'FALHOU' : 'ok'}; painel, planilha (SheetJS) e backup sem violação; ` +
+          `isca: 12 tentativas, ${n} conexões recebidas, ${nV} violações registradas (${Object.entries(r).map(([k, x]) => k + ' ' + x).join(', ')})`);
+      } catch (e) { falhas.push('não terminou: ' + e.message.split('\n')[0]); console.log(`${rot}: FALHOU`); }
+      falhas.forEach(f => problemas.push(`${rot}: ${f}`));
+      await ctx.close();
+    }
+    await b.close();
+  }
+  isca.close();
+}
 servidor.close();
 
 console.log(`${TELAS.length} telas fotografadas em telas/atual/`);
 console.log(erros.length ? 'erros no console:\n  ' + erros.join('\n  ') : 'console sem erros');
 console.log(problemas.length ? `conferência: ${problemas.length} problema(s)\n  ` + problemas.join('\n  ') : 'conferência: nada além da borda, nada cortado, nenhum controle sobreposto, contraste AA em todo texto');
 const falhouConferencia = erros.length || problemas.length;
+if (naoVerificados.length) console.log('\n' + '!'.repeat(78) + '\n!! CSP NÃO VERIFICADA em ' + naoVerificados.length + ' motor(es); o resto da conferência vale:\n' +
+  naoVerificados.map(x => '!!   ' + x).join('\n') + '\n!! Veja "Segurança de conteúdo (CSP)" no CLAUDE.md para voltar a testar.\n' + '!'.repeat(78));
 
 if (aprovar) {
   if (falhouConferencia) { console.log('\nreferências NÃO trocadas: resolva os problemas acima primeiro'); process.exit(1); }
@@ -435,7 +525,7 @@ const nomes = new Set([...readdirSync(REF), ...readdirSync(ATUAL)].filter(f => f
 for (const f of [...nomes].sort()) {
   if (!existsSync(join(REF, f)) || !existsSync(join(ATUAL, f))) { mudaram++; console.log(`✖ ${f}: ${existsSync(join(REF, f)) ? 'sumiu' : 'tela nova, sem referência'}`); continue; }
   const A = PNG.sync.read(readFileSync(join(REF, f))), B = PNG.sync.read(readFileSync(join(ATUAL, f)));
-  const semScript = l => !/(^|>)script /.test(l); // referências antigas ainda listam os <script>
+  const semScript = l => !/(^|>)script /.test(l) && !/^(head[ >]| )/.test(l); // referências antigas ainda listam <script>, <html> e o <head>
   const ea = readFileSync(join(REF, f.replace('.png', '.estilos.txt')), 'utf8').split('\n').filter(semScript);
   const eb = readFileSync(join(ATUAL, f.replace('.png', '.estilos.txt')), 'utf8').split('\n').filter(semScript);
   const difEst = ea.length !== eb.length ? ['quantidade de elementos: ' + ea.length + ' → ' + eb.length]

@@ -676,3 +676,7 @@ html, body { overflow-x: clip; }
   .fin table.rbk td[data-l]::before { content: attr(data-l); color: var(--muted); text-align: left; }
   .fin table.rbk td:nth-child(4) { text-align: right; }
 }
+
+/* casca mínima da página (estava num <style> no index.html; a CSP não aceita bloco de estilo inline) */
+body { margin: 0; min-height: 100vh; }
+[hidden] { display: none !important; }

@@ -1,4 +1,15 @@
 /* Nora, painel de finanças pessoais: lê extratos CSV do Revolut, categoriza, mostra metas, previsões e gráficos. Tudo fica no navegador (localStorage). */
+/* aviso rápido usado pelo painel (salvou, importou, erro); fica aqui, e não inline no index.html, por causa da CSP */
+(function () {
+  var el = document.getElementById('toast'), txt = document.getElementById('toast-txt'), t;
+  window.__cortexToast = function (msg, erro, ms) {
+    txt.textContent = msg;
+    el.classList.toggle('erro', !!erro);
+    el.hidden = false;
+    clearTimeout(t);
+    t = setTimeout(function () { el.hidden = true; }, ms || 6000);
+  };
+})();
 (function () {
   'use strict';
 
