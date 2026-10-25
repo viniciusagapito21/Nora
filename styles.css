@@ -290,6 +290,8 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .prv-n { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .fin .prv-n .l { font-size: 13px; font-weight: 600; color: var(--muted); }
 .fin .prv-n .v { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.fin .prv-n .pend { margin-top: 2px; font-size: var(--fs-sm); color: var(--soft); }
+.fin .prv .pendb { margin-top: 8px; }
 .fin .prv .s, .fin .card > .s { font-size: var(--fs-sm); color: var(--soft); line-height: 1.5; }
 .fin .prv .legend { margin-top: 0; }
 .fin .ptrack { position: relative; height: 14px; border-radius: 7px; background: var(--raised); }
@@ -632,4 +634,32 @@ html, body { overflow-x: clip; }
   .fin .rs { grid-template-columns: minmax(0, 1fr); }
   .fin .rs .rv { text-align: left; }
   .fin #fin-rfalta .grupo, .fin #fin-rfalta .btn { width: 100%; }
+}
+/* transferências entre carteiras (passo 9.4): saída e entrada lado a lado, cada uma na moeda da carteira */
+.fin .tlist { display: flex; flex-direction: column; }
+.fin .tpar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px 16px; align-items: start; padding: 16px 0; border-top: 1px solid var(--line); }
+.fin .tpar:first-child { border-top: 0; padding-top: 0; }
+.fin .tpar:last-child { padding-bottom: 0; }
+.fin .rtransf .tpar:first-child { padding-top: 8px; }
+.fin .tl { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fin .tlr { font-size: var(--fs-label); font-weight: 600; color: var(--soft); letter-spacing: 0.04em; text-transform: uppercase; }
+.fin .td { overflow-wrap: anywhere; font-size: var(--fs-sm); color: var(--soft); }
+.fin .tl .num { font-size: var(--fs-lg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fin .tseta { align-self: center; color: var(--muted); font-size: var(--fs-lg); }
+.fin .tpar .tm { grid-column: 1 / -1; margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.fin .tpar .tja { display: block; margin-top: 2px; color: var(--fg); }
+.fin .tpar .grupo { grid-column: 1 / -1; }
+.fin .rtransf { padding-bottom: 16px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.fin .rtransf + .passo { margin-top: 12px; }
+.fin #fin-transf details.metas { margin-top: 12px; }
+.fin ul.tconf { list-style: none; margin: 8px 0; padding: 0; }
+.fin ul.tconf li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 0; border-top: 1px solid var(--line); font-size: var(--fs-sm); }
+.fin ul.tconf li:first-child { border-top: 0; }
+.fin ul.tconf li > span { flex: 1 1 320px; min-width: 0; overflow-wrap: anywhere; }
+.fin ul.tconf .num { font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) {
+  .fin .tpar { grid-template-columns: minmax(0, 1fr); }
+  .fin .tseta { display: none; }
+  .fin .tpar .tl + .tseta + .tl { padding-top: 8px; border-top: 1px dashed var(--line); }
+  .fin .tpar .grupo .btn { flex: 1 1 100%; }
 }

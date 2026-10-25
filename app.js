@@ -369,6 +369,22 @@
     if (!Array.isArray(ps) || ps.some(function (p) { return !p || !ISO.test(p.de) || !ISO.test(p.ate); })) throw new Error('períodos em formato errado na carteira ' + id);
     return juntarPeriodos(ps);
   }
+  /* transf: { id do movimento: { c: carteira da outra ponta, id: movimento dela, lado: 's' | 'e', marca } };
+     sugDispensadas: chaves de par (texto JSON de [carteira e movimento da saída, carteira e movimento da entrada]) */
+  function checarTransf(w) {
+    var t = w.transf, erro = 'transferências em formato errado na carteira ' + w.id;
+    if (typeof t !== 'object' || Array.isArray(t)) throw new Error(erro);
+    Object.keys(t).forEach(function (k) {
+      var r = t[k];
+      if (!r || typeof r.c !== 'string' || typeof r.id !== 'string' || (r.lado !== 's' && r.lado !== 'e') || typeof r.marca !== 'boolean') throw new Error(erro);
+    });
+    if (!Array.isArray(w.sugDispensadas) || w.sugDispensadas.some(function (k) {
+      try { var a = JSON.parse(k); return !Array.isArray(a) || a.length !== 4 || a.some(function (v) { return typeof v !== 'string'; }); } catch (e) { return true; }
+    })) throw new Error('sugestões dispensadas em formato errado na carteira ' + w.id);
+  }
+  function semCarteira(transf, ids) {
+    var o = {}; Object.keys(transf).forEach(function (k) { if (ids[transf[k].c]) o[k] = transf[k]; }); return o;
+  }
   /* confere e completa uma v4; devolve uma cópia (nunca a mesma referência de cima) */
   function validarV4(x) {
     if (!Array.isArray(x.carteiras) || !x.carteiras.length) throw new Error('nenhuma carteira');
@@ -383,8 +399,11 @@
       var w = Object.assign({}, c, { nome: String(c.nome || 'Carteira'), pais: c.pais || 'IE', banco: c.banco || 'revolut', months: checarMeses(c.months || {}),
         over: c.over || {}, summary: c.summary || null, metas: c.metas || {}, transf: c.transf || {}, sugDispensadas: c.sugDispensadas || [] });
       w.periodos = c.periodos === undefined ? periodosMigrados(w) : checarPeriodos(c.periodos, c.id);
+      checarTransf(w);
       return w;
     });
+    /* transferência com uma carteira que não existe mais (backup antigo): sai, e a ponta volta ao que era */
+    carteiras.forEach(function (w) { w.transf = semCarteira(w.transf, ids); w.sugDispensadas = w.sugDispensadas.filter(function (k) { return ids[JSON.parse(k)[0]] && ids[JSON.parse(k)[2]]; }); });
     var config = Object.assign({}, x.config || {});
     if (!config.moedaPrincipal) config.moedaPrincipal = carteiras[0].moeda;
     return { v: 4, config: config, carteiras: carteiras, ativa: ids[x.ativa] ? x.ativa : carteiras[0].id, cambios: x.cambios || {}, div: x.div || null };
@@ -455,7 +474,11 @@
   function excluirCarteira(x, id) {
     acharCarteira(x, id);
     if (x.carteiras.length === 1) throw new Error('a única carteira não se exclui: use Apagar meus dados');
-    var resto = x.carteiras.filter(function (w) { return w.id !== id; });
+    /* as transferências com ela se desfazem: a outra ponta volta ao que era */
+    var resto = x.carteiras.filter(function (w) { return w.id !== id; }).map(function (w) {
+      var ids = {}; x.carteiras.forEach(function (c) { if (c.id !== id) ids[c.id] = 1; });
+      return Object.assign({}, w, { transf: semCarteira(w.transf || {}, ids), sugDispensadas: (w.sugDispensadas || []).filter(function (k) { var a = JSON.parse(k); return a[0] !== id && a[2] !== id; }) });
+    });
     return comPrincipal(x, resto, x.ativa === id ? resto[0].id : x.ativa);
   }
   function escolherCarteira(x, id) { acharCarteira(x, id); return Object.assign({}, x, { ativa: id }); }
@@ -597,11 +620,19 @@
     cats.forEach(function (c) { o.cats[c.id] = media(function (g) { return g.spend[c.id] || 0; }); });
     return o;
   }
-  /* saldos (carteira do importador genérico): { dia: { data: centavos }, ancora: { data, valor } } */
-  function buildModel(months, over, titular, pais, cats, saldos) {
-    var rows = [], by = {}, txs = [];
+  /* saldos (carteira do importador genérico): { dia: { data: centavos }, ancora: { data, valor } }.
+     Cada movimento ganha um id (data, descrição, valor e saldo, mais a ordem entre os idênticos: dois cafés iguais
+     no mesmo dia são #1 e #2). transf: as transferências confirmadas da carteira, por id; a ponta com marca vira
+     "Entre contas suas", qualquer que seja a escolha por descrição */
+  function buildModel(months, over, titular, pais, cats, saldos, transf) {
+    var rows = [], by = {}, txs = [], vistos = {};
     cats = cats || montarCats(null);
-    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) { txs.push(t); rows.push(classify(t, over, titular, pais, cats)); }); });
+    Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) {
+      var k = txKey(t), r = classify(t, over, titular, pais, cats), tf;
+      vistos[k] = (vistos[k] || 0) + 1; r.id = k + '#' + vistos[k];
+      if (transf && (tf = transf[r.id])) { r.transf = tf; if (tf.marca) { r.kind = 'interno'; r.cat = null; } }
+      txs.push(t); rows.push(r);
+    }); });
     rows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
     /* movimentos sem saldo próprio: o saldo depois de cada um sai do fim do dia, andando para trás dentro do dia */
     var fonteSaldo = rows.length && rows.every(function (r) { return r.bal != null; }) ? 'extrato' : null;
@@ -949,7 +980,7 @@
      faltaCambio: moedas de carteiras com extrato que não têm câmbio; sem elas, nenhum total sai. */
   function resumir(x) {
     var mp = x.config.moedaPrincipal, ws = x.carteiras.map(function (c) {
-      var cats = montarCats(juntarPlan(x.config, c)), M = buildModel(c.months, c.over, x.config.titular, c.pais, cats, { dia: c.saldosDia, ancora: c.ancora });
+      var cats = montarCats(juntarPlan(x.config, c)), M = buildModel(c.months, c.over, x.config.titular, c.pais, cats, { dia: c.saldosDia, ancora: c.ancora }, c.transf);
       var ps = c.periodos || periodosMigrados(c), saldo = null;
       if (M.rows.length && !M.semSaldo) {
         var r = M.rows[M.rows.length - 1], ks = Object.keys(c.saldosDia || {}).sort(), u = ks[ks.length - 1];
@@ -993,26 +1024,148 @@
   /* previsão do mês em andamento: a de cada carteira com dados nele (no ritmo até o fim do período importado
      dela), somadas na moeda principal com as metas. fora: carteiras sem dados no mês. null sem mês em andamento
      ou sem câmbio. */
-  function previsaoResumo(R, x) {
+  function previsaoResumo(R, x, sug) {
     if (!R.partial || R.faltaCambio.length) return null;
-    var o = { m: R.partial, dia: +R.ref.slice(8), dim: +fimDoMes(R.partial).slice(8), gasto: 0, proj: 0, meta: 0, falFix: 0, por: [], fora: [] };
+    var o = { m: R.partial, dia: +R.ref.slice(8), dim: +fimDoMes(R.partial).slice(8), gasto: 0, proj: 0, meta: 0, falFix: 0, pend: 0, nPend: 0, por: [], fora: [] };
     R.ws.forEach(function (w) {
       if (!w.temDados) return;
       if (w.M.partial !== R.partial) { o.fora.push(w); return; }
-      var M = w.ate && w.ate.slice(0, 7) === R.partial && w.ate > w.M.lastDate ? Object.assign({}, w.M, { lastDate: w.ate }) : w.M;
-      var mf = metaDaCarteira(w.c, w.M, w.cats), P = preverMes(M, mf, w.cats), meta = 0, cv = function (v) { return paraPrincipal(v, w.moeda, x); };
+      var ate = function (M) { return w.ate && w.ate.slice(0, 7) === R.partial && w.ate > M.lastDate ? Object.assign({}, M, { lastDate: w.ate }) : M; };
+      var mf = metaDaCarteira(w.c, w.M, w.cats), P = preverMes(ate(w.M), mf, w.cats), meta = 0, cv = function (v) { return paraPrincipal(v, w.moeda, x); };
       w.cats.forEach(function (c) { if (!c.oculta) meta += mf(c.id); });
-      var q = { w: w, gasto: cv(P.gasto), proj: cv(P.proj), meta: cv(meta), dia: P.day, cedo: P.day < o.dia };
-      o.gasto += q.gasto; o.proj += q.proj; o.meta += q.meta; o.falFix += cv(P.falFix); o.por.push(q);
+      var q = { w: w, gasto: cv(P.gasto), proj: cv(P.proj), meta: cv(meta), dia: P.day, cedo: P.day < o.dia, pend: 0, nPend: 0 };
+      var rs = sug ? saidasPendentes(sug, w.id, R.partial) : [];
+      if (rs.length) {
+        var M2 = buildModel(w.c.months, w.c.over, x.config.titular, w.c.pais, w.cats, { dia: w.c.saldosDia, ancora: w.c.ancora }, comPendentes(w.c.transf, rs));
+        q.pend = Math.max(0, q.proj - cv(preverMes(ate(M2), mf, w.cats).proj)); q.nPend = rs.length;
+      }
+      o.gasto += q.gasto; o.proj += q.proj; o.meta += q.meta; o.falFix += cv(P.falFix); o.pend += q.pend; o.nPend += q.nPend; o.por.push(q);
     });
     return o;
   }
+  /* saídas do mês m da carteira que estão numa transferência sugerida ainda não confirmada e contam como gasto
+     (sug = sugerirTransferencias). A previsão do mês as conta, porque ainda não foram confirmadas. */
+  function saidasPendentes(sug, wid, m) {
+    return sug.pares.filter(function (p) { return p.s.w.id === wid && p.s.r.m === m && p.s.r.kind === 'gasto'; }).map(function (p) { return p.s.r; });
+  }
+  /* as transferências da carteira como ficariam com essas saídas confirmadas: para medir quanto da previsão vem delas */
+  function comPendentes(transf, rs) {
+    var t = Object.assign({}, transf);
+    rs.forEach(function (r) { t[r.id] = { c: '', id: '', lado: 's', marca: true }; });
+    return t;
+  }
+  /* dif = previsão − meta. O estouro até o valor que vem de transferências sugeridas (pend) não conta como
+     passar da meta: esse dinheiro pode não ser gasto */
+  function passaMesmo(dif, pend) { return dif > Math.max(0.5, pend || 0); }
+  /* ---------- transferências entre carteiras ----------
+     O painel só sugere: uma saída numa carteira e uma entrada em outra, com valor e data parecidos. A pessoa
+     confirma, e as duas pontas viram "Entre contas suas" (a que já era fica como está); desfazer devolve as duas
+     ao que eram. Mesma moeda: valores até 1% e datas até 3 dias. Moedas diferentes: os dois lados na moeda
+     principal, pelo câmbio informado (um só para todos os meses), até 6% e 5 dias.
+     Saída candidata: "Envios para outra conta sua", "Pessoas, taxas e outros" (o que não tem categoria
+     reconhecida) ou já "Entre contas suas". Entrada candidata: renda, outras entradas ou já "Entre contas suas".
+     Par com as duas pontas já marcadas não é sugerido. Cada movimento entra em um par só: fica o de datas mais
+     próximas e, no empate, o de valor mais próximo. */
+  var TRANSF_FOLGA = { mesma: { valor: 0.01, dias: 3 }, outra: { valor: 0.06, dias: 5 } };
+  function chavePar(sc, sid, ec, eid) { return JSON.stringify([sc, sid, ec, eid]); }
+  function saidaCandidata(r) { return r.a < 0 && !r.transf && (r.kind === 'interno' || (r.kind === 'gasto' && (r.cat === 'brasil' || r.cat === 'outros'))); }
+  function entradaCandidata(r) { return r.a > 0 && !r.transf && (r.kind === 'interno' || r.kind === 'renda' || r.kind === 'outras'); }
+  function diasEntre(a, b) { return Math.round(Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / DIA_MS); }
+  /* R = resumir(x). Devolve { pares: [{ chave, s: { w, r }, e: { w, r }, dias, dif, moedas, ja: 's' | 'e' | null }]
+     (mais recentes primeiro), semCambio: carteiras com extrato cujo câmbio falta, fora das sugestões com outra moeda } */
+  function sugerirTransferencias(R, x) {
+    var disp = {}, cand = [], semCambio = [];
+    R.ws.forEach(function (w) { (w.c.sugDispensadas || []).forEach(function (k) { disp[k] = 1; }); if (w.temDados && !w.taxa) semCambio.push(w); });
+    R.ws.forEach(function (ws) {
+      var sai = ws.M.rows.filter(saidaCandidata);
+      if (!sai.length) return;
+      R.ws.forEach(function (we) {
+        if (we === ws) return;
+        var mesma = ws.moeda === we.moeda, f = mesma ? TRANSF_FOLGA.mesma : TRANSF_FOLGA.outra;
+        if (!mesma && (!ws.taxa || !we.taxa)) return;
+        var ent = we.M.rows.filter(entradaCandidata);
+        sai.forEach(function (rs) {
+          var vs = mesma ? -rs.a : paraPrincipal(-rs.a, ws.moeda, x);
+          ent.forEach(function (re) {
+            if (rs.kind === 'interno' && re.kind === 'interno') return;
+            var dias = diasEntre(rs.date, re.date);
+            if (dias > f.dias) return;
+            var ve = mesma ? re.a : paraPrincipal(re.a, we.moeda, x), dif = Math.abs(vs - ve) / vs;
+            if (dif > f.valor + 1e-9) return;
+            var k = chavePar(ws.id, rs.id, we.id, re.id);
+            if (disp[k]) return;
+            cand.push({ chave: k, s: { w: ws, r: rs }, e: { w: we, r: re }, dias: dias, dif: dif, moedas: mesma ? [] : [ws.moeda, we.moeda].filter(function (m) { return m !== R.mp; }),
+              ja: rs.kind === 'interno' ? 's' : re.kind === 'interno' ? 'e' : null });
+          });
+        });
+      });
+    });
+    cand.sort(function (a, b) { return a.dias - b.dias || a.dif - b.dif || (a.s.r.date < b.s.r.date ? -1 : a.s.r.date > b.s.r.date ? 1 : 0) || (a.chave < b.chave ? -1 : 1); });
+    var usado = {}, pares = [];
+    cand.forEach(function (p) {
+      var a = p.s.w.id + '\n' + p.s.r.id, b = p.e.w.id + '\n' + p.e.r.id;
+      if (usado[a] || usado[b]) return;
+      usado[a] = usado[b] = 1; pares.push(p);
+    });
+    pares.sort(function (a, b) { return a.s.r.date < b.s.r.date ? 1 : a.s.r.date > b.s.r.date ? -1 : 0; });
+    return { pares: pares, semCambio: semCambio };
+  }
+  /* as transferências confirmadas: [{ s: { w, r }, e: { w, r } }] (r null se o movimento não está mais na carteira) */
+  function transferenciasConfirmadas(R) {
+    var por = {}, o = [];
+    R.ws.forEach(function (w) { por[w.id] = w; });
+    R.ws.forEach(function (w) {
+      var t = w.c.transf || {}, ach = function (ww, id) { return ww ? ww.M.rows.filter(function (r) { return r.id === id; })[0] || null : null; };
+      Object.keys(t).forEach(function (id) {
+        if (t[id].lado !== 's' || !por[t[id].c]) return;
+        o.push({ s: { w: w, r: ach(w, id), id: id }, e: { w: por[t[id].c], r: ach(por[t[id].c], t[id].id), id: t[id].id } });
+      });
+    });
+    return o.sort(function (a, b) { var da = a.s.r ? a.s.r.date : '', db = b.s.r ? b.s.r.date : ''; return da < db ? 1 : da > db ? -1 : 0; });
+  }
+  function comTransf(x, fn) {
+    return Object.assign({}, x, { carteiras: x.carteiras.map(function (c) {
+      var t = Object.assign({}, c.transf || {}), d = (c.sugDispensadas || []).slice(), r = fn(c.id, t, d);
+      return r ? Object.assign({}, c, { transf: t, sugDispensadas: d }) : c;
+    }) });
+  }
+  /* par: { s: { c, id }, e: { c, id }, ja: 's' | 'e' | null }; a ponta que já era "Entre contas suas" fica sem marca */
+  function confirmarTransferencia(x, par) {
+    acharCarteira(x, par.s.c); acharCarteira(x, par.e.c);
+    if (par.s.c === par.e.c) throw new Error('as duas pontas estão na mesma carteira');
+    return comTransf(x, function (cid, t) {
+      if (cid === par.s.c) t[par.s.id] = { c: par.e.c, id: par.e.id, lado: 's', marca: par.ja !== 's' };
+      else if (cid === par.e.c) t[par.e.id] = { c: par.s.c, id: par.s.id, lado: 'e', marca: par.ja !== 'e' };
+      else return false;
+      return true;
+    });
+  }
+  /* desfaz pelas duas pontas, a partir de qualquer uma (carteira e movimento) */
+  function desfazerTransferencia(x, cid, id) {
+    var r = (acharCarteira(x, cid).transf || {})[id];
+    if (!r) return x;
+    return comTransf(x, function (c, t) {
+      if (c === cid) delete t[id]; else if (c === r.c) delete t[r.id]; else return false;
+      return true;
+    });
+  }
+  /* "Não são": a sugestão não volta (fica guardada nas duas carteiras) */
+  function dispensarSugestao(x, par) {
+    var k = chavePar(par.s.c, par.s.id, par.e.c, par.e.id);
+    return comTransf(x, function (c, t, d) {
+      if (c !== par.s.c && c !== par.e.c) return false;
+      if (d.indexOf(k) < 0) d.push(k);
+      return true;
+    });
+  }
+  /* quantas transferências confirmadas a carteira tem (para avisar ao excluir) */
+  function contarTransferencias(c) { return Object.keys((c && c.transf) || {}).length; }
   /*CORE-END*/
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, importar: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
-  var M = buildModel({}, {}), SUG = null, RECS = [], RES = null;
+  var M = buildModel({}, {}), SUG = null, RECS = [], RES = null, TR = null;
   /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
   var CATST = montarCats(null), CATSV = CATST, CPOR = {};
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
@@ -1183,7 +1336,7 @@
     CATST = montarCats(S.plan); CATSV = CATST.filter(function (c) { return !c.oculta; }); CPOR = {};
     CATST.forEach(function (c) { CPOR[c.id] = c; });
     var cw = cartAtual();
-    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, cw ? { dia: cw.saldosDia, ancora: cw.ancora } : null);
+    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, cw ? { dia: cw.saldosDia, ancora: cw.ancora } : null, cw && cw.transf);
     SUG = sugerirMetas(M, CATST);
     RECS = detectarRecorrentes(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
@@ -1321,7 +1474,7 @@
   function avisoCambioResumo(R) {
     if (R.faltaCambio.length) return '<div class="aviso pergunta" id="fin-rfalta"><p>' + R.faltaCambio.map(function (f) {
       return 'Falta o câmbio de <b>' + esc(f.moeda) + '</b> para somar ' + (f.nomes.length === 1 ? 'a carteira ' : 'as carteiras ') + '<b>' + esc(nomes(f.nomes)) + '</b>.';
-    }).join(' ') + ' Sem ' + (R.faltaCambio.length === 1 ? 'ele' : 'eles') + ', o Resumo não mostra nenhum total: cada carteira aparece na moeda dela.</p><div class="grupo">' +
+    }).join(' ') + ' Sem ' + (R.faltaCambio.length === 1 ? 'ele' : 'eles') + ', o Resumo não mostra nenhum total (cada carteira aparece na moeda dela) nem sugere transferências com outra moeda.</p><div class="grupo">' +
       R.faltaCambio.map(function (f) { return '<button class="btn sm pri" type="button" data-rcamb="' + esc(f.moeda) + '">Definir câmbio de ' + esc(f.moeda) + '</button>'; }).join('') + '</div></div>';
     var ms = moedasConvertidas(R), C = divState().cambios, hoje = todayIso();
     if (!ms.length) return '';
@@ -1381,7 +1534,7 @@
     var lista = '';
     Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(r.desc) + ': ' + (r.a > 0 ? '+' : '−') + esc(fmtDe(p.w.moeda, 2).format(Math.abs(r.a))) + '</li>'; }); });
     return '<div class="rfora"><p class="passo">Fora do Entrou e do Gastou: ' + n + (n === 1 ? ' movimento marcado' : ' movimentos marcados') + ' como "Entre contas suas" em ' + esc(nm) + ', ' + partes.join(' e ') + '.</p>' +
-      '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>Ver quais</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">Para mudar, use Revisar categorias na aba da carteira.</p></details></div>';
+      '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>Ver quais</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">Para mudar, use Revisar categorias na aba da carteira. Uma transferência confirmada se desfaz em Transferências confirmadas.</p></details></div>';
   }
   function categoriasResumo(Q, conv) {
     var list = [], mx = 0, h = '';
@@ -1409,20 +1562,30 @@
     h += '<div class="card">' + (T ? categoriasResumo(Q, conv) : '<h3>Gasto por categoria</h3><p class="passo">Aparece depois do câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '.</p>') + '</div>';
     return h + '</section>';
   }
+  /* o aviso de transferência a confirmar aparece no número da previsão e na linha de status */
+  function statusPrevisao(dif, pend, fmt) {
+    if (Math.abs(dif) < 0.5) return '<span class="d ok">deve fechar na meta</span>';
+    if (dif < 0) return '<span class="d good">▼ deve fechar ' + fmt(-dif) + ' abaixo da meta</span>';
+    return '<span class="d ' + (passaMesmo(dif, pend) ? 'bad' : 'ok') + '">▲ deve passar ' + fmt(dif) + ' da meta</span>';
+  }
+  function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">inclui ' + fmt(pend) + ' a confirmar</p>'; }
+  function pendFrase(pend, n, fmt) {
+    return pend < 0.5 ? '' : ', mas inclui ' + fmt(pend) + (n === 1 ? ' de uma transferência sugerida ainda não confirmada' : ' de ' + n + ' transferências sugeridas ainda não confirmadas');
+  }
+  function pendBotao(pend) { return pend < 0.5 ? '' : '<p class="pendb"><button class="btn sm" type="button" data-irtransf>Ver transferências sugeridas</button></p>'; }
   function previsaoResumoTela(R) {
     var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>Previsão ' + (R.partial ? 'de ' + esc(MES[+R.partial.slice(5) - 1]) : 'do mês') + '</h2>';
     if (!R.partial) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(R.meses[R.meses.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
     if (R.faltaCambio.length) return h + '</div><div class="card"><p class="passo">Aparece depois do câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '.</p></div></section>';
-    var P = previsaoResumo(R, S.dados), conv = P.por.some(function (q) { return q.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
+    var P = previsaoResumo(R, S.dados, TR && TR.S), conv = P.por.some(function (q) { return q.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
     if (!P.por.length) return h + '</div><div class="card"><p class="passo">Nenhuma carteira tem movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ' ainda.</p></div></section>';
-    var dif = P.proj - P.meta, mx = Math.max(P.proj, P.meta, P.gasto, 1);
-    var st = Math.abs(dif) < 0.5 ? '<span class="d ok">deve fechar na meta</span>' : dif > 0 ? '<span class="d bad">▲ deve passar ' + ap + fP0(dif) + ' da meta</span>' : '<span class="d good">▼ deve fechar ' + ap + fP0(-dif) + ' abaixo da meta</span>';
+    var dif = P.proj - P.meta, mx = Math.max(P.proj, P.meta, P.gasto, 1), fp = function (v) { return ap + fP0(v); }, st = statusPrevisao(dif, P.pend, fp), over = passaMesmo(dif, P.pend);
     var cedo = P.por.filter(function (q) { return q.cedo; });
     return h + '<span class="hint">até ' + esc(dFull(R.ref)) + ' · a soma das previsões de cada carteira</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p></div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
-      '<div class="ptrack" role="img" aria-label="Gasto ' + fP0(P.gasto) + ', previsão ' + fP0(P.proj) + ', meta ' + fP0(P.meta) + '"><i class="pj' + (dif > 0.5 ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
+      '<div class="ptrack" role="img" aria-label="Gasto ' + fP0(P.gasto) + ', previsão ' + fP0(P.proj) + ', meta ' + fP0(P.meta) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
-      '<p class="s">' + st + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return esc(q.w.nome) + ': previsão ' + a + fP0(q.proj) + ', meta ' + a + fP0(q.meta); }).join(' · ') + '.</p>' +
+      '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return esc(q.w.nome) + ': previsão ' + a + fP0(q.proj) + ', meta ' + a + fP0(q.meta); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
       (cedo.length ? '<p class="aviso">' + cedo.map(function (q) { return '<b>' + esc(q.w.nome) + '</b> tem dados só até ' + esc(dFull(q.w.ate || q.w.M.lastDate)); }).join('; ') + ': a previsão ' + (cedo.length === 1 ? 'dela' : 'delas') + ' segue o ritmo até ali.</p>' : '') +
       (P.fora.length ? '<p class="aviso">' + esc(nomes(P.fora.map(function (w) { return w.nome; }))) + (P.fora.length === 1 ? ' não tem' : ' não têm') + ' movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ': fora da previsão.</p>' : '') + '</div></section>';
   }
@@ -1447,7 +1610,76 @@
     var h = S.escolher ? escolherTela() : '';
     if (!R.meses.length) return h + '<section class="vazio-grande"><p class="eyebrow">Resumo</p><h2>Nenhuma carteira tem extrato ainda</h2><p class="passo">Toque em Adicionar extrato e escolha a carteira. O Resumo soma todas, na moeda principal.</p>' +
       '<button class="btn pri" type="button" data-fin-add>Adicionar extrato</button></section>' + dividas() + metasPoup() + cambioResumo(R);
-    return h + avisoCambioResumo(R) + saldoCarteiras(R) + mesResumoTela(R) + previsaoResumoTela(R) + dividas() + metasPoup() + cambioResumo(R);
+    return h + avisoCambioResumo(R) + transfSecao() + saldoCarteiras(R) + mesResumoTela(R) + previsaoResumoTela(R) + dividas() + metasPoup() + cambioResumo(R);
+  }
+  /* ---------- transferências entre carteiras (Resumo e Revisar categorias) ---------- */
+  function valorMov(r, cod) { return (r.a < 0 ? '−' : '+') + fmtDe(cod, 2).format(Math.abs(r.a)); }
+  var n1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+  function difPar(p) {
+    var d = p.dias === 0 ? 'mesmo dia' : p.dias + (p.dias === 1 ? ' dia' : ' dias') + ' de diferença', v;
+    if (p.dif < 0.0005) v = p.moedas.length ? 'valores iguais' : 'mesmo valor';
+    else v = 'valor ' + n1.format(p.dif * 100) + '% diferente';
+    if (p.moedas.length === 1) {
+      var cb = (S.dados.cambios || {})[p.moedas[0]] || {};
+      v += ' pela taxa que você informou' + (cb.data ? ' em ' + dFmt(cb.data) : '') + ' (usada em todos os meses)';
+    } else if (p.moedas.length) v += ' pelas taxas que você informou (usadas em todos os meses)';
+    return d + ' · ' + v;
+  }
+  function ladoPar(rot, w, r) {
+    return '<div class="tl"><span class="tlr">' + rot + ' · ' + esc(w.nome) + '</span>' + (r ? '<span class="td">' + esc(dFmt(r.date)) + ' · ' + esc(r.desc) + '</span><b class="num">' + valorMov(r, w.moeda) + '</b>'
+      : '<span class="td">movimento que não está mais no extrato</span>') + '</div>';
+  }
+  function parTela(p) {
+    var nome = esc(p.s.w.nome + ' ' + dFmt(p.s.r.date) + ' ' + valorMov(p.s.r, p.s.w.moeda) + ' e ' + p.e.w.nome + ' ' + dFmt(p.e.r.date) + ' ' + valorMov(p.e.r, p.e.w.moeda));
+    var ja = p.ja === 's' ? 'A saída no ' + esc(p.s.w.nome) + ' já está marcada como entre contas suas: confirmar marca só a entrada.'
+      : p.ja === 'e' ? 'A entrada no ' + esc(p.e.w.nome) + ' já está marcada como entre contas suas: confirmar marca só a saída.' : '';
+    return '<div class="tpar" role="group" aria-label="' + nome + '">' + ladoPar('Saiu', p.s.w, p.s.r) + '<span class="tseta" aria-hidden="true">→</span>' + ladoPar('Entrou', p.e.w, p.e.r) +
+      '<p class="tm">' + esc(difPar(p)) + (ja ? '<span class="tja">' + ja + '</span>' : '') + '</p>' +
+      '<div class="grupo"><button class="btn sm pri" type="button" data-tconf="' + esc(p.chave) + '">São a mesma transferência</button><button class="btn sm" type="button" data-tdisp="' + esc(p.chave) + '">Não são</button></div></div>';
+  }
+  function confirmadasTela(C) {
+    if (!C.length) return '';
+    return '<details class="metas" id="fin-tconf"' + (S.tConf ? ' open' : '') + '><summary>Transferências confirmadas (' + C.length + ')</summary><ul class="tconf">' + C.map(function (t) {
+      var lado = function (l) { return l.r ? esc(dFmt(l.r.date)) + ' · ' + esc(l.w.nome) + ' · ' + esc(l.r.desc) + ' <b class="num">' + valorMov(l.r, l.w.moeda) + '</b>' : esc(l.w.nome) + ' · movimento que não está mais no extrato'; };
+      return '<li><span>' + lado(t.s) + ' → ' + lado(t.e) + '</span><button class="btn sm" type="button" data-tdesf="' + esc(t.s.w.id) + '" data-tmov="' + esc(t.s.id) + '">Desfazer</button></li>';
+    }).join('') + '</ul><p class="passo">Desfazer devolve as duas pontas ao que eram: a escolha por descrição em Revisar categorias, ou o automático.</p></details>';
+  }
+  /* carteiras sem câmbio que deixam de ter sugestões com carteiras de outra moeda (wid: só as que envolvem ela) */
+  function semCambioTransf(wid) {
+    var ws = TR.R.ws.filter(function (w) { return w.temDados; });
+    return TR.S.semCambio.filter(function (w) {
+      var outras = ws.filter(function (o) { return o.id !== w.id && o.moeda !== w.moeda; });
+      return outras.length && (!wid || w.id === wid || outras.some(function (o) { return o.id === wid; }));
+    });
+  }
+  /* no Resumo: todas; só aparece com sugestão ou transferência confirmada */
+  function transfSecao() {
+    if (!TR || (!TR.S.pares.length && !TR.C.length)) return '';
+    var n = TR.S.pares.length;
+    return '<section class="sec" id="fin-transf"><div class="sec-top"><h2 tabindex="-1">' + (n ? 'Transferências sugeridas' : 'Transferências entre carteiras') + '</h2><span class="hint">' +
+      (n ? n + (n === 1 ? ' par' : ' pares') + ' · confirme o que for dinheiro seu indo de uma conta para outra' : 'nenhuma sugestão nova') + '</span></div>' +
+      (n ? '<div class="card tlist">' + TR.S.pares.map(parTela).join('') + '</div>' : '') + confirmadasTela(TR.C) + '</section>';
+  }
+  /* em Revisar categorias: os pares que envolvem a carteira */
+  function transfBloco(wid) {
+    if (!TR) return '';
+    var ps = TR.S.pares.filter(function (p) { return p.s.w.id === wid || p.e.w.id === wid; }), C = TR.C.filter(function (t) { return t.s.w.id === wid || t.e.w.id === wid; }), sc = semCambioTransf(wid);
+    if (!ps.length && !C.length && !sc.length) return '';
+    return '<div class="rtransf" id="fin-transf"><h3 class="rvt" tabindex="-1">' + (ps.length ? 'Transferências sugeridas' : 'Transferências entre carteiras') + '</h3>' +
+      (ps.length ? '<p class="passo">Uma saída numa carteira e uma entrada em outra, com valor e data parecidos. Confirme o que for dinheiro seu indo de uma conta para outra: as duas pontas saem do Entrou e do Gastou. As mesmas sugestões aparecem no Resumo.</p><div class="tlist">' + ps.map(parTela).join('') + '</div>' : '') +
+      (sc.length ? '<p class="passo">' + sc.map(function (w) { return 'Defina o câmbio de ' + esc(w.moeda) + ' no Resumo para ver sugestões com ' + esc(w.nome) + '.'; }).join(' ') + '</p>' : '') + confirmadasTela(C) + '</div>';
+  }
+  /* depois de confirmar, dispensar ou desfazer: grava e leva o foco para a próxima sugestão (ou o título) */
+  function mudarTransf(fn, msg) {
+    var x = fn(dadosAtuais());
+    usarDados(x); localSave(); recompute(); render();
+    var nx = document.querySelector('#fin-transf [data-tconf]') || document.querySelector('#fin-transf [tabindex="-1"]') || document.querySelector('#fin-revd summary');
+    if (nx) nx.focus();
+    toast(msg);
+  }
+  function parPorChave(k) {
+    var p = TR && TR.S.pares.filter(function (q) { return q.chave === k; })[0];
+    return p ? { s: { c: p.s.w.id, id: p.s.r.id }, e: { c: p.e.w.id, id: p.e.r.id }, ja: p.ja, p: p } : null;
   }
   /* ---------- configuração guiada ---------- */
   /* a moeda escolhe a conta que o painel lê no extrato; o país escolhe as regras de comerciantes */
@@ -1717,6 +1949,7 @@
     return '<section class="sec"><div class="sec-top"><h2>Excluir a carteira ' + esc(c.nome) + '</h2></div><div class="card ggrid">' +
       '<p class="aviso erro">Isso apaga deste navegador ' + esc(oQue) + ', com as escolhas de categoria e as metas por mês dessa carteira. Não dá para desfazer.</p>' +
       '<p>As outras carteiras, a configuração, Em observação e as metas de poupança ficam.</p>' +
+      (contarTransferencias(c) ? '<p class="aviso">' + (contarTransferencias(c) === 1 ? 'A transferência confirmada' : 'As ' + contarTransferencias(c) + ' transferências confirmadas') + ' com outras carteiras se desfaz' + (contarTransferencias(c) === 1 ? '' : 'em') + ': a outra ponta volta ao que era.</p>' : '') +
       (prox ? '<p class="aviso">' + esc(prox.nome) + ' passa a ser a carteira principal' + (prox.moeda !== c.moeda ? ', em ' + esc(nomeMoeda(prox.moeda)) + ': o câmbio de Em observação terá de ser informado de novo, e os valores das metas de poupança não são convertidos.' : '.') + '</p>' : '') +
       '<div class="grupo"><button class="pill perigo" type="button" data-excluir="confirmar">Excluir carteira</button>' +
       '<button class="btn" type="button" data-backup="baixar">Baixar backup antes</button>' +
@@ -1968,7 +2201,7 @@
   function merchants() {
     var mp = {};
     M.rows.forEach(function (r) {
-      if (r.baseKind !== 'gasto') return;
+      if (r.baseKind !== 'gasto' || (r.transf && r.transf.marca)) return;
       var x = mp[r.key] || (mp[r.key] = { key: r.key, desc: r.desc, n: 0, total: 0, eff: '', effs: {}, autos: {}, auto: r.auto });
       var e = r.kind === 'gasto' ? r.cat : r.kind === 'invest' ? '_invest' : '_ignore';
       x.n++; x.total -= r.a; x.effs[e] = (x.effs[e] || 0) + 1; x.autos[r.auto] = 1; x.eff = e;
@@ -1979,7 +2212,7 @@
   function entradas() {
     var mp = {};
     M.rows.forEach(function (r) {
-      if (!r.keyE) return;
+      if (!r.keyE || (r.transf && r.transf.marca)) return;
       var x = mp[r.keyE] || (mp[r.keyE] = { key: r.keyE, desc: r.desc, n: 0, total: 0, eff: '', effs: {}, autos: {} });
       var e = ENTRADA[r.kind] || '_outras';
       x.n++; x.total += r.a; x.effs[e] = (x.effs[e] || 0) + 1; x.autos[r.autoE] = 1; x.eff = e;
@@ -2024,8 +2257,9 @@
     return h;
   }
   function review() {
-    var nc = merchants().length, ne = entradas().length;
-    return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>Revisar categorias</h2><span class="hint">' + nc + ' comerciantes e ' + ne + (ne === 1 ? ' entrada' : ' entradas') + '. Abra para trocar a categoria de algum.</span></summary><div class="rv-c"><p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. ' +
+    var nc = merchants().length, ne = entradas().length, cw = cartAtual(), np = TR ? TR.S.pares.filter(function (p) { return p.s.w.id === cw.id || p.e.w.id === cw.id; }).length : 0;
+    return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>Revisar categorias</h2><span class="hint">' + nc + ' comerciantes e ' + ne + (ne === 1 ? ' entrada' : ' entradas') +
+      (np ? ' · ' + np + (np === 1 ? ' transferência sugerida' : ' transferências sugeridas') : '') + '. Abra para trocar a categoria de algum.</span></summary><div class="rv-c">' + transfBloco(cw.id) + '<p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. ' +
       'O que for dinheiro seu indo ou vindo de outra conta sua, marque como "Entre contas suas": não conta como gasto nem como entrada.</p>' +
       '<div class="fbusca"><label class="vh" for="fin-q">Buscar comerciante ou entrada</label><input id="fin-q" type="search" placeholder="Buscar comerciante ou entrada" value="' + esc(S.q) + '" autocomplete="off"></div><div class="card" id="fin-revlist">' + revList() + '</div></div></details></section>';
   }
@@ -2311,14 +2545,15 @@
     if (!cur) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(M.keys[M.keys.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
     var P = preverMes(M, planCat, CATST), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
     var proj = P.proj, falFix = P.falFix, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
-    var mx = Math.max(proj, meta, g.gasto, 1);
-    var st = Math.abs(dif) < 0.5 ? '<span class="d ok">deve fechar na meta</span>' : dif > 0 ? '<span class="d bad">▲ deve passar ' + f0(dif) + ' da meta</span>' : '<span class="d good">▼ deve fechar ' + f0(-dif) + ' abaixo da meta</span>';
+    var mx = Math.max(proj, meta, g.gasto, 1), cw = cartAtual(), rs = TR && cw ? saidasPendentes(TR.S, cw.id, cur) : [], pend = 0;
+    if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs)), planCat, CATST).proj);
+    var st = statusPrevisao(dif, pend, f0);
     return h + '<span class="hint">até dia ' + day + ' de ' + dim + ' · ' + left + ' dias pela frente</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + f0(g.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[p[1] - 1]) + '</p><p class="v num">' + f0(proj) + '</p></div><div><p class="l mono">Meta de gasto</p><p class="v num">' + f0(meta) + '</p></div></div>' +
-      '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (dif > 0.5 ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + f0(g.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[p[1] - 1]) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + f0(meta) + '</p></div></div>' +
+      '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
-      '<p class="s">' + st + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +
-      ' ' + CATSV.filter(function (c) { return c.fixa; }).map(function (c) { return c.nome; }).concat(['as contas fixas detectadas abaixo']).join(', ').replace(/, ([^,]*)$/, ' e $1') + ' entram pelo valor de sempre; o resto segue o ritmo dos ' + day + ' primeiros dias.</p>' +
+      '<p class="s">' + st + pendFrase(pend, rs.length, f0) + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +
+      ' ' + CATSV.filter(function (c) { return c.fixa; }).map(function (c) { return c.nome; }).concat(['as contas fixas detectadas abaixo']).join(', ').replace(/, ([^,]*)$/, ' e $1') + ' entram pelo valor de sempre; o resto segue o ritmo dos ' + day + ' primeiros dias.</p>' + pendBotao(pend) +
       (P.semBase.length ? '<p class="aviso">' + P.semBase.map(function (id) { return '<b>' + esc(catPor(id).nome) + '</b>'; }).join(', ') + (P.semBase.length === 1 ? ' está' : ' estão') +
         ' como conta fixa, mas sem meta e sem cobrança recorrente: a previsão conta só o que já saiu este mês. Defina a meta em Editar metas.</p>' : '') + '</div></section>';
   }
@@ -2389,8 +2624,13 @@
     if (S.importar) { root.innerHTML = header() + telaImportar(); return; }
     if (S.bloqueado) { root.innerHTML = header() + telaBloqueio(); return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
+    TR = null;
+    if (variasCarteiras() && configurado() && !S.setupOpen) {
+      var RT = resumir(dadosAtuais());
+      TR = { R: RT, S: sugerirTransferencias(RT, S.dados), C: transferenciasConfirmadas(RT) };
+    }
     if (emResumo()) {
-      RES = resumir(dadosAtuais());
+      RES = TR.R;
       if (RES.meses.indexOf(S.rMes) < 0) S.rMes = RES.completos.length ? RES.completos[RES.completos.length - 1] : RES.meses[RES.meses.length - 1] || null;
       root.innerHTML = header() + abas() + telaResumo(RES); return;
     }
@@ -2431,7 +2671,7 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
+    var t = e.target.closest && e.target.closest('[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) {
       if (emResumo()) { S.escolher = {}; render(); var ec = $('#fin-escolher input:checked'); if (ec) ec.focus(); window.scrollTo(0, 0); return; }
@@ -2445,6 +2685,26 @@
         render();
         if (esc0 && esc0.files) handleFiles(esc0.files); else $('#fin-csv').click();
       } else render();
+      return;
+    }
+    if (t.hasAttribute('data-irtransf')) {
+      if (!emResumo() && !S.revOpen) { S.revOpen = true; render(); }
+      var it = document.querySelector('#fin-transf [tabindex="-1"]');
+      if (it) { it.scrollIntoView({ block: 'start' }); it.focus(); }
+      return;
+    }
+    if (t.hasAttribute('data-tconf') || t.hasAttribute('data-tdisp')) {
+      var tc = t.hasAttribute('data-tconf'), pq = parPorChave(t.getAttribute(tc ? 'data-tconf' : 'data-tdisp'));
+      if (!pq) return;
+      var pp = pq.p, quem = pp.ja === 's' ? 'a entrada no ' + pp.e.w.nome : pp.ja === 'e' ? 'a saída no ' + pp.s.w.nome : pp.s.w.nome + ' ' + dFmt(pp.s.r.date) + ' e ' + pp.e.w.nome + ' ' + dFmt(pp.e.r.date);
+      if (tc) mudarTransf(function (x) { return confirmarTransferencia(x, pq); }, 'Marcado como Entre contas suas: ' + quem + '. Dá para desfazer em Transferências confirmadas.');
+      else mudarTransf(function (x) { return dispensarSugestao(x, pq); }, 'Sugestão dispensada: ela não volta.');
+      return;
+    }
+    if (t.hasAttribute('data-tdesf')) {
+      var tw = t.getAttribute('data-tdesf'), tm = t.getAttribute('data-tmov');
+      S.tConf = true;
+      mudarTransf(function (x) { return desfazerTransferencia(x, tw, tm); }, 'Transferência desfeita: as duas pontas voltaram ao que eram.');
       return;
     }
     if (t.hasAttribute('data-rmes')) { S.rMes = t.getAttribute('data-rmes'); render(); var rb = document.querySelector('[data-rmes="' + S.rMes + '"]'); if (rb) rb.focus(); return; }
@@ -2685,7 +2945,7 @@
     S.metasOpen = true;
     enqueue(function () { return savePlan(p); }).then(function () { render(); toast('Metas salvas.'); });
   });
-  document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; if (e.target.id === 'fin-wnova') S.wOpen = e.target.open; if (e.target.id === 'fin-rcamb') S.rCamb = e.target.open; if (e.target.id === 'fin-rpor') S.rPor = e.target.open; if (e.target.id === 'fin-rfd') S.rFora = e.target.open; }, true);
+  document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; if (e.target.id === 'fin-wnova') S.wOpen = e.target.open; if (e.target.id === 'fin-rcamb') S.rCamb = e.target.open; if (e.target.id === 'fin-rpor') S.rPor = e.target.open; if (e.target.id === 'fin-rfd') S.rFora = e.target.open; if (e.target.id === 'fin-tconf') S.tConf = e.target.open; }, true);
   /* arrastar um extrato só vale com a aba Finanças aberta */
   window.addEventListener('dragover', function (e) { var r = $('#fin-app'); if (!r) return; e.preventDefault(); r.classList.add('arrasta'); });
   window.addEventListener('dragleave', function (e) { var r = $('#fin-app'); if (r && !e.relatedTarget) r.classList.remove('arrasta'); });

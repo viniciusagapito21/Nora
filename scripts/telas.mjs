@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 79 telas do painel (40 em 1280px, 39 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 89 telas do painel (45 em 1280px, 44 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -34,7 +34,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos };')();
+const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -118,6 +118,24 @@ const comResumo = cambios => {
 };
 const RESUMO = comResumo({ BRL: { rate: 6.2, data: '2026-09-10' }, USD: { rate: 1.08, data: '2026-10-15' }, GBP: { rate: 0.86, data: '2026-10-15' } });
 const RESUMO_SEM_CAMBIO = comResumo({ USD: { rate: 1.08, data: '2026-10-15' } });
+// transferências (9.4): o Revolut do exemplo e o extrato inventado de transferências (real), que recebe os envios
+// "To MARIA SILVA": julho com 0,5% de diferença, agosto com a entrada já marcada pelo titular, setembro fora da
+// folga (11 dias) e outubro com 4,8% e 2 dias. confirmar: quantas sugestões confirmar antes (as mais antigas)
+const TRANSF = join(RAIZ, 'exemplo/extrato-transferencia-exemplo.csv');
+const comTransferencias = (over, confirmar = 0) => {
+  let x = api.migrate(JSON.parse(JSON.stringify({ ...comDados, over })));
+  x = api.novaCarteira(x, { nome: 'Banco Exemplo', moeda: 'BRL', pais: 'BR', banco: 'outro' });
+  const p = api.prepararImportacao(new Uint8Array(readFileSync(TRANSF)));
+  p.mapa.valor.saidas = 'negativas';
+  const r = api.interpretarCSV(p.rows, p.mapa), c = x.carteiras[1];
+  r.tx.forEach(t => { (c.months[t[0].slice(0, 7)] = c.months[t[0].slice(0, 7)] || []).push(t); });
+  c.periodos = api.juntarPeriodos([], r.periodo);
+  x = { ...api.escolherCarteira(x, 'c1'), cambios: { BRL: { rate: 6.2, data: '2026-09-10' }, USD: { rate: 1.08, data: '2026-10-15' } } };
+  const ps = api.sugerirTransferencias(api.resumir(x), x).pares.slice().reverse().slice(0, confirmar);
+  ps.forEach(q => { x = api.confirmarTransferencia(x, { s: { c: q.s.w.id, id: q.s.r.id }, e: { c: q.e.w.id, id: q.e.r.id }, ja: q.ja }); });
+  return { 'cortex-financas.v4': JSON.stringify(x) };
+};
+const TRANSFERENCIAS = comTransferencias({}), CONFIRMADAS = comTransferencias({}, 2), SAIDA_MARCADA = comTransferencias({ 'TO MARIA SILVA': '_ignore' });
 // com duas ou mais carteiras o painel abre no Resumo; as telas de uma carteira clicam na aba dela antes
 const aba = (id, depois) => async pg => { await pg.click(`[data-carteira="${id}"]`); if (depois) await depois(pg); };
 // cartão inventado e ambíguo de propósito: 03/04/2026, 1.234 e compras sem sinal
@@ -258,6 +276,13 @@ for (const w of [1280, 390]) {
   t('38-resumo-mes-sem-cobertura', { storage: RESUMO, prepara: async pg => { await pg.click('[data-rmes="2026-07"]'); } });
   t('39-resumo-detalhes', { storage: RESUMO, prepara: async pg => { await pg.click('#fin-rpor > summary'); await pg.click('#fin-rfd > summary'); } });
   t('40-resumo-escolher-carteira', { storage: RESUMO, prepara: async pg => { await pg.click('[data-fin-add]'); } });
+  // transferências entre carteiras (9.4): sugeridas, confirmadas, com a saída já marcada, e ao excluir a carteira
+  t('41-resumo-transferencias', { storage: TRANSFERENCIAS });
+  t('42-resumo-transferencias-confirmadas', { storage: CONFIRMADAS, prepara: async pg => { await pg.click('#fin-tconf > summary'); } });
+  t('43-revisar-transferencias', { storage: SAIDA_MARCADA, prepara: aba('c2', async pg => { await pg.click('#fin-revd > summary'); }) });
+  // julho e agosto confirmados, outubro só sugerido: a previsão da carteira avisa e não pinta o estouro de vermelho
+  t('45-previsao-transferencia-sugerida', { storage: CONFIRMADAS, prepara: aba('c1') });
+  t('44-excluir-carteira-transferencias', { storage: CONFIRMADAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('[data-wexcluir=c2]'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });

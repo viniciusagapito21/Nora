@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos };')();
 }
 function months(api) {
   const m = {};
@@ -1015,4 +1015,199 @@ test('Resumo: previsão do mês em andamento soma as das carteiras com dados nel
   assert.deepEqual(P.fora.map(w => w.nome), ['Wise libras'], 'sem movimentos de outubro: fora da previsão');
   assert.equal(P.por[0].dia, 15, 'o ritmo vai até o fim do período importado (15 out), não até o último movimento (2 out)');
   assert.equal(P.gasto, 40);
+});
+
+// ---------- transferências entre carteiras (9.4): só movimentos inventados ----------
+// duas carteiras a partir dos movimentos de cada uma; a e b: { moeda, tx: [[data, descrição, tipo, centavos, saldo]], over }
+function parDeCarteiras(api, a, b, cambios) {
+  const mes = tx => { const m = {}; tx.forEach(t => { (m[t[0].slice(0, 7)] = m[t[0].slice(0, 7)] || []).push(t); }); return m; };
+  let x = api.migrate({ v: 3, months: mes(a.tx), over: a.over || {}, plan: { titular: 'MARIA SILVA', moeda: a.moeda || 'EUR', pais: 'IE', configurado: true }, summary: null, div: null });
+  x = api.novaCarteira(x, { nome: 'Outra conta', moeda: b.moeda || 'EUR', pais: 'BR', banco: 'outro' });
+  x.carteiras[1].months = mes(b.tx); x.carteiras[1].over = b.over || {};
+  return { ...api.escolherCarteira(x, 'c1'), cambios: cambios || {} };
+}
+const sugeridas = (api, x) => api.sugerirTransferencias(api.resumir(x), x);
+const parDe = p => ({ s: { c: p.s.w.id, id: p.s.r.id }, e: { c: p.e.w.id, id: p.e.r.id }, ja: p.ja });
+const saida = (d, v, desc = 'To Fulano Exemplo') => [d, desc, 'Others', -v, null];
+const entrada = (d, v, desc = 'TED recebida Exemplo') => [d, desc, 'Others', v, null];
+
+test('transferências, mesma moeda: valores até 1% e datas até 3 dias; um pouco acima de cada um, nada', () => {
+  const api = load();
+  const n = (e, s = saida('2026-09-10', 10000)) => sugeridas(api, parDeCarteiras(api, { tx: [s] }, { tx: [e] })).pares.length;
+  assert.equal(n(entrada('2026-09-13', 9900)), 1, '1% e 3 dias');
+  assert.equal(n(entrada('2026-09-07', 10100)), 1, 'a entrada pode vir antes, e a mais');
+  assert.equal(n(entrada('2026-09-13', 9890)), 0, '1,1%');
+  assert.equal(n(entrada('2026-09-14', 10000)), 0, '4 dias');
+  const p = sugeridas(api, parDeCarteiras(api, { tx: [saida('2026-09-10', 10000)] }, { tx: [entrada('2026-09-11', 9950)] })).pares[0];
+  assert.equal(p.dias, 1); assert.ok(Math.abs(p.dif - 0.005) < 1e-9); assert.deepEqual(p.moedas, []); assert.equal(p.ja, null);
+  assert.equal(p.s.w.id, 'c1'); assert.equal(p.e.w.id, 'c2');
+});
+
+test('transferências, moedas diferentes: pela taxa informada, até 6% e 5 dias; sem a taxa, nenhuma sugestão', () => {
+  const api = load(), BRL = { BRL: { rate: 6.2, data: '2026-09-10' } };
+  const x = (e, c = BRL) => parDeCarteiras(api, { tx: [saida('2026-09-05', 15000)] }, { moeda: 'BRL', tx: [e] }, c);
+  // € 150 = R$ 930 pela taxa; R$ 874,20 é 6% a menos
+  assert.equal(sugeridas(api, x(entrada('2026-09-10', 87420))).pares.length, 1, '6% e 5 dias');
+  assert.equal(sugeridas(api, x(entrada('2026-09-10', 87400))).pares.length, 0, 'um pouco acima de 6%');
+  assert.equal(sugeridas(api, x(entrada('2026-09-11', 93000))).pares.length, 0, '6 dias');
+  const p = sugeridas(api, x(entrada('2026-09-06', 92500))).pares[0];
+  assert.deepEqual(p.moedas, ['BRL']); assert.ok(Math.abs(p.dif - (1 - 925 / 930)) < 1e-9);
+  const sem = sugeridas(api, x(entrada('2026-09-06', 93000), {}));
+  assert.equal(sem.pares.length, 0, 'sem câmbio do real, nada');
+  assert.deepEqual(sem.semCambio.map(w => w.nome), ['Outra conta']);
+});
+
+test('transferências: só "Envios para outra conta sua", "Pessoas, taxas e outros" ou sem categoria formam par; compra reconhecida não', () => {
+  const api = load();
+  const n = s => sugeridas(api, parDeCarteiras(api, { tx: [s] }, { tx: [entrada('2026-09-11', 5000)] })).pares.length;
+  assert.equal(n(['2026-09-10', 'Tesco', 'Merchant', -5000, 0]), 0, 'mercado');
+  assert.equal(n(['2026-09-10', 'Netflix', 'Merchant', -5000, 0]), 0, 'assinatura');
+  assert.equal(n(['2026-09-10', 'Uber', 'Merchant', -5000, 0]), 0, 'transporte');
+  assert.equal(n(['2026-09-10', 'To MARIA SILVA', 'Others', -5000, 0]), 1, 'envio ao titular (Envios para outra conta sua)');
+  assert.equal(n(['2026-09-10', 'To Fulano Exemplo', 'Others', -5000, 0]), 1, 'pessoas, taxas e outros');
+  assert.equal(n(['2026-09-10', 'To Flexible Cash', 'Others', -5000, 0]), 0, 'reserva');
+  assert.equal(n(['2026-09-10', 'Exchanged to BTC', 'Exchange', -5000, 0]), 0, 'investimento');
+  // escolha da pessoa: tirar a saída de "outros" tira a sugestão
+  assert.equal(sugeridas(api, parDeCarteiras(api, { tx: [saida('2026-09-10', 5000)], over: { 'TO FULANO EXEMPLO': 'compras' } }, { tx: [entrada('2026-09-11', 5000)] })).pares.length, 0);
+});
+
+test('transferências: confirmar marca as duas pontas como "Entre contas suas"; desfazer devolve as duas', () => {
+  const api = load();
+  const x = parDeCarteiras(api, { tx: [saida('2026-09-10', 20000), ['2026-09-12', 'Tesco', 'Merchant', -3000, 0]] }, { tx: [entrada('2026-09-11', 20000), entrada('2026-09-20', 7000, 'Pix recebido Cliente')] });
+  const antes = api.resumir(x), p = sugeridas(api, x).pares[0];
+  const y = api.confirmarTransferencia(x, parDe(p)), R = api.resumir(y);
+  const r = (R, i, id) => R.ws[i].M.rows.filter(q => q.id === id)[0];
+  assert.equal(r(R, 0, p.s.r.id).kind, 'interno'); assert.equal(r(R, 1, p.e.r.id).kind, 'interno');
+  assert.equal(R.ws[0].M.by['2026-09'].gasto, 30, 'sai do Gastou'); assert.equal(R.ws[1].M.by['2026-09'].entrou, 70, 'sai do Entrou');
+  assert.equal(api.sugerirTransferencias(R, y).pares.length, 0, 'a confirmada não é sugerida de novo');
+  assert.equal(api.transferenciasConfirmadas(R).length, 1);
+  assert.equal(api.contarTransferencias(y.carteiras[0]), 1); assert.deepEqual(x.carteiras.map(w => w.transf), [{}, {}], 'os dados de antes não mudam');
+  // desfazer a partir de qualquer ponta
+  for (const [c, id] of [['c1', p.s.r.id], ['c2', p.e.r.id]]) {
+    const z = api.desfazerTransferencia(y, c, id), Z = api.resumir(z);
+    assert.deepEqual(z.carteiras.map(w => w.transf), [{}, {}]);
+    assert.equal(r(Z, 0, p.s.r.id).kind, r(antes, 0, p.s.r.id).kind); assert.equal(r(Z, 1, p.e.r.id).kind, r(antes, 1, p.e.r.id).kind);
+    assert.deepEqual(Z.ws.map(w => w.M.by), antes.ws.map(w => w.M.by));
+  }
+  // o que foi confirmado passa pelo JSON salvo
+  assert.deepEqual(api.lerSalvo(JSON.stringify(y)).carteiras.map(w => w.transf), y.carteiras.map(w => w.transf));
+});
+
+test('transferências: um lado já "Entre contas suas" (pelo titular ou por descrição) marca só o outro; os dois já marcados, nada', () => {
+  const api = load();
+  // a entrada com o nome do titular já é "Entre contas suas" sozinha; a saída ainda conta como envio
+  let x = parDeCarteiras(api, { tx: [saida('2026-09-05', 15000, 'To MARIA SILVA')] }, { tx: [entrada('2026-09-07', 15000, 'Pix recebido MARIA SILVA')] });
+  let p = sugeridas(api, x).pares[0];
+  assert.equal(p.ja, 'e'); assert.equal(p.e.r.kind, 'interno'); assert.equal(p.s.r.cat, 'brasil');
+  let y = api.confirmarTransferencia(x, parDe(p));
+  assert.equal(y.carteiras[0].transf[p.s.r.id].marca, true); assert.equal(y.carteiras[1].transf[p.e.r.id].marca, false, 'a entrada fica como estava');
+  assert.equal(api.resumir(y).ws[0].M.rows[0].kind, 'interno');
+  // a saída marcada por descrição; a entrada (sem o nome) ainda conta como entrada
+  x = parDeCarteiras(api, { tx: [saida('2026-09-05', 15000, 'To MARIA SILVA')], over: { 'TO MARIA SILVA': '_ignore' } }, { tx: [entrada('2026-09-06', 15000)] });
+  p = sugeridas(api, x).pares[0];
+  assert.equal(p.ja, 's');
+  y = api.confirmarTransferencia(x, parDe(p));
+  assert.equal(y.carteiras[0].transf[p.s.r.id].marca, false); assert.equal(api.resumir(y).ws[1].M.rows[0].kind, 'interno');
+  // desfazer: a saída continua marcada pela descrição (era assim antes)
+  assert.equal(api.resumir(api.desfazerTransferencia(y, 'c1', p.s.r.id)).ws[0].M.rows[0].kind, 'interno');
+  // as duas já marcadas: sem sugestão
+  x = parDeCarteiras(api, { tx: [saida('2026-09-05', 15000, 'To MARIA SILVA')], over: { 'TO MARIA SILVA': '_ignore' } }, { tx: [entrada('2026-09-07', 15000, 'Pix recebido MARIA SILVA')] });
+  assert.equal(sugeridas(api, x).pares.length, 0);
+});
+
+test('transferências: "Não são" não volta; cada movimento entra em um par só, o de datas mais próximas', () => {
+  const api = load();
+  const x = parDeCarteiras(api, { tx: [saida('2026-09-10', 10000)] }, { tx: [entrada('2026-09-12', 10000), entrada('2026-09-11', 10050)] });
+  const S = sugeridas(api, x);
+  assert.equal(S.pares.length, 1); assert.equal(S.pares[0].e.r.date, '2026-09-11', 'datas antes do valor');
+  const y = api.dispensarSugestao(x, parDe(S.pares[0]));
+  assert.equal(y.carteiras[0].sugDispensadas.length, 1); assert.deepEqual(y.carteiras[0].sugDispensadas, y.carteiras[1].sugDispensadas);
+  const S2 = sugeridas(api, api.lerSalvo(JSON.stringify(y)));
+  assert.equal(S2.pares.length, 1, 'a saída fica livre para a outra entrada'); assert.equal(S2.pares[0].e.r.date, '2026-09-12');
+  assert.equal(sugeridas(api, api.dispensarSugestao(y, parDe(S2.pares[0]))).pares.length, 0, 'e nenhuma dispensada volta');
+});
+
+test('transferências: movimentos idênticos não se confundem, e reimportar o mesmo extrato não muda nada', () => {
+  const api = load(), d = saida('2026-09-10', 5000), e = entrada('2026-09-10', 5000);
+  const x = parDeCarteiras(api, { tx: [d, d.slice()] }, { tx: [e, e.slice()] });
+  const S = sugeridas(api, x);
+  assert.equal(S.pares.length, 2);
+  assert.deepEqual(S.pares.map(p => p.s.r.id.slice(-2)).sort(), ['#1', '#2']);
+  const y = api.confirmarTransferencia(x, parDe(S.pares[0])), S2 = sugeridas(api, y);
+  assert.equal(S2.pares.length, 1, 'o outro par continua sugerido');
+  assert.notEqual(S2.pares[0].s.r.id, S.pares[0].s.r.id);
+  // reimportar os mesmos movimentos (em outra ordem): a carteira não muda, e a confirmada continua
+  const c = y.carteiras[0], m = c.months['2026-09'], j = api.juntarMovimentos(m, m.slice().reverse());
+  assert.equal(j.novos, 0);
+  const z = { ...y, carteiras: [{ ...c, months: { '2026-09': j.lista } }, y.carteiras[1]] };
+  assert.equal(api.resumir(z).ws[0].M.rows.filter(r => r.kind === 'interno').length, 1);
+  assert.equal(sugeridas(api, z).pares.length, 1);
+});
+
+test('transferências: excluir uma carteira desfaz os pares dela; formato errado é erro; carteira que sumiu sai', () => {
+  const api = load();
+  let x = parDeCarteiras(api, { tx: [saida('2026-09-10', 10000), saida('2026-09-20', 4000)] }, { tx: [entrada('2026-09-11', 10000)] });
+  x = api.novaCarteira(x, { nome: 'Terceira', moeda: 'EUR', pais: 'IE', banco: 'outro' });
+  x.carteiras[2].months = { '2026-09': [entrada('2026-09-21', 4000)] };
+  const S = sugeridas(api, x), p2 = S.pares.filter(p => p.e.w.id === 'c2')[0], p3 = S.pares.filter(p => p.e.w.id === 'c3')[0];
+  let y = api.dispensarSugestao(api.confirmarTransferencia(x, parDe(p2)), parDe(p3));
+  const z = api.excluirCarteira(y, 'c2');
+  assert.deepEqual(z.carteiras[0].transf, {}); assert.equal(api.resumir(z).ws[0].M.rows[0].kind, 'gasto', 'a saída volta a ser gasto');
+  assert.equal(z.carteiras[0].sugDispensadas.length, 1, 'a dispensada com a terceira fica');
+  assert.equal(api.excluirCarteira(y, 'c3').carteiras[0].sugDispensadas.length, 0);
+  // backup com transferência para uma carteira que não existe: a marca sai
+  const orfa = { ...y, carteiras: [y.carteiras[0], y.carteiras[2]] };
+  assert.deepEqual(api.migrate(JSON.parse(JSON.stringify(orfa))).carteiras[0].transf, {});
+  const ruim = (c) => ({ ...y, carteiras: [{ ...y.carteiras[0], ...c }, y.carteiras[1]] });
+  assert.throws(() => api.migrate(ruim({ transf: { a: { c: 'c2' } } })), /transferências em formato errado/);
+  assert.throws(() => api.migrate(ruim({ transf: [] })), /transferências em formato errado/);
+  assert.throws(() => api.migrate(ruim({ sugDispensadas: ['x'] })), /dispensadas em formato errado/);
+  // uma carteira só de novo: a ida e volta para a v3 continua exata
+  const um = api.excluirCarteira(api.excluirCarteira(y, 'c3'), 'c2');
+  assert.deepEqual(um.carteiras[0].transf, {});
+  assert.deepEqual(api.migrate(api.paraV3(um)).carteiras[0].months, um.carteiras[0].months);
+});
+
+test('transferências no extrato de exemplo: a diferença de valor, a de 2 dias, a entrada já marcada pelo titular e a fora da folga', () => {
+  const api = load(), bytes = new Uint8Array(readFileSync(new URL('../exemplo/extrato-transferencia-exemplo.csv', import.meta.url)));
+  const monta = over => {
+    let x = api.migrate({ v: 3, months: months(api), over, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', configurado: true }, summary: null, div: null });
+    x = api.novaCarteira(x, { nome: 'Banco Exemplo', moeda: 'BRL', pais: 'BR', banco: 'outro' });
+    const p = api.prepararImportacao(bytes); p.mapa.valor.saidas = 'negativas';
+    api.interpretarCSV(p.rows, p.mapa).tx.forEach(t => { (x.carteiras[1].months[t[0].slice(0, 7)] = x.carteiras[1].months[t[0].slice(0, 7)] || []).push(t); });
+    return { ...x, cambios: { BRL: { rate: 6.2, data: '2026-09-10' } } };
+  };
+  const linha = p => [p.s.r.date, p.e.r.date, p.dias, Math.round(p.dif * 1000) / 10, p.ja];
+  assert.deepEqual(sugeridas(api, monta({})).pares.map(linha), [
+    ['2026-10-05', '2026-10-07', 2, 4.8, null],
+    ['2026-08-05', '2026-08-07', 2, 0, 'e'],
+    ['2026-07-05', '2026-07-06', 1, 0.5, null]
+  ], 'setembro: a entrada chega 11 dias depois, fora da folga');
+  // a saída já marcada por descrição: julho e outubro marcam só a entrada; agosto (as duas marcadas) some
+  assert.deepEqual(sugeridas(api, monta({ 'TO MARIA SILVA': '_ignore' })).pares.map(linha), [
+    ['2026-10-05', '2026-10-07', 2, 4.8, 's'],
+    ['2026-07-05', '2026-07-06', 1, 0.5, 's']
+  ]);
+});
+
+test('previsão com transferência sugerida ainda não confirmada: diz quanto vem dela, e o estouro até esse valor não conta', () => {
+  const api = load();
+  const fixo = [['2026-09-03', 'Tesco', 'Groceries', -30000, null], ['2026-09-30', 'Tesco', 'Groceries', -100, null], ['2026-10-02', 'Tesco', 'Groceries', -10000, null], ['2026-10-20', 'Tesco', 'Groceries', -100, null]];
+  const x = parDeCarteiras(api, { tx: [...fixo, saida('2026-10-05', 15000)] }, { tx: [entrada('2026-10-06', 15000)] });
+  const R = api.resumir(x), sug = api.sugerirTransferencias(R, x);
+  assert.equal(sug.pares.length, 1);
+  const sem = api.previsaoResumo(R, x), P = api.previsaoResumo(R, x, sug);
+  assert.equal(sem.pend, 0, 'sem as sugestões, nada a confirmar');
+  assert.equal(P.nPend, 1); assert.ok(P.pend >= 150, 'pelo menos o valor que saiu');
+  const depois = api.previsaoResumo(api.resumir(api.confirmarTransferencia(x, parDe(sug.pares[0]))), x);
+  assert.ok(Math.abs(P.proj - P.pend - depois.proj) < 1e-6, 'é o quanto a previsão cai ao confirmar');
+  const dif = P.proj - P.meta;
+  assert.ok(dif > 0 && dif <= P.pend, 'o caso do teste passa da meta só por causa da transferência');
+  assert.equal(api.passaMesmo(dif, P.pend), false, 'não fica em vermelho');
+  assert.equal(api.passaMesmo(dif, 0), true);
+  assert.equal(api.passaMesmo(P.pend + 1, P.pend), true, 'acima do valor a confirmar, passa mesmo');
+  // a saída já marcada como Entre contas suas não está no gasto: nada a confirmar na previsão
+  const y = parDeCarteiras(api, { tx: [...fixo, saida('2026-10-05', 15000)], over: { 'TO FULANO EXEMPLO': '_ignore' } }, { tx: [entrada('2026-10-06', 15000)] });
+  const Ry = api.resumir(y), Sy = api.sugerirTransferencias(Ry, y);
+  assert.equal(Sy.pares[0].ja, 's'); assert.equal(api.previsaoResumo(Ry, y, Sy).nPend, 0);
 });

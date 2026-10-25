@@ -1,0 +1,20 @@
+Banco Exemplo S.A. - Extrato de conta corrente
+Cliente: MARIA SILVA;Agência: 0001;Conta: 98765-4
+Período: 01/07/2026 a 20/10/2026
+
+Data;Histórico;Documento;Valor (R$)
+06/07/2026;TED recebida Remessa Exemplo;;925,00
+10/07/2026;Conta de luz Enel Exemplo;;-187,44
+15/07/2026;Supermercado Exemplo;;-312,50
+22/07/2026;Tarifa pacote de serviços;;-39,90
+07/08/2026;Pix recebido MARIA SILVA;;930,00
+10/08/2026;Conta de luz Enel Exemplo;;-191,02
+14/08/2026;Supermercado Exemplo;;-298,70
+22/08/2026;Tarifa pacote de serviços;;-39,90
+10/09/2026;Conta de luz Enel Exemplo;;-185,10
+16/09/2026;TED recebida Remessa Exemplo;;930,00
+18/09/2026;Supermercado Exemplo;;-305,15
+22/09/2026;Tarifa pacote de serviços;;-39,90
+07/10/2026;TED recebida Remessa Exemplo;;885,00
+10/10/2026;Conta de luz Enel Exemplo;;-189,60
+16/10/2026;Supermercado Exemplo;;-301,25
