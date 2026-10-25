@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas, comSenha } from './planilhas.mjs';
+import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas, comSenha, extratoBtgExemplo } from './planilhas.mjs';
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 // regras (rules/) e leitores (parsers/) vêm antes do app.js, na ordem do index.html: a lista sai da própria página
@@ -358,7 +358,7 @@ test('Brasil: palavras curtas casam só como palavra inteira, e nomes comuns só
     ['Mercado Livre', 'compras', 'Mercado Livre antes de "mercado"'],
     ['Pix enviado LUZ CLARA LIGHTFOOT', 'outros', '"Light" sozinho não é a Light'],
     ['Pix enviado ANA CLARO', 'outros', '"Claro" sozinho não é a Claro'],
-    ['Pix enviado TIMOTEO SOUZA', 'outros', '"TIM" sozinho não é a TIM'],
+    ['Pix enviado TIMOTEO ZORVA', 'outros', '"TIM" sozinho não é a TIM'],
     ['Pix enviado OI MARIA', 'outros', '"Oi" sozinho não é a Oi'],
     ['Pix enviado 99 EVENTOS LTDA', 'outros', '"99" sozinho não é a 99'],
     ['Pix enviado EXTRA MOVEIS', 'outros', '"Extra" sozinho não é o mercado'],
@@ -719,7 +719,7 @@ const CSV_A = [
   '15/09/2026;Farmácia São João;;-48,90',
   '15/09/2026;Café Exemplo;;-7,50',
   '15/09/2026;Café Exemplo;;-7,50',
-  '28/09/2026;Aluguel Imóveis Exemplo;;-1.850,00',
+  '28/09/2026;Aluguel Zomeltu Exemplo;;-1.850,00',
   '',
   'Total do período;;;2.973,65',
   'Saldo final em 30/09/2026;;;4.120,10'
@@ -1546,6 +1546,9 @@ test('planilha com problema: nada é lido pela metade', () => {
   const p = P.prepararPlanilha(XL, xlsxAMao([{ nome: '__proto__', linhas: [['__proto__', 'constructor', 'Valor'], [{ data: '2026-10-01' }, 'x', 1]] }]), 'xlsx');
   assert.deepEqual(p.abas, ['__proto__']);
   assert.equal({}.polluted, undefined); assert.equal(Object.prototype.Valor, undefined); assert.equal(typeof {}.constructor, 'function');
+  // e a leitura seguinte, na mesma instância do leitor, sai igual à de uma instância nova
+  const outra = xlsxAMao([{ nome: 'Extrato', linhas: [['Data', 'Descrição', 'Valor'], [{ data: '2026-10-02' }, 'Padaria Exemplo', -10]] }]);
+  assert.deepEqual(P.prepararPlanilha(XL, outra, 'xlsx').rows, P.prepararPlanilha(carregarXLSX(), outra, 'xlsx').rows);
 });
 
 test('planilha com senha: reconhecida pelo conteúdo, com um aviso que diz o que fazer (e não "danificada")', () => {
@@ -1627,4 +1630,47 @@ test('leitores: todos seguem o contrato, e o banco é reconhecido pelo conteúdo
   assert.equal(lido.periodo, null, 'o Revolut não informa o período: vale a primeira e a última data');
   assert.ok(lido.tx.every(t => /^\d{4}-\d{2}-\d{2}$/.test(t[0]) && Number.isInteger(t[3])), 'data ISO e centavos inteiros');
   assert.deepEqual([...new Set(lido.tx.map(t => t[2]))].sort(), ['Exchange', 'Merchant', 'Others'], 'tipos do vocabulário da classificação');
+});
+
+// ---------- exemplo do BTG (exemplo/extrato-btg-exemplo.xls): inventado, na estrutura do .xls real ----------
+test('exemplo do BTG: o arquivo é exatamente o que o gerador produz (não é editado à mão)', () => {
+  // instância nova do SheetJS: ler certos arquivos (como uma aba chamada __proto__) muda o arranjo dos bytes que a
+  // mesma instância grava depois (o conteúdo é o mesmo); o painel só lê, e o gerador sempre roda numa instância nova
+  assert.ok(Buffer.from(exemplo('extrato-btg-exemplo.xls')).equals(Buffer.from(extratoBtgExemplo(carregarXLSX()))), 'rode node scripts/gerar-exemplos.mjs');
+});
+
+test('exemplo do BTG: páginas com topo e cabeçalho repetidos e mesclas; o importador genérico lê tudo', () => {
+  const b = exemplo('extrato-btg-exemplo.xls');
+  assert.equal(P.tipoArquivo(b), 'xls');
+  const wb = XL.read(b, { type: 'array', cellNF: true }), ws = wb.Sheets[wb.SheetNames[0]];
+  const linhasCom = t => Object.keys(ws).filter(k => k[0] !== '!' && ws[k].v === t).map(k => XL.utils.decode_cell(k).r);
+  assert.equal(linhasCom('Extrato de conta corrente').length, 3, 'três páginas');
+  assert.equal(linhasCom('Cliente:').length, 3, 'o bloco do topo em cada página');
+  const cabs = linhasCom('Data e hora');
+  assert.equal(cabs.length, 4, 'cabeçalho da tabela: um por página e mais um no meio da página 2');
+  const titulos = linhasCom('Extrato de conta corrente').sort((a, b) => a - b);
+  assert.ok(cabs.some(r => r > titulos[1] + 11 && r < titulos[2]), 'um cabeçalho no meio da página 2, longe do topo');
+  const mesc = ws['!merges'].map(m => XL.utils.encode_range(m));
+  for (const t of titulos) for (const ref of [`B${t + 1}:H${t + 1}`, `C${t + 3}:K${t + 3}`, `M${t + 3}:N${t + 7}`, `C${t + 4}:D${t + 4}`]) assert.ok(mesc.includes(ref), 'mescla do topo ' + ref);
+  // o importador genérico (sem leitor do BTG): cabeçalho, saldo do dia, período do arquivo
+  const p = P.prepararPlanilha(XL, b, 'xls');
+  assert.equal(p.mapa.cab, 10); assert.equal(p.mapa.saldoLinhas, 'Saldo Diário');
+  assert.deepEqual(P.perguntasImportacao(p.rows, p.mapa).map(q => q.id), ['sinal']);
+  p.mapa.valor.saidas = 'negativas';
+  const r = interpretar(p);
+  assert.equal(r.tx.length, 22); assert.equal(Object.keys(r.saldos).length, 20);
+  assert.deepEqual(r.periodo, { de: '2026-08-01', ate: '2026-10-15', fonte: 'arquivo' });
+  assert.ok(r.ignoradas.every(x => x.motivo === 'sem data válida'), 'só os blocos de topo, cabeçalhos e rodapés ficam de fora');
+  // saldos coerentes: só o rendimento de 0,42 aparece; os 0,03 são arredondamento
+  const S = carregarNucleo(['conferirSaldos']);
+  assert.deepEqual(S.conferirSaldos(r.tx, r.saldos).divergencias, [{ de: '2026-08-12', ate: '2026-08-15', dif: 42, tipo: 'rendimento' }]);
+  // "Saldo atual" do topo igual ao último saldo do dia
+  const atual = linhasCom('Saldo atual:').map(rr => ws['J' + (rr + 1)].v);
+  assert.deepEqual(atual, [4993.47, 4993.47, 4993.47]); assert.equal(r.saldos['2026-10-14'], 499347);
+  // a fatura do cartão vem com a categoria "Contas" do BTG; o genérico só olha a descrição: Pessoas, taxas e outros
+  const fatura = Object.keys(ws).filter(k => ws[k].v === 'Pagamento de fatura do cartão').map(k => XL.utils.decode_cell(k).r);
+  assert.equal(fatura.length, 3);
+  assert.ok(fatura.every(rr => ws['C' + (rr + 1)].v === 'Contas'));
+  const A = load(), c = A.classify(r.tx.find(t => t[1] === 'CARTÃO EXEMPLO'), {}, 'MARIA EXEMPLO', 'BR');
+  assert.equal(c.cat, 'outros', 'a fatura não vai para Aluguel e contas');
 });

@@ -100,3 +100,87 @@ export function comSenha(X) {
   X.CFB.utils.cfb_add(c, 'EncryptedPackage', new Uint8Array(64).map((_, i) => (i * 37) & 255));
   return new Uint8Array(X.CFB.write(c, { type: 'array' }));
 }
+
+// ---------- extrato inventado na estrutura do .xls do BTG (exemplo/extrato-btg-exemplo.xls) ----------
+// A estrutura (colunas, rótulos, mesclas, formatos, bloco do topo e rodapé em cada página) foi copiada de um
+// extrato real anonimizado; TODO o conteúdo abaixo é inventado. Saldo do dia = anterior + movimentos + extra
+// (extra: rendimento que o extrato não lista, ou arredondamento de até R$ 0,05). Só os nomes de "Transação" que
+// existem no arquivo real.
+const BTG_INICIAL = 250000; // saldo antes do primeiro dia, em centavos
+const BTG_DIAS = [
+  ['01/08/2026', [['09:10', 'Transferência', 'Pix recebido', 'EMPRESA EXEMPLO LTDA', 480000]]],
+  ['03/08/2026', [['10:22', 'Transferência', 'Pix enviado', 'IMOBILIARIA EXEMPLO', -180000], ['14:05', 'Transferência', 'Pix enviado', 'JOÃO EXEMPLO', -15000]]],
+  ['05/08/2026', [['08:30', 'Investimentos', 'CDB BANCO BTG PACTUAL S A', 'CDB EXEMPLO', -100000]]],
+  ['10/08/2026', [['07:45', 'Contas', 'Pagamento de fatura do cartão', 'CARTÃO EXEMPLO', -123456]]],
+  ['12/08/2026', [['18:02', 'Transferência', 'Pix recebido', 'MARIA EXEMPLO', 50000]]],
+  ['15/08/2026', [['12:40', 'Outra Categoria', 'Pix enviado', 'ANA EXEMPLO', -8000]], 42], // rendimento de 0,42
+  ['20/08/2026', [['09:15', 'Contas', 'Pix enviado', 'ENERGIA EXEMPLO S.A.', -18744]]],
+  ['28/08/2026', [['16:20', 'Transferência', 'Transferência enviada', 'MARIA EXEMPLO', -60000]]],
+  ['01/09/2026', [['09:05', 'Transferência', 'Pix recebido', 'EMPRESA EXEMPLO LTDA', 480000]]],
+  ['02/09/2026', [['10:10', 'Transferência', 'Pix enviado', 'IMOBILIARIA EXEMPLO', -180000]]],
+  ['05/09/2026', [['08:31', 'Investimentos', 'CDB Banco BTG Pactual', 'CDB EXEMPLO', 102035]]],
+  ['10/09/2026', [['07:50', 'Contas', 'Pagamento de fatura do cartão', 'CARTÃO EXEMPLO', -98710]]],
+  ['14/09/2026', [['19:30', 'Transferência', 'Transferência recebida', 'MARIA EXEMPLO', 30000]], 3], // arredondamento de 0,03
+  ['18/09/2026', [['08:12', 'Transferência', 'Pix enviado', 'PADARIA SÃO JOÃO', -4590], ['20:44', 'Outra Categoria', 'Pix enviado', 'PEDRO EXEMPLO', -6000]]],
+  ['25/09/2026', [['08:29', 'Investimentos', 'CDB BANCO BTG PACTUAL S A', 'CDB EXEMPLO', -200000]]],
+  ['01/10/2026', [['09:07', 'Transferência', 'Pix recebido', 'EMPRESA EXEMPLO LTDA', 480000]]],
+  ['02/10/2026', [['10:05', 'Transferência', 'Pix enviado', 'IMOBILIARIA EXEMPLO', -180000]]],
+  ['08/10/2026', [['21:10', 'Transferência', 'Pix enviado', 'MARIA EXEMPLO', -100000]]],
+  ['10/10/2026', [['07:48', 'Contas', 'Pagamento de fatura do cartão', 'CARTÃO EXEMPLO', -110233]]],
+  ['14/10/2026', [['15:35', 'Transferência', 'Pix recebido', 'JOÃO EXEMPLO', 12000]]]
+];
+// em que linha da tabela cada página termina, e onde a página 2 repete o cabeçalho no meio (como no arquivo real)
+const BTG_PAGINAS = [16, 32], BTG_CAB_NO_MEIO = 22;
+export function extratoBtgExemplo(X) {
+  const linhas = []; // [{ tipo: 'mov'|'saldo', ... }] na ordem do extrato
+  let saldo = BTG_INICIAL;
+  for (const [dia, movs, extra = 0] of BTG_DIAS) {
+    for (const [hora, cat, trans, desc, v] of movs) { linhas.push({ tipo: 'mov', dh: dia + ' ' + hora, cat, trans, desc, v }); saldo += v; }
+    saldo += extra;
+    linhas.push({ tipo: 'saldo', dh: dia + ' 23:59', v: saldo });
+  }
+  const ws = {}, merges = [], NUM = '#,##0.00';
+  const put = (r, c, cel) => { ws[X.utils.encode_cell({ r, c })] = cel; };
+  const s = v => ({ t: 's', v }), n = v => ({ t: 'n', v: v / 100, z: NUM });
+  const m = (r1, c1, r2, c2) => merges.push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+  const [B, C, D, G, H, J, K, M] = [1, 2, 3, 6, 7, 9, 10, 12], F = 5, N = 13;
+  const emissao = serial('2026-10-15', '09:12') + 34 / 86400; // 15/10/2026 09:12:34
+  let r = 0;
+  const cabecalho = () => {
+    put(r, B, s('Data e hora')); put(r, C, s('Categoria')); put(r, D, s('Transação')); put(r, G, s('Descrição')); put(r, K, s('Valor'));
+    m(r, D, r, F); m(r, G, r, J); m(r, K, r, N); r++;
+  };
+  const topo = () => {
+    put(r, B, s('Extrato de conta corrente')); put(r, J, { t: 'n', v: emissao, z: 'dd/MM/yyyy' }); m(r, B, r, H); m(r, J, r, N); r++;
+    m(r, B, r, N); r++;
+    put(r, B, s('Cliente:')); put(r, C, s('MARIA EXEMPLO')); m(r, C, r, K); m(r, M, r + 4, N); r++;
+    put(r, B, s('CPF:')); put(r, C, s('000.000.000-00')); m(r, C, r, D); r++;
+    put(r, B, s('Agência:')); put(r, C, s('00')); m(r, C, r, D); r++;
+    put(r, B, s('Conta:')); put(r, C, s('0000000-0')); m(r, C, r, D); r++;
+    put(r, B, s('Período do extrato:')); put(r, C, s('01/08/2026 a 15/10/2026')); m(r, C, r, G); r++;
+    m(r, B, r, N); r++;
+    put(r, B, s('Lançamentos:')); put(r, H, s('Saldo atual:')); put(r, J, n(saldo)); m(r, H, r, I_(H)); m(r, J, r, N); r++;
+    r++;
+    cabecalho();
+  };
+  const I_ = c => c + 1;
+  const rodape = () => {
+    r++;
+    put(r, F, s('Ouvidoria: 0000-000-0000 ou ouvidoria@btgpactual.com')); m(r, F, r + 1, M); r += 2;
+    put(r, F, s('©BTG Pactual - CNPJ 00.000.000/0000-00')); m(r, F, r, M); r++;
+    r++;
+  };
+  topo();
+  linhas.forEach((l, i) => {
+    if (BTG_PAGINAS.includes(i)) { rodape(); topo(); }
+    if (i === BTG_CAB_NO_MEIO) cabecalho();
+    put(r, B, s(l.dh));
+    if (l.tipo === 'mov') { put(r, C, s(l.cat)); put(r, D, s(l.trans)); put(r, G, s(l.desc)); } else put(r, G, s('Saldo Diário'));
+    put(r, K, n(l.v)); m(r, D, r, F); m(r, G, r, J); m(r, K, r, N); r++;
+  });
+  rodape();
+  ws['!ref'] = X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r - 1, c: N } });
+  ws['!merges'] = merges;
+  const wb = { SheetNames: ['Extrato'], Sheets: { Extrato: ws }, Props: {} };
+  return new Uint8Array(X.write(wb, { type: 'array', bookType: 'biff8' }));
+}
