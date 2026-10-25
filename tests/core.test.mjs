@@ -9,8 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas, comSenha } from './planilhas.mjs';
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-// as regras de comerciantes de cada país ficam em rules/ e são carregadas antes do app.js (como no index.html)
-const regras = ['ie', 'br'].map(p => readFileSync(new URL(`../rules/${p}.js`, import.meta.url), 'utf8')).join('\n');
+// regras (rules/) e leitores (parsers/) vêm antes do app.js, na ordem do index.html: a lista sai da própria página
+const scriptsAntes = [...readFileSync(new URL('../index.html', import.meta.url), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js');
+const regras = scriptsAntes.map(f => readFileSync(new URL('../' + f, import.meta.url), 'utf8')).join('\n');
 const core = regras + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
 const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.url), 'utf8');
 
@@ -255,7 +256,7 @@ test('pagamentos em R$ e em euro da v2 viram valor + moeda na v3, sem perder nad
 
 test('a página não carrega nada de servidor externo, e o nome Nora não trocou a chave salva', () => {
   const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
-  for (const f of ['index.html', 'styles.css', 'logo.svg', 'icon.svg', 'rules/ie.js', 'rules/br.js']) {
+  for (const f of ['index.html', 'styles.css', 'logo.svg', 'icon.svg', ...scriptsAntes]) {
     assert.doesNotMatch(ler(f).replace(/xmlns(:\w+)?="http:\/\/www\.w3\.org\/[^"]*"/g, ''), /(https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}/i, f + ' aponta para fora');
   }
   // as fontes declaradas no CSS existem no projeto
@@ -847,10 +848,10 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
   assert.equal(api.buildModel(months(api), {}).semSaldo, false, 'o Revolut continua com saldo');
 });
 
-test('a página carrega as regras de cada país antes do app.js, do próprio projeto', () => {
+test('a página carrega as regras de cada país e os leitores de banco antes do app.js, do próprio projeto', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'app.js']);
+  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
@@ -1571,7 +1572,7 @@ test('CSP: a política vem logo depois do charset, com no-referrer, e a página 
   assert.doesNotMatch(html, /<style\b/, 'nenhum bloco <style>');
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/, 'nenhum <script> sem src');
   assert.doesNotMatch(html, /\son[a-z]+\s*=/i, 'nenhum atributo onclick=, onload=…');
-  for (const f of ['app.js', 'rules/ie.js', 'rules/br.js']) {
+  for (const f of ['app.js', ...scriptsAntes]) {
     const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
     assert.doesNotMatch(s, /\son(click|change|input|load|error|submit|focus|blur|key\w*|mouse\w*|pointer\w*|touch\w*)\s*=/i, f + ' gera atributo on…=');
     assert.doesNotMatch(s, /javascript:/i, f);
@@ -1588,8 +1589,33 @@ test('CSP não restringe navegação: nenhum código do projeto navega, abre jan
     /\b(?:window|document|self|top|parent|globalThis)\s*\.\s*location\b/,
     /(?<![\w$.])open\s*\(/, /\bwindow\s*\.\s*open\b/, /sendBeacon/
   ];
-  for (const f of ['app.js', 'rules/ie.js', 'rules/br.js', 'vendor/sheetjs/xlsx.core.min.js']) {
+  for (const f of ['app.js', ...scriptsAntes, 'vendor/sheetjs/xlsx.core.min.js']) {
     const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
     for (const re of NAVEGA) assert.doesNotMatch(s, re, f + ': ' + re);
   }
+});
+
+// ---------- leitores de banco (parsers/) ----------
+test('leitores: todos seguem o contrato, e o banco é reconhecido pelo conteúdo', () => {
+  const L = carregarNucleo(['LEITORES', 'detectarBanco', 'parseCSV', 'decodificar', 'extractTx', 'moedasNoExtrato', 'extractSummary', 'temLeitor']);
+  for (const [id, l] of Object.entries(L.LEITORES)) {
+    assert.equal(l.id, id); assert.equal(typeof l.nome, 'string');
+    assert.equal(typeof l.reconhece, 'function'); assert.equal(typeof l.ler, 'function');
+    assert.ok(L.temLeitor(id));
+  }
+  const linhas = f => L.parseCSV(L.decodificar(exemplo(f)).texto);
+  assert.equal(L.detectarBanco(linhas('extrato-exemplo.csv')), 'revolut');
+  for (const f of ['extrato-generico-exemplo.csv', 'extrato-saldo-diario-exemplo.csv', 'extrato-transferencia-exemplo.csv'])
+    assert.equal(L.detectarBanco(L.parseCSV(L.decodificar(exemplo(f)).texto, ';')), null, f + ': sem leitor próprio');
+  assert.equal(L.detectarBanco([['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount']]), 'revolut', 'extrato comum do Revolut');
+  assert.equal(L.detectarBanco([]), null);
+  // ler devolve o contrato, com o mesmo resultado das funções de antes
+  const r = linhas('extrato-exemplo.csv'), lido = L.LEITORES.revolut.ler(r, 'EUR');
+  assert.deepEqual(Object.keys(lido).sort(), ['moedas', 'periodo', 'saldos', 'tx']);
+  assert.deepEqual(lido.tx, L.extractTx(r, 'EUR'));
+  assert.deepEqual(lido.moedas, L.moedasNoExtrato(r));
+  assert.deepEqual(lido.saldos, L.extractSummary(r));
+  assert.equal(lido.periodo, null, 'o Revolut não informa o período: vale a primeira e a última data');
+  assert.ok(lido.tx.every(t => /^\d{4}-\d{2}-\d{2}$/.test(t[0]) && Number.isInteger(t[3])), 'data ISO e centavos inteiros');
+  assert.deepEqual([...new Set(lido.tx.map(t => t[2]))].sort(), ['Exchange', 'Merchant', 'Others'], 'tipos do vocabulário da classificação');
 });

@@ -42,8 +42,10 @@ const pedidoPermitido = r => (r.url().startsWith(ORIGEM + '/') && TIPOS_PERMITID
 
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
-const core = ['ie', 'br'].map(p => readFileSync(join(RAIZ, `rules/${p}.js`), 'utf8')).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
+// regras e leitores de banco vêm antes do app.js, na ordem do index.html
+const core = [...readFileSync(join(RAIZ, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js')
+  .map(f => readFileSync(join(RAIZ, f), 'utf8')).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
+const api = new Function(core + '; return { parseCSV, extractTx, extractSummary, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -408,6 +410,38 @@ for (const s of TELAS) {
     `backup corrompido: ${corrompido[0] === salvoDepois && !corrompido[1] ? 'nada gravado' : 'GRAVOU'} ("${corrompido[2]}")`);
   await ctx.close();
 }
+// ---------- importar o extrato do Revolut pela tela (o caminho do leitor em parsers/revolut.js) ----------
+// carteira configurada e vazia; escolhe o extrato de exemplo e confere que o que ficou salvo é exatamente o que o
+// leitor devolve, mês a mês, e que importar de novo não duplica nada
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage();
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('importar Revolut: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); localStorage.setItem('cortex-financas.v3', st); }, JSON.stringify({ v: 3, months: {}, over: {}, plan, summary: null, div: null }));
+  await pg.reload(); await pg.waitForTimeout(150);
+  const EXEMPLO = join(RAIZ, 'exemplo/extrato-exemplo.csv');
+  const esperado = {};
+  api.extractTx(api.parseCSV(readFileSync(EXEMPLO, 'utf8')), 'EUR').forEach(t => { (esperado[t[0].slice(0, 7)] = esperado[t[0].slice(0, 7)] || []).push(t); });
+  Object.values(esperado).forEach(l => l.sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0)));
+  await pg.setInputFiles('#fin-csv', EXEMPLO); await pg.waitForSelector('#toast:not([hidden])');
+  const aviso1 = await pg.textContent('#toast-txt');
+  const salvo = await pg.evaluate(() => JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[0]);
+  await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
+  await pg.setInputFiles('#fin-csv', EXEMPLO); await pg.waitForSelector('#toast:not([hidden])');
+  const aviso2 = await pg.textContent('#toast-txt');
+  const igual = JSON.stringify(salvo.months) === JSON.stringify(esperado);
+  const n = Object.values(esperado).reduce((a, l) => a + l.length, 0);
+  if (!igual) problemas.push('importar Revolut: os meses salvos não são os que o leitor devolve');
+  const resumo = api.extractSummary(api.parseCSV(readFileSync(EXEMPLO, 'utf8'))); // o exemplo não tem resumo de saldos: null
+  if (JSON.stringify(salvo.summary || null) !== JSON.stringify(resumo)) problemas.push('importar Revolut: o resumo de saldos salvo não é o do leitor');
+  if (JSON.stringify(salvo.periodos) !== JSON.stringify([{ de: '2026-07-01', ate: '2026-10-15' }])) problemas.push('importar Revolut: período salvo inesperado ' + JSON.stringify(salvo.periodos));
+  if (!/^Nada novo/.test(aviso2)) problemas.push('importar Revolut: importar de novo não foi "Nada novo" (' + aviso2 + ')');
+  console.log(`importar Revolut pela tela: ${igual ? n + ' movimentos salvos iguais aos do leitor' : 'FALHOU'} ("${aviso1}"); de novo: "${aviso2}"`);
+  await ctx.close();
+}
+
 // ---------- o leitor de planilhas só é pedido quando a pessoa escolhe uma planilha, e uma vez só ----------
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });

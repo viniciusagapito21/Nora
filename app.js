@@ -127,82 +127,22 @@
     m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? m[1] + '-' + m[2] + '-' + m[3] : null;
   }
-  /* devolve [data, descrição, categoria do Revolut, centavos, saldo em centavos], só da conta na moeda pedida */
-  function extractTx(rows, moeda) {
-    moeda = moeda || 'EUR';
-    var out = [], i, r, c0, inSec = false, mode = null, title = '', d, a, b;
-    for (i = 0; i < rows.length; i++) {
-      r = rows[i]; c0 = String(r[0] || '').trim();
-      if (c0 === 'Current Accounts Transaction Statements') { inSec = true; continue; }
-      if (inSec) {
-        if (c0.indexOf('---') === 0) { inSec = false; mode = null; continue; }
-        if (/\(\w{3}\)\s*$/.test(c0) && !r[1]) title = c0;
-        if (c0 === 'Date' && r[1] === 'Description') { mode = (!title || title.indexOf('(' + moeda + ')') >= 0) ? 'read' : 'skip'; continue; }
-        if (mode === 'read') {
-          d = isoDate(c0); a = cents(r[3]); b = cents(r[4]);
-          if (d && a !== null) out.push([d, String(r[1] || '').trim(), String(r[2] || '').trim(), a, b === null ? 0 : b]);
-        }
-      }
-    }
-    if (out.length) return out;
-    /* extrato comum do Revolut: Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance */
-    for (i = 0; i < rows.length; i++) {
-      r = rows[i];
-      if (r.indexOf('Completed Date') >= 0 && r.indexOf('Amount') >= 0 && r.indexOf('Description') >= 0) {
-        var ix = { t: r.indexOf('Type'), d: r.indexOf('Completed Date'), s: r.indexOf('Description'), a: r.indexOf('Amount'), f: r.indexOf('Fee'), cu: r.indexOf('Currency'), st: r.indexOf('State'), b: r.indexOf('Balance') };
-        for (var j = i + 1; j < rows.length; j++) {
-          var x = rows[j];
-          if (ix.st >= 0 && x[ix.st] && x[ix.st] !== 'COMPLETED') continue;
-          if (ix.cu >= 0 && x[ix.cu] && x[ix.cu] !== moeda) continue;
-          d = isoDate(x[ix.d]); a = cents(x[ix.a]);
-          if (!d || a === null) continue;
-          var fee = ix.f >= 0 ? (cents(x[ix.f]) || 0) : 0;
-          var ty = ix.t >= 0 ? x[ix.t] : '';
-          var rc = ty === 'TOPUP' ? 'Top up' : ty === 'CARD_PAYMENT' ? 'Merchant' : ty === 'EXCHANGE' ? 'Exchange' : ty === 'REFUND' ? 'Refund' : 'Others';
-          b = ix.b >= 0 ? cents(x[ix.b]) : 0;
-          out.push([d, String(x[ix.s] || '').trim(), rc, a - fee, b === null ? 0 : b]);
-        }
-        break;
-      }
-    }
-    return out;
+  /* leitores próprios de banco (parsers/<banco>.js, carregados antes deste arquivo; contrato no começo de
+     parsers/revolut.js). Banco sem leitor usa o importador genérico */
+  var LEITORES = { revolut: LEITOR_REVOLUT({ cents: cents, isoDate: isoDate }) };
+  /* o banco pelo conteúdo do arquivo (cabeçalho), ou null */
+  function detectarBanco(rows) {
+    var ks = Object.keys(LEITORES);
+    for (var i = 0; i < ks.length; i++) if (LEITORES[ks[i]].reconhece(rows)) return ks[i];
+    return null;
   }
-  /* as moedas das contas que o extrato traz (para dizer o que existe quando falta a moeda pedida) */
-  function moedasNoExtrato(rows) {
-    var o = {}, i, r, c0, inSec = false, m, ic = -1;
-    for (i = 0; i < rows.length; i++) {
-      r = rows[i]; c0 = String(r[0] || '').trim();
-      if (c0 === 'Current Accounts Transaction Statements') { inSec = true; continue; }
-      if (inSec && c0.indexOf('---') === 0) inSec = false;
-      if (inSec && !r[1] && (m = c0.match(/\((\w{3})\)\s*$/))) o[m[1].toUpperCase()] = 1;
-      if (ic < 0 && r.indexOf('Completed Date') >= 0 && r.indexOf('Currency') >= 0) { ic = r.indexOf('Currency'); continue; }
-      if (ic >= 0 && /^[A-Z]{3}$/.test(String(r[ic] || '').trim())) o[String(r[ic]).trim()] = 1;
-    }
-    return Object.keys(o).sort();
-  }
+  var extractTx = LEITORES.revolut.extractTx, moedasNoExtrato = LEITORES.revolut.moedasNoExtrato, extractSummary = LEITORES.revolut.extractSummary;
   /* com meses salvos, a moeda da configuração não muda: os valores estão na moeda da conta e não seriam
      convertidos, só passariam a aparecer com outro símbolo */
   function moedaTravada(months) {
     return Object.keys(months || {}).some(function (k) { return Array.isArray(months[k]) && months[k].length > 0; });
   }
   function txKey(t) { return t[0] + '|' + t[1] + '|' + t[3] + '|' + t[4]; }
-  /* saldos de fechamento de cada conta, do resumo no começo do extrato consolidado */
-  function extractSummary(rows) {
-    var sec = '', o = {}, i, j, r, c0, v, n = 0;
-    for (i = 0; i < rows.length; i++) {
-      r = rows[i]; c0 = String(r[0] || '').trim();
-      if (c0 === 'Current Accounts Transaction Statements') break;
-      if (c0 === 'Current Accounts Summaries') sec = 'conta';
-      else if (c0 === 'Flexible Cash Funds Summaries') sec = 'flex';
-      else if (c0 === 'Investment Services Summaries') sec = 'invest';
-      else if (c0 === 'Crypto Summaries') sec = 'cripto';
-      if (!sec || o[sec] !== undefined) continue;
-      for (j = 0; j < r.length - 1; j++) {
-        if (String(r[j]).trim() === 'Closing balance') { v = cents(r[j + 1]); if (v !== null) { o[sec] = v; n++; } break; }
-      }
-    }
-    return n ? o : null;
-  }
 
   function bigCheck(id, a, lim) { if (lim === undefined) lim = 100; if (lim && (id === 'compras' || id === 'assin') && a <= -lim) return 'grandes'; return id; }
   function byRule(D, a, rc, pais) {
@@ -462,7 +402,7 @@
      pedido de novo. Uma carteira = um banco e uma moeda; com movimentos salvos, moeda e banco não mudam (para
      mudar, cria-se outra carteira). */
   var BANCOS = [['revolut', 'Revolut'], ['aib', 'AIB'], ['boi', 'Bank of Ireland'], ['wise', 'Wise'], ['nubank', 'Nubank'], ['btg', 'BTG Pactual'], ['outro', 'Outro banco']];
-  var COM_LEITOR = ['revolut'];
+  var COM_LEITOR = Object.keys(LEITORES);
   function temLeitor(banco) { return COM_LEITOR.indexOf(banco) >= 0; }
   function acharCarteira(x, id) {
     var c = x.carteiras.filter(function (w) { return w.id === id; })[0];
@@ -1502,14 +1442,14 @@
     var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {}, periodos = [];
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
-        var rws = parseCSV(txt), tx = extractTx(rws, moeda()), sm = extractSummary(rws);
-        if (!tx.length) { bad.push(f.name); moedasNoExtrato(rws).forEach(function (c) { outras[c] = 1; }); return; }
+        var rws = parseCSV(txt), lido = LEITORES[bancoAtual()].ler(rws, moeda()), tx = lido.tx, sm = lido.saldos;
+        if (!tx.length) { bad.push(f.name); lido.moedas.forEach(function (c) { outras[c] = 1; }); return; }
         if (sm) {
           var asOf = tx.reduce(function (a, t) { return t[0] > a ? t[0] : a; }, '');
           if (!best || asOf >= best.asOf) { sm.asOf = asOf; best = sm; }
         }
         tx.forEach(function (t) { var m = t[0].slice(0, 7); (incoming[m] = incoming[m] || []).push(t); });
-        periodos.push(periodoDasDatas(tx.map(function (t) { return t[0]; })));
+        periodos.push(lido.periodo || periodoDasDatas(tx.map(function (t) { return t[0]; })));
       }).catch(function () { bad.push(f.name); });
     }, Promise.resolve()).then(function () {
       return enqueue(function () {

@@ -7,7 +7,8 @@ const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 
 export function carregarNucleo(nomes) {
   const appJs = ler('app.js');
-  const core = ['ie', 'br'].map(p => ler(`rules/${p}.js`)).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
+  const antes = [...ler('index.html').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js');
+  const core = antes.map(ler).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
   return new Function(core + '; return { ' + nomes.join(', ') + ' };')();
 }
 
