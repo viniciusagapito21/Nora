@@ -605,3 +605,31 @@ html, body { overflow-x: clip; }
 .fin .camb .cr > span { color: var(--fg); font-size: var(--fs-md); white-space: nowrap; }
 .fin .mgrid .camb .cr input { flex: 1 1 auto; min-width: 0; }
 .fin .velho { color: var(--amber); font-weight: 500; }
+/* Resumo (passo 9.3c): todas as carteiras juntas, na moeda principal */
+.fin .imp-tot small { font-size: var(--fs-label); color: var(--muted); }
+.fin .rsal { display: flex; flex-direction: column; }
+.fin .rs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--line); }
+.fin .rs:first-child { border-top: 0; padding-top: 0; }
+.fin .rs:last-child { padding-bottom: 0; }
+.fin .rs small { display: block; font-size: var(--fs-sm); color: var(--muted); font-weight: 400; }
+.fin .rs .rn { overflow-wrap: anywhere; }
+.fin .rs .rv { text-align: right; }
+.fin .rs .rv b { font-size: var(--fs-lg); font-weight: 500; font-variant-numeric: tabular-nums; }
+.fin .rs.tot { border-top-color: var(--line2); }
+.fin .rs.tot .rn { font-weight: 600; }
+.fin .rs.tot .rv b { font-family: var(--display); font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.02em; }
+.fin .rmeses { display: flex; flex-wrap: wrap; gap: 8px; }
+.fin .sec-top h2 small.hint { font-size: var(--fs-sm); font-weight: 400; }
+.fin .rcats .cat:hover .nm { color: var(--fg); }
+.fin .rcats .cat:first-child { border-top: 0; }
+.fin .card .sec-top h3 { margin-bottom: 0; }
+.fin .card .sec-top + .rcats { margin-top: 8px; }
+.fin table.rpor td small { font-size: var(--fs-label); color: var(--muted); }
+.fin table.rpor td.sem { text-align: left; color: var(--muted); }
+.fin details.metas .tw { margin-bottom: 8px; }
+.fin .rfora details.metas { margin-top: 4px; }
+@media (max-width: 520px) {
+  .fin .rs { grid-template-columns: minmax(0, 1fr); }
+  .fin .rs .rv { text-align: left; }
+  .fin #fin-rfalta .grupo, .fin #fin-rfalta .btn { width: 100%; }
+}

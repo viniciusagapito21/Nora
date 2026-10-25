@@ -22,6 +22,8 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.prima
 body>main.wrap>section#fin-app.view.fin>p.aviso 18h2hfm vnygsh vnygsh
 body>main.wrap>section#fin-app.view.fin>p.aviso>b 1b057rk 1wyfq5s 1wyfq5s
 body>main.wrap>section#fin-app.view.fin>nav.abas k7jyuv 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>nav.abas>button 1ovo5ub 1tga3x5 1tga3x5
+body>main.wrap>section#fin-app.view.fin>nav.abas>button>small xu4y63 bgsu6z bgsu6z
 body>main.wrap>section#fin-app.view.fin>nav.abas>button wtykic 1tga3x5 1tga3x5
 body>main.wrap>section#fin-app.view.fin>nav.abas>button>small xu4y63 bgsu6z bgsu6z
 body>main.wrap>section#fin-app.view.fin>nav.abas>button z8eo9f m5edu3 m5edu3

@@ -332,11 +332,42 @@
     var pp = partirPlan(v3.plan), w = pp.cart;
     var cart = { id: 'c1', nome: 'Revolut', moeda: w.moeda || 'EUR', pais: w.pais || 'IE', banco: 'revolut',
       months: v3.months, over: v3.over, summary: v3.summary, metas: w.metas, transf: {}, sugDispensadas: [] };
+    cart.periodos = periodosMigrados(cart);
     if (w.naoAluguel !== undefined) cart.naoAluguel = w.naoAluguel;
     var config = pp.config; config.moedaPrincipal = cart.moeda;
     var div = null;
     if (v3.div) { div = Object.assign({}, v3.div); delete div.cambios; }
     return { v: 4, config: config, carteiras: [cart], ativa: 'c1', cambios: (v3.div && v3.div.cambios) || {}, div: div };
+  }
+  /* períodos importados (campo opcional da carteira, sem nova versão): [{ de, ate }] em ordem, já unidos.
+     Cada importação acrescenta o período do arquivo (o que ele informa; senão da primeira à última data entre
+     movimentos e saldos do dia). Carteira salva antes do campo: um período só, da primeira à última data que
+     ela tem (movimentos, saldos do dia e saldo informado), porque o período dos arquivos antigos não ficou guardado. */
+  var DIA_MS = 864e5;
+  function isoMais(iso, n) { return new Date(Date.parse(iso + 'T00:00:00Z') + n * DIA_MS).toISOString().slice(0, 10); }
+  function juntarPeriodos(lista, novo) {
+    var ps = (lista || []).concat(novo ? [novo] : []).filter(function (p) { return p && p.de && p.ate; })
+      .map(function (p) { return p.de <= p.ate ? { de: p.de, ate: p.ate } : { de: p.ate, ate: p.de }; })
+      .sort(function (a, b) { return a.de < b.de ? -1 : a.de > b.de ? 1 : 0; }), o = [];
+    ps.forEach(function (p) {
+      var u = o[o.length - 1];
+      /* encostados (um termina na véspera do outro) viram um só */
+      if (u && p.de <= isoMais(u.ate, 1)) { if (p.ate > u.ate) u.ate = p.ate; } else o.push(p);
+    });
+    return o;
+  }
+  function datasDaCarteira(c) {
+    var ds = [];
+    Object.keys(c.months || {}).forEach(function (k) { c.months[k].forEach(function (t) { ds.push(t[0]); }); });
+    Object.keys(c.saldosDia || {}).forEach(function (d) { ds.push(d); });
+    if (c.ancora && c.ancora.data) ds.push(c.ancora.data);
+    return ds.sort();
+  }
+  function periodosMigrados(c) { var ds = datasDaCarteira(c); return ds.length ? [{ de: ds[0], ate: ds[ds.length - 1] }] : []; }
+  var ISO = /^\d{4}-\d{2}-\d{2}$/;
+  function checarPeriodos(ps, id) {
+    if (!Array.isArray(ps) || ps.some(function (p) { return !p || !ISO.test(p.de) || !ISO.test(p.ate); })) throw new Error('períodos em formato errado na carteira ' + id);
+    return juntarPeriodos(ps);
   }
   /* confere e completa uma v4; devolve uma cópia (nunca a mesma referência de cima) */
   function validarV4(x) {
@@ -349,8 +380,10 @@
       if (ids[c.id]) throw new Error('carteira ' + c.id + ' repetida');
       ids[c.id] = 1;
       if (!/^[A-Z]{3}$/.test(c.moeda || '')) throw new Error('moeda ' + c.moeda + ' inválida na carteira ' + c.id);
-      return Object.assign({}, c, { nome: String(c.nome || 'Carteira'), pais: c.pais || 'IE', banco: c.banco || 'revolut', months: checarMeses(c.months || {}),
+      var w = Object.assign({}, c, { nome: String(c.nome || 'Carteira'), pais: c.pais || 'IE', banco: c.banco || 'revolut', months: checarMeses(c.months || {}),
         over: c.over || {}, summary: c.summary || null, metas: c.metas || {}, transf: c.transf || {}, sugDispensadas: c.sugDispensadas || [] });
+      w.periodos = c.periodos === undefined ? periodosMigrados(w) : checarPeriodos(c.periodos, c.id);
+      return w;
     });
     var config = Object.assign({}, x.config || {});
     if (!config.moedaPrincipal) config.moedaPrincipal = carteiras[0].moeda;
@@ -401,7 +434,7 @@
     var nome = nomeCarteira(x, d.nome), n = 0;
     x.carteiras.forEach(function (w) { var k = +String(w.id).replace(/^c/, ''); if (k > n) n = k; });
     var c = { id: 'c' + (n + 1), nome: nome, moeda: conferirMoeda(d.moeda), pais: d.pais || 'IE', banco: conferirBanco(d.banco || 'revolut'),
-      months: {}, over: {}, summary: null, metas: {}, transf: {}, sugDispensadas: [] };
+      months: {}, over: {}, summary: null, metas: {}, transf: {}, sugDispensadas: [], periodos: [] };
     return Object.assign({}, x, { carteiras: x.carteiras.concat(c), ativa: c.id });
   }
   /* d: { nome, pais, moeda, banco }, todos opcionais */
@@ -789,7 +822,7 @@
     sal.forEach(function (z) { saldos[z[0]] = z[1]; }); /* o último do dia vale */
     var de = null, ate = null, ent = 0, sai = 0;
     tx.forEach(function (t) { if (!de || t[0] < de) de = t[0]; if (!ate || t[0] > ate) ate = t[0]; if (t[3] > 0) ent += t[3]; else sai += t[3]; });
-    return { tx: tx, linhas: ns, ignoradas: ign, de: de, ate: ate, entradas: ent, saidas: sai, saldos: saldos, nSaldo: sal.length };
+    return { tx: tx, linhas: ns, ignoradas: ign, de: de, ate: ate, entradas: ent, saidas: sai, saldos: saldos, nSaldo: sal.length, periodo: periodoDoArquivo(rows, m, tx, saldos) };
   }
   /* linhas de saldo: uma descrição que começa com "Saldo", sem outra informação, repetida em várias datas */
   function detectarLinhasSaldo(rows, m) {
@@ -880,12 +913,106 @@
     lista.sort(function (a, b) { return a[0][0] < b[0][0] ? -1 : a[0][0] > b[0][0] ? 1 : a[1] - b[1]; });
     return { lista: lista.map(function (x) { return x[0]; }), novos: add.length, repetidos: rep };
   }
+  /* o período que o arquivo informa no cabeçalho ("Período: 01/08/2026 a 15/10/2026"), lido no formato de data
+     escolhido; sem ele, da primeira à última data entre movimentos e saldos do dia */
+  var DATA_TXT = '(\\d{1,4}[\\/\\-.]\\d{1,2}[\\/\\-.]\\d{1,4})';
+  var PERIODO_TXT = new RegExp('per[ií]odo[^0-9]{0,40}' + DATA_TXT + '\\s*(?:a|até|ate|-|–)\\s*' + DATA_TXT, 'i');
+  function periodoDoArquivo(rows, m, tx, saldos) {
+    for (var i = 0; i < Math.min(m.cab, 40); i++) {
+      var p = rows[i].join(' ').match(PERIODO_TXT), de = p && lerData(p[1], m.fmtData), ate = p && lerData(p[2], m.fmtData);
+      if (de && ate && de <= ate) return { de: de, ate: ate, fonte: 'arquivo' };
+    }
+    return periodoDasDatas(tx.map(function (t) { return t[0]; }).concat(Object.keys(saldos || {})));
+  }
+  function periodoDasDatas(ds) { ds = ds.slice().sort(); return ds.length ? { de: ds[0], ate: ds[ds.length - 1], fonte: 'datas' } : null; }
+  /* ---------- Resumo: todas as carteiras juntas, na moeda principal ---------- */
+  function fimDoMes(mes) { var p = mes.split('-').map(Number); return new Date(Date.UTC(p[0], p[1], 0)).toISOString().slice(0, 10); }
+  /* um mês está coberto quando os períodos importados vão do dia 1 ao último dia dele; no mês em andamento,
+     até ref (o último dia importado, somando todas as carteiras). Devolve { ok, faltas: [{ de, ate }], nada } */
+  function cobreMes(periodos, mes, ref) {
+    var ini = mes + '-01', fim = fimDoMes(mes), faltas = [], cur = ini;
+    if (ref && ref.slice(0, 7) === mes && ref < fim) fim = ref;
+    juntarPeriodos(periodos).forEach(function (p) {
+      if (p.ate < cur || p.de > fim) return;
+      if (p.de > cur) faltas.push({ de: cur, ate: isoMais(p.de, -1) });
+      cur = isoMais(p.ate, 1);
+    });
+    if (cur <= fim) faltas.push({ de: cur, ate: fim });
+    return { ok: !faltas.length, faltas: faltas, nada: faltas.length === 1 && faltas[0].de === ini && faltas[0].ate === fim };
+  }
+  /* meta de gasto da carteira por categoria: a definida, senão a sugestão dos primeiros meses */
+  function metaDaCarteira(c, M, cats) {
+    var def = (c.metas && c.metas.cats) || {}, sug = sugerirMetas(M, cats);
+    return function (id) { var v = def[id]; return v != null && v !== '' && !isNaN(v) ? +v : (sug ? sug.cats[id] || 0 : 0); };
+  }
+  /* cada carteira com o modelo dela, o período importado ("dados até") e o saldo atual (só o da conta).
+     faltaCambio: moedas de carteiras com extrato que não têm câmbio; sem elas, nenhum total sai. */
+  function resumir(x) {
+    var mp = x.config.moedaPrincipal, ws = x.carteiras.map(function (c) {
+      var cats = montarCats(juntarPlan(x.config, c)), M = buildModel(c.months, c.over, x.config.titular, c.pais, cats, { dia: c.saldosDia, ancora: c.ancora });
+      var ps = c.periodos || periodosMigrados(c), saldo = null;
+      if (M.rows.length && !M.semSaldo) {
+        var r = M.rows[M.rows.length - 1], ks = Object.keys(c.saldosDia || {}).sort(), u = ks[ks.length - 1];
+        saldo = { v: r.bal, d: r.date, fonte: M.fonteSaldo };
+        if (M.fonteSaldo === 'extrato' && u && u >= r.date) saldo = { v: c.saldosDia[u] / 100, d: u, fonte: 'extrato' };
+      }
+      return { id: c.id, nome: c.nome, moeda: c.moeda, banco: c.banco, c: c, cats: cats, M: M, periodos: ps, ate: ps.length ? ps[ps.length - 1].ate : null,
+        saldo: saldo, temDados: M.rows.length > 0, taxa: c.moeda === mp || paraPrincipal(1, c.moeda, x) != null };
+    });
+    var ref = null, meses = {}, falta = {};
+    ws.forEach(function (w) {
+      if (w.ate && (!ref || w.ate > ref)) ref = w.ate;
+      w.M.keys.forEach(function (k) { meses[k] = 1; });
+      if (w.temDados && !w.taxa) (falta[w.moeda] = falta[w.moeda] || []).push(w.nome);
+    });
+    var partial = ref && ref < fimDoMes(ref.slice(0, 7)) ? ref.slice(0, 7) : null, ks = Object.keys(meses).sort();
+    return { mp: mp, ws: ws, ref: ref, partial: partial, meses: ks, completos: ks.filter(function (k) { return k !== partial; }),
+      faltaCambio: Object.keys(falta).sort().map(function (m) { return { moeda: m, nomes: falta[m] }; }) };
+  }
+  /* o mês escolhido: os números de cada carteira na moeda dela, a cobertura e o que ficou fora das somas
+     ("Entre contas suas"); total na moeda principal, ou null se falta câmbio. Carteira sem nenhum extrato não
+     entra em semCobertura (ela já aparece como "sem extrato" no saldo) */
+  function mesResumo(R, x, m) {
+    var por = R.ws.map(function (w) {
+      var g = w.M.by[m] || null, it = { n: 0, entrou: 0, saiu: 0 };
+      w.M.rows.forEach(function (r) { if (r.m === m && r.kind === 'interno') { it.n++; if (r.a > 0) it.entrou += r.a; else it.saiu -= r.a; } });
+      return { w: w, g: g, cob: cobreMes(w.periodos, m, R.ref), interno: it };
+    });
+    var total = null;
+    if (!R.faltaCambio.length) {
+      total = { entrou: 0, gasto: 0, saved: 0, saldo: 0, spend: {} };
+      por.forEach(function (p) {
+        if (!p.g) return;
+        var cv = function (v) { return paraPrincipal(v, p.w.moeda, x); };
+        ['entrou', 'gasto', 'saved', 'saldo'].forEach(function (k) { total[k] += cv(p.g[k]); });
+        Object.keys(p.g.spend).forEach(function (id) { total.spend[id] = (total.spend[id] || 0) + cv(p.g.spend[id]); });
+      });
+    }
+    return { m: m, por: por, total: total, semCobertura: por.filter(function (p) { return !p.cob.ok && p.w.periodos.length; }) };
+  }
+  /* previsão do mês em andamento: a de cada carteira com dados nele (no ritmo até o fim do período importado
+     dela), somadas na moeda principal com as metas. fora: carteiras sem dados no mês. null sem mês em andamento
+     ou sem câmbio. */
+  function previsaoResumo(R, x) {
+    if (!R.partial || R.faltaCambio.length) return null;
+    var o = { m: R.partial, dia: +R.ref.slice(8), dim: +fimDoMes(R.partial).slice(8), gasto: 0, proj: 0, meta: 0, falFix: 0, por: [], fora: [] };
+    R.ws.forEach(function (w) {
+      if (!w.temDados) return;
+      if (w.M.partial !== R.partial) { o.fora.push(w); return; }
+      var M = w.ate && w.ate.slice(0, 7) === R.partial && w.ate > w.M.lastDate ? Object.assign({}, w.M, { lastDate: w.ate }) : w.M;
+      var mf = metaDaCarteira(w.c, w.M, w.cats), P = preverMes(M, mf, w.cats), meta = 0, cv = function (v) { return paraPrincipal(v, w.moeda, x); };
+      w.cats.forEach(function (c) { if (!c.oculta) meta += mf(c.id); });
+      var q = { w: w, gasto: cv(P.gasto), proj: cv(P.proj), meta: cv(meta), dia: P.day, cedo: P.day < o.dia };
+      o.gasto += q.gasto; o.proj += q.proj; o.meta += q.meta; o.falFix += cv(P.falFix); o.por.push(q);
+    });
+    return o;
+  }
   /*CORE-END*/
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, importar: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
-  var M = buildModel({}, {}), SUG = null, RECS = [];
+  var M = buildModel({}, {}), SUG = null, RECS = [], RES = null;
   /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
   var CATST = montarCats(null), CATSV = CATST, CPOR = {};
   try { if (localStorage.getItem('cortex-financas.mov') === '0') S.movOpen = false; } catch (e) { }
@@ -1068,7 +1195,7 @@
     if (!files.length) return Promise.resolve();
     if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
     if (!temLeitor(bancoAtual())) return abrirGenerico(files);
-    var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {};
+    var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {}, periodos = [];
     return files.reduce(function (p, f) {
       return p.then(function () { return f.text(); }).then(function (txt) {
         var rws = parseCSV(txt), tx = extractTx(rws, moeda()), sm = extractSummary(rws);
@@ -1078,6 +1205,7 @@
           if (!best || asOf >= best.asOf) { sm.asOf = asOf; best = sm; }
         }
         tx.forEach(function (t) { var m = t[0].slice(0, 7); (incoming[m] = incoming[m] || []).push(t); });
+        periodos.push(periodoDasDatas(tx.map(function (t) { return t[0]; })));
       }).catch(function () { bad.push(f.name); });
     }, Promise.resolve()).then(function () {
       return enqueue(function () {
@@ -1094,6 +1222,12 @@
           });
         });
         p = p.then(function () { if (best && (!S.summary || best.asOf >= S.summary.asOf)) return saveSummary(best); });
+        /* o período de cada arquivo fica guardado: é ele que diz até quando a carteira tem dados */
+        if (periodos.length) p = p.then(function () {
+          var x = dadosAtuais();
+          usarDados(Object.assign({}, x, { carteiras: x.carteiras.map(function (c) { return c.id !== x.ativa ? c : Object.assign({}, c, { periodos: periodos.reduce(juntarPeriodos, c.periodos || []) }); }) }));
+          localSave();
+        });
         return p;
       });
     }).then(function () {
@@ -1113,10 +1247,11 @@
       st = n + ' movimentações · ' + mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4) + ' a ' + mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4) + ' · última em ' + dFull(M.lastDate);
     } else st = origem() + ' · conta em ' + nomeMoeda();
     if (M.keys.length) st = origem() + ' · ' + st;
+    if (emResumo() && RES) st = S.dados.carteiras.length + ' carteiras · somas em ' + nomeMoeda(moedaP()) + (RES.ref ? ' · dados até ' + dFull(RES.ref) : '');
     return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
       (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
       avisoEspaco() +
-      (configurado() && !suportado() && !S.setupOpen ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
+      (configurado() && !suportado() && !S.setupOpen && !RES ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
   }
   /* acima de 4 MB (somando a v3 guardada e a v4), sugere backup; se a gravação falhou, avisa como erro */
   function avisoEspaco() {
@@ -1163,16 +1298,156 @@
     var t = moedas.map(function (c) { var cb = C[c]; if (cb && cb.data && diasDesde(cb.data, todayIso()) > CAMBIO_ANTIGO) velho = true; return '1 ' + esc(simbolo(mp)) + ' = ' + esc(nr.format(+cb.rate)) + ' ' + esc(c); }).join(' · ');
     return 'Câmbio: ' + t + ' · informado por você' + (velho ? ' · <span class="velho">taxa com mais de ' + CAMBIO_ANTIGO + ' dias</span>' : '');
   }
-  /* Em observação e as metas de poupança valem para todas as carteiras, mas até o Resumo existir aparecem só na principal */
-  function naPrincipal() { return !S.dados || S.dados.ativa === S.dados.carteiras[0].id; }
+  /* com duas ou mais carteiras, a primeira aba é o Resumo (abre nele); Em observação e as metas de poupança, que
+     valem para todas, ficam lá. Com uma carteira, nada de abas e tudo fica no painel. */
+  function emResumo() { return !!S.resumo && variasCarteiras(); }
   function abas() {
     if (!variasCarteiras()) return '';
-    return '<nav class="abas" aria-label="Carteiras">' + S.dados.carteiras.map(function (c) {
-      return '<button type="button" data-carteira="' + esc(c.id) + '"' + (c.id === S.dados.ativa ? ' aria-current="true"' : '') + '>' + esc(c.nome) + ' <small>' + esc(c.moeda) + '</small></button>';
+    var r = emResumo();
+    return '<nav class="abas" aria-label="Carteiras"><button type="button" data-carteira="resumo"' + (r ? ' aria-current="true"' : '') + '>Resumo <small>' + esc(moedaP()) + '</small></button>' + S.dados.carteiras.map(function (c) {
+      return '<button type="button" data-carteira="' + esc(c.id) + '"' + (!r && c.id === S.dados.ativa ? ' aria-current="true"' : '') + '>' + esc(c.nome) + ' <small>' + esc(c.moeda) + '</small></button>';
     }).join('') + '</nav>';
   }
-  function notaPrincipal() {
-    return '<p class="passo">Em observação e Metas de poupança ficam na carteira principal, <b>' + esc(S.dados.carteiras[0].nome) + '</b>.</p>';
+  function notaResumo() {
+    return '<p class="passo">Em observação e Metas de poupança valem para todas as carteiras e ficam no <b>Resumo</b>.</p>';
+  }
+  /* ---------- Resumo ---------- */
+  /* valor na moeda de uma carteira (sem casas) */
+  function fW(v, cod) { return fmtDe(cod, 0).format(Math.round(v)).replace('-', '−'); }
+  function nomes(l) { return l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1]; }
+  function trecho(f) { return f.de === f.ate ? dFull(f.de) : f.de.slice(0, 7) === f.ate.slice(0, 7) ? +f.de.slice(8) + ' a ' + dFull(f.ate) : dFull(f.de) + ' a ' + dFull(f.ate); }
+  /* as moedas das carteiras com extrato que entram nas somas por câmbio */
+  function moedasConvertidas(R) { var o = {}; R.ws.forEach(function (w) { if (w.temDados && w.moeda !== R.mp) o[w.moeda] = 1; }); return Object.keys(o).sort(); }
+  function avisoCambioResumo(R) {
+    if (R.faltaCambio.length) return '<div class="aviso pergunta" id="fin-rfalta"><p>' + R.faltaCambio.map(function (f) {
+      return 'Falta o câmbio de <b>' + esc(f.moeda) + '</b> para somar ' + (f.nomes.length === 1 ? 'a carteira ' : 'as carteiras ') + '<b>' + esc(nomes(f.nomes)) + '</b>.';
+    }).join(' ') + ' Sem ' + (R.faltaCambio.length === 1 ? 'ele' : 'eles') + ', o Resumo não mostra nenhum total: cada carteira aparece na moeda dela.</p><div class="grupo">' +
+      R.faltaCambio.map(function (f) { return '<button class="btn sm pri" type="button" data-rcamb="' + esc(f.moeda) + '">Definir câmbio de ' + esc(f.moeda) + '</button>'; }).join('') + '</div></div>';
+    var ms = moedasConvertidas(R), C = divState().cambios, hoje = todayIso();
+    if (!ms.length) return '';
+    return '<div class="aviso pergunta" id="fin-restima"><p>Somas em ' + esc(nomeMoeda(R.mp)) + ', estimadas com o câmbio que você informou: ' + ms.map(function (c) {
+      var cb = C[c], id = cb.data ? diasDesde(cb.data, hoje) : null;
+      return '<b>1 ' + esc(simbolo(R.mp)) + ' = ' + esc(nr.format(+cb.rate)) + ' ' + esc(simbolo(c)) + '</b>' + (id == null ? '' : id > CAMBIO_ANTIGO ? ' <span class="velho">(de ' + esc(dFull(cb.data)) + ', há ' + id + ' dias: confira)</span>' : ' (de ' + esc(dFull(cb.data)) + ')');
+    }).join(' · ') + '. Não é a cotação de hoje.</p><button class="btn sm" type="button" data-rcamb="">Atualizar câmbio</button></div>';
+  }
+  function saldoCarteiras(R) {
+    var x = S.dados, tot = 0, fora = [], semExtrato = [], h = '';
+    R.ws.forEach(function (w) {
+      var v = '';
+      if (!w.temDados) { v = '<small>sem extrato</small>'; semExtrato.push(w.nome); }
+      else if (!w.saldo) { v = '<small>sem saldo no extrato: fora do total</small>'; fora.push(w.nome); }
+      else {
+        var p = w.moeda === R.mp ? w.saldo.v : paraPrincipal(w.saldo.v, w.moeda, x);
+        if (p != null) tot += p;
+        v = '<b class="num">' + fW(w.saldo.v, w.moeda) + '</b>' + (w.moeda !== R.mp && p != null && !R.faltaCambio.length ? '<small>≈ ' + fP0(p) + '</small>' : '') + (w.saldo.fonte === 'estimado' ? '<small>estimado a partir dos movimentos</small>' : '');
+      }
+      h += '<div class="rs"><span class="rn">' + esc(w.nome) + '<small>' + (w.ate ? 'dados até ' + esc(dFull(w.ate)) : 'nenhum extrato importado') + '</small></span><span class="rv">' + v + '</span></div>';
+    });
+    var conv = R.ws.some(function (w) { return w.saldo && w.moeda !== R.mp; }), nenhum = !R.ws.some(function (w) { return w.saldo; });
+    var semTot = (fora.length ? [nomes(fora) + ' (o extrato não traz saldo)'] : []).concat(semExtrato.length ? [nomes(semExtrato) + ' (sem extrato)'] : []), tl = R.faltaCambio.length ? '<small>sem total: falta o câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '</small>'
+      : nenhum ? '<small>nenhuma carteira traz saldo</small>' : '<b class="num">' + (conv ? '≈ ' : '') + fP0(tot) + '</b>';
+    h += '<div class="rs tot"><span class="rn">' + (semTot.length && !nenhum ? 'Total parcial' : 'Total') + (semTot.length && !nenhum ? '<small>sem ' + esc(semTot.join(' e ')) + '</small>' : '') + '</span><span class="rv">' + tl + '</span></div>';
+    return '<section class="sec"><div class="sec-top"><h2>Saldo nas carteiras</h2><span class="hint">o saldo de cada conta; reservas e investimentos ficam nas metas de poupança</span></div><div class="card rsal">' + h + '</div></section>';
+  }
+  function mesesResumo(R) {
+    return '<div class="rmeses" role="group" aria-label="Escolher o mês">' + R.meses.map(function (k) {
+      return '<button type="button" class="btn sm" data-rmes="' + k + '" aria-pressed="' + (S.rMes === k) + '" aria-label="' + esc(mLabel(k)) + (R.partial === k ? ' (em andamento)' : '') + '">' + mShort(k) + ' ' + k.slice(2, 4) + (R.partial === k ? '*' : '') + '</button>';
+    }).join('') + '</div>';
+  }
+  function avisoCobertura(R, Q) {
+    if (!Q.semCobertura.length) return '';
+    var nm = MES[+Q.m.slice(5) - 1];
+    return '<div class="aviso" id="fin-rcob"><p>Nem todas as carteiras cobrem ' + esc(nm) + (R.partial === Q.m ? ' até ' + esc(dFull(R.ref)) : '') + ': os números deste mês não são a soma de todas.</p><ul class="imp-ign">' + Q.semCobertura.map(function (p) {
+      return '<li><b>' + esc(p.w.nome) + '</b>: ' + (p.cob.nada ? 'nenhum extrato de ' + esc(nm) : 'sem dados de ' + p.cob.faltas.map(function (f) { return esc(trecho(f)); }).join(' e de ')) + '.</li>';
+    }).join('') + '</ul></div>';
+  }
+  function tabelaPorCarteira(Q) {
+    var h = '<div class="tw"><table class="rpor"><thead><tr><th>Carteira</th><th>Entrou</th><th>Gastou</th><th>Guardou</th><th>Saldo do mês</th></tr></thead><tbody>';
+    Q.por.forEach(function (p) {
+      var g = p.g, c = p.w.moeda;
+      h += '<tr><td>' + esc(p.w.nome) + ' <small>' + esc(c) + '</small></td>' + (g ? '<td>' + fW(g.entrou, c) + '</td><td>' + fW(g.gasto, c) + '</td><td>' + fW(g.saved, c) + '</td><td>' + sgn(g.saldo, function (v) { return fW(v, c); }) + '</td>' : '<td colspan="4" class="sem">' + (p.w.temDados ? 'sem movimentos no mês' : 'sem extrato') + '</td>') + '</tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+  function foraDasSomas(Q) {
+    var nm = MES[+Q.m.slice(5) - 1], com = Q.por.filter(function (p) { return p.interno.n; }), n = 0;
+    com.forEach(function (p) { n += p.interno.n; });
+    if (!n) return '<p class="passo rfora">Nenhum movimento marcado como "Entre contas suas" em ' + esc(nm) + ': nada ficou fora do Entrou e do Gastou.</p>';
+    var partes = com.map(function (p) {
+      var it = p.interno, c = p.w.moeda, v = [];
+      if (it.saiu) v.push('saíram ' + fW(it.saiu, c)); if (it.entrou) v.push('entraram ' + fW(it.entrou, c));
+      return esc(p.w.nome) + ' ' + it.n + ' (' + v.join(', ') + ')';
+    });
+    var lista = '';
+    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(r.desc) + ': ' + (r.a > 0 ? '+' : '−') + esc(fmtDe(p.w.moeda, 2).format(Math.abs(r.a))) + '</li>'; }); });
+    return '<div class="rfora"><p class="passo">Fora do Entrou e do Gastou: ' + n + (n === 1 ? ' movimento marcado' : ' movimentos marcados') + ' como "Entre contas suas" em ' + esc(nm) + ', ' + partes.join(' e ') + '.</p>' +
+      '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>Ver quais</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">Para mudar, use Revisar categorias na aba da carteira.</p></details></div>';
+  }
+  function categoriasResumo(Q, conv) {
+    var list = [], mx = 0, h = '';
+    CATSV.forEach(function (c) { var v = Q.total.spend[c.id] || 0; if (Math.abs(v) >= 0.5) { list.push({ c: c, v: v }); mx = Math.max(mx, v); } });
+    list.sort(function (a, b) { return b.v - a.v; });
+    if (!list.length) h = '<p class="vazio">Sem gastos neste mês.</p>';
+    list.forEach(function (x) {
+      h += '<div class="cat"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(catNome(x.c)) + '</span><span class="val">' + (conv ? '≈ ' : '') + fP0(x.v) + '</span>' +
+        '<span class="track"><i style="width:' + (mx ? Math.max(0, x.v) / mx * 100 : 0).toFixed(1) + '%;background:' + colorOf(x.c) + '"></i></span></div>';
+    });
+    return '<div class="sec-top"><h3>Gasto por categoria</h3><span class="hint">a soma das carteiras</span></div><div class="rcats">' + h + '</div>';
+  }
+  function mesResumoTela(R) {
+    var x = S.dados, Q = mesResumo(R, x, S.rMes), T = Q.total, conv = Q.por.some(function (p) { return p.g && p.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
+    var lab = mLabel(S.rMes), h = '<section class="sec" id="fin-rmes"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + (R.partial === S.rMes ? ' <small class="hint">até ' + esc(dFull(R.ref)) + '</small>' : '') + '</h2>' +
+      '<span class="hint">a soma das carteiras' + (R.partial ? ' · * mês em andamento' : '') + '</span></div>' + mesesResumo(R) + avisoCobertura(R, Q);
+    if (T) {
+      var n = Q.por.filter(function (p) { return p.g; }).length, sub = n === 1 ? 'só ' + esc(Q.por.filter(function (p) { return p.g; })[0].w.nome) : 'soma de ' + n + ' carteiras';
+      h += '<div class="kpis">' + [['Entrou', T.entrou, 0], ['Gastou', T.gasto, 0], ['Guardou', T.saved, 0], ['Saldo do mês', T.saldo, 1]].map(function (t) {
+        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span><span class="s">' + (t[2] ? 'entrou − gastou − guardou' : sub) + '</span></div>';
+      }).join('') + '</div>' +
+        '<details class="metas" id="fin-rpor"' + (S.rPor ? ' open' : '') + '><summary>Por carteira, cada uma na moeda dela</summary>' + tabelaPorCarteira(Q) + '</details>';
+    } else h += '<p class="passo">Sem total enquanto falta câmbio. Cada carteira, na moeda dela:</p>' + tabelaPorCarteira(Q);
+    h += foraDasSomas(Q);
+    h += '<div class="card">' + (T ? categoriasResumo(Q, conv) : '<h3>Gasto por categoria</h3><p class="passo">Aparece depois do câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '.</p>') + '</div>';
+    return h + '</section>';
+  }
+  function previsaoResumoTela(R) {
+    var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>Previsão ' + (R.partial ? 'de ' + esc(MES[+R.partial.slice(5) - 1]) : 'do mês') + '</h2>';
+    if (!R.partial) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(R.meses[R.meses.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
+    if (R.faltaCambio.length) return h + '</div><div class="card"><p class="passo">Aparece depois do câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '.</p></div></section>';
+    var P = previsaoResumo(R, S.dados), conv = P.por.some(function (q) { return q.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
+    if (!P.por.length) return h + '</div><div class="card"><p class="passo">Nenhuma carteira tem movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ' ainda.</p></div></section>';
+    var dif = P.proj - P.meta, mx = Math.max(P.proj, P.meta, P.gasto, 1);
+    var st = Math.abs(dif) < 0.5 ? '<span class="d ok">deve fechar na meta</span>' : dif > 0 ? '<span class="d bad">▲ deve passar ' + ap + fP0(dif) + ' da meta</span>' : '<span class="d good">▼ deve fechar ' + ap + fP0(-dif) + ' abaixo da meta</span>';
+    var cedo = P.por.filter(function (q) { return q.cedo; });
+    return h + '<span class="hint">até ' + esc(dFull(R.ref)) + ' · a soma das previsões de cada carteira</span></div><div class="card prv">' +
+      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p></div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
+      '<div class="ptrack" role="img" aria-label="Gasto ' + fP0(P.gasto) + ', previsão ' + fP0(P.proj) + ', meta ' + fP0(P.meta) + '"><i class="pj' + (dif > 0.5 ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+      '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
+      '<p class="s">' + st + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return esc(q.w.nome) + ': previsão ' + a + fP0(q.proj) + ', meta ' + a + fP0(q.meta); }).join(' · ') + '.</p>' +
+      (cedo.length ? '<p class="aviso">' + cedo.map(function (q) { return '<b>' + esc(q.w.nome) + '</b> tem dados só até ' + esc(dFull(q.w.ate || q.w.M.lastDate)); }).join('; ') + ': a previsão ' + (cedo.length === 1 ? 'dela' : 'delas') + ' segue o ritmo até ali.</p>' : '') +
+      (P.fora.length ? '<p class="aviso">' + esc(nomes(P.fora.map(function (w) { return w.nome; }))) + (P.fora.length === 1 ? ' não tem' : ' não têm') + ' movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ': fora da previsão.</p>' : '') + '</div></section>';
+  }
+  function cambioResumo(R) {
+    var ms = {}; R.ws.forEach(function (w) { if (w.moeda !== R.mp) ms[w.moeda] = 1; });
+    ms = Object.keys(ms).sort();
+    if (!ms.length) return '';
+    return '<section class="sec"><details class="metas" id="fin-rcamb"' + (S.rCamb ? ' open' : '') + '><summary>Câmbio das carteiras (' + esc(ms.join(', ')) + ')</summary><form id="fin-frcamb">' +
+      '<p class="passo">Digitado por você, nunca buscado na internet. As somas com câmbio são estimativas.</p><div class="mgrid">' + camposCambio(ms, 'cambr') + '</div>' +
+      '<button class="btn sm pri" type="submit">Salvar câmbio</button></form></details></section>';
+  }
+  /* "Adicionar extrato" no Resumo: cada importação vai para uma carteira só; a última usada (a ativa) vem marcada */
+  function escolherTela() {
+    var F = S.escolher.files;
+    return '<section class="sec" id="fin-escolher"><div class="card ggrid"><h2>Para qual carteira é o extrato?</h2><p class="passo">' + (F ? esc(F[0].name) + (F.length > 1 ? ' e mais ' + (F.length - 1) : '') + '. ' : '') + 'Cada importação vai para uma carteira só.</p>' +
+      '<div class="radios">' + S.dados.carteiras.map(function (c) {
+        var r = resumoDados(c);
+        return '<label class="chk"><input type="radio" name="fin-ecart" value="' + esc(c.id) + '"' + (c.id === S.dados.ativa ? ' checked' : '') + '><span>' + esc(c.nome) + ' <small class="hint">' + esc(nomeBanco(c.banco)) + ' · ' + esc(c.moeda) + (r.meses ? '' : ' · sem extrato') + '</small></span></label>';
+      }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-escolher="ok">' + (F ? 'Importar nesta carteira' : 'Escolher arquivo CSV') + '</button><button class="btn" type="button" data-escolher="cancelar">Cancelar</button></div></div></section>';
+  }
+  function telaResumo(R) {
+    var h = S.escolher ? escolherTela() : '';
+    if (!R.meses.length) return h + '<section class="vazio-grande"><p class="eyebrow">Resumo</p><h2>Nenhuma carteira tem extrato ainda</h2><p class="passo">Toque em Adicionar extrato e escolha a carteira. O Resumo soma todas, na moeda principal.</p>' +
+      '<button class="btn pri" type="button" data-fin-add>Adicionar extrato</button></section>' + dividas() + metasPoup() + cambioResumo(R);
+    return h + avisoCambioResumo(R) + saldoCarteiras(R) + mesResumoTela(R) + previsaoResumoTela(R) + dividas() + metasPoup() + cambioResumo(R);
   }
   /* ---------- configuração guiada ---------- */
   /* a moeda escolhe a conta que o painel lê no extrato; o país escolhe as regras de comerciantes */
@@ -1324,7 +1599,7 @@
     var an = ancoraDigitada(I);
     x = Object.assign({}, x, { carteiras: x.carteiras.map(function (c) {
       if (c.id !== x.ativa) return c;
-      var n = Object.assign({}, c, { importacao: lembrarMapa(c.importacao, I.rows, I.mapa) });
+      var n = Object.assign({}, c, { importacao: lembrarMapa(c.importacao, I.rows, I.mapa), periodos: juntarPeriodos(c.periodos, r.periodo) });
       if (Object.keys(r.saldos).length) n.saldosDia = Object.assign({}, c.saldosDia || {}, r.saldos);
       if (an != null) { n.ancora = { data: r.ate, valor: an, informadoEm: todayIso() }; delete n.ancoraDispensada; }
       return n;
@@ -1414,7 +1689,8 @@
       I.previa = { r: r, novos: novos, ancora: ancoraDigitada(I), saldoNovo: saldoNovo(r) };
       h += '<fieldset><legend>Prévia</legend>' + (r.tx.length
         ? '<p class="passo">Lido como: datas ' + NOME_FMT_DATA[m.fmtData] + (m.fmtNum ? ', números ' + NOME_FMT_NUM[m.fmtNum] : '') + ', valores em ' + esc(nomeMoeda()) + '. Confira com o app do banco: o período e os totais devem bater.</p>' +
-          '<div class="imp-tot"><div><span>Período</span><b>' + esc(dFull(r.de)) + ' a ' + esc(dFull(r.ate)) + '</b></div><div><span>Movimentos</span><b>' + r.tx.length + '</b></div>' +
+          '<div class="imp-tot"><div><span>Período do extrato</span><b>' + esc(dFull(r.periodo.de)) + ' a ' + esc(dFull(r.periodo.ate)) + '</b>' +
+          (r.periodo.fonte === 'arquivo' ? '<small>como o arquivo informa' + (r.periodo.de !== r.de || r.periodo.ate !== r.ate ? '; movimentos de ' + esc(dFmt(r.de)) + ' a ' + esc(dFmt(r.ate)) : '') + '</small>' : '<small>da primeira à última data do arquivo</small>') + '</div><div><span>Movimentos</span><b>' + r.tx.length + '</b></div>' +
           '<div><span>Entradas</span><b class="num pos">+' + f2(r.entradas / 100) + '</b></div><div><span>Saídas</span><b class="num neg">−' + f2(-r.saidas / 100) + '</b></div></div>' +
           '<div class="tw"><table class="imp"><thead><tr><th>Linha</th><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>' +
           r.tx.slice(0, 5).map(function (t, i) {
@@ -1893,7 +2169,7 @@
     });
     if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em ' + esc(nomeMoeda(BASE)) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
     /* o saldo da conta só se compara quando está na mesma moeda */
-    if (open.length && !falta.length && moeda() === BASE) {
+    if (open.length && !falta.length && moeda() === BASE && !emResumo()) {
       var cur = M.rows.length && !M.semSaldo ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
       if (cur != null) {
         var msg;
@@ -2105,6 +2381,7 @@
   function render() {
     var root = $('#fin-app'), sc = $('.fin .cscroll'), keep = sc ? sc.scrollLeft : null;
     if (!root) return;
+    RES = null;
     if (!S.ready) { root.innerHTML = header() + '<p class="passo">Carregando seus dados…</p>'; return; }
     if (S.restaurar) { root.innerHTML = header() + telaRestaurar(); return; }
     if (S.apagar) { root.innerHTML = header() + telaApagar(); return; }
@@ -2112,9 +2389,14 @@
     if (S.importar) { root.innerHTML = header() + telaImportar(); return; }
     if (S.bloqueado) { root.innerHTML = header() + telaBloqueio(); return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
+    if (emResumo()) {
+      RES = resumir(dadosAtuais());
+      if (RES.meses.indexOf(S.rMes) < 0) S.rMes = RES.completos.length ? RES.completos[RES.completos.length - 1] : RES.meses[RES.meses.length - 1] || null;
+      root.innerHTML = header() + abas() + telaResumo(RES); return;
+    }
     if (!M.keys.length) { root.innerHTML = header() + abas() + emptyState(); return; }
-    var pr = naPrincipal();
-    root.innerHTML = header() + abas() + perguntaAluguel() + cashSummary() + (pr ? dividas() : notaPrincipal()) + kpis() + previsao() + (pr ? metasPoup() : '') + chart() +
+    var uma = !variasCarteiras();
+    root.innerHTML = header() + abas() + perguntaAluguel() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
       '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + ' em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
@@ -2149,9 +2431,30 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
+    var t = e.target.closest && e.target.closest('[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
-    if (t.hasAttribute('data-fin-add')) { $('#fin-csv').click(); return; }
+    if (t.hasAttribute('data-fin-add')) {
+      if (emResumo()) { S.escolher = {}; render(); var ec = $('#fin-escolher input:checked'); if (ec) ec.focus(); window.scrollTo(0, 0); return; }
+      $('#fin-csv').click(); return;
+    }
+    if (t.hasAttribute('data-escolher')) {
+      var esc0 = S.escolher, sel0 = $('input[name="fin-ecart"]:checked');
+      S.escolher = null;
+      if (t.getAttribute('data-escolher') === 'ok' && sel0) {
+        if (sel0.value !== S.dados.ativa) { usarDados(escolherCarteira(dadosAtuais(), sel0.value)); localSave(); S.sel = null; S.f = []; S.q = ''; S.more = 12; recompute(); }
+        render();
+        if (esc0 && esc0.files) handleFiles(esc0.files); else $('#fin-csv').click();
+      } else render();
+      return;
+    }
+    if (t.hasAttribute('data-rmes')) { S.rMes = t.getAttribute('data-rmes'); render(); var rb = document.querySelector('[data-rmes="' + S.rMes + '"]'); if (rb) rb.focus(); return; }
+    if (t.hasAttribute('data-rcamb')) {
+      var rm = t.getAttribute('data-rcamb');
+      S.rCamb = true; render();
+      var ri = rm ? $('#fin-cambr-' + rm) : $('#fin-frcamb input');
+      if (ri) { ri.focus(); ri.scrollIntoView({ block: 'center' }); }
+      return;
+    }
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
     if (t.hasAttribute('data-backup')) {
       var bk = t.getAttribute('data-backup');
@@ -2164,7 +2467,7 @@
       if (t.getAttribute('data-restaurar') === 'confirmar') {
         var x = S.restaurar.dados;
         usarDados(x);
-        S.bloqueado = null; S.restaurar = null; S.setupOpen = false; localSave(); recompute(); render();
+        S.bloqueado = null; S.restaurar = null; S.setupOpen = false; S.resumo = true; localSave(); recompute(); render();
         toast('Backup restaurado: ' + resumoTxt(x) + '.');
       } else { S.restaurar = null; render(); }
       return;
@@ -2184,7 +2487,13 @@
     }
     if (t.hasAttribute('data-carteira')) {
       var cid = t.getAttribute('data-carteira');
+      if (cid === 'resumo' || (cid === S.dados.ativa && emResumo())) {
+        S.resumo = cid === 'resumo'; S.escolher = null; render();
+        var ar = document.querySelector('[data-carteira="' + cid + '"]'); if (ar) ar.focus();
+        return;
+      }
       if (cid === S.dados.ativa) return;
+      S.resumo = false; S.escolher = null;
       usarDados(escolherCarteira(dadosAtuais(), cid)); localSave();
       S.sel = null; S.f = []; S.q = ''; S.more = 12; recompute(); render();
       var ab = document.querySelector('[data-carteira="' + cid + '"]'); if (ab) ab.focus();
@@ -2291,6 +2600,14 @@
       divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso(), valor: Math.round(valor * 100) / 100, moeda: cod }; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast('Pagamento anotado.'); });
       return;
     }
+    if (fid === 'fin-frcamb') {
+      e.preventDefault();
+      var lr = lerCambios('cambr');
+      if (lr.ruim) { toast('Informe quantos ' + lr.ruim + ' valem 1 ' + nomeMoeda(moedaP()) + ' (ex.: 0,86).', true); return; }
+      S.rCamb = false;
+      divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, lr.novos); }).then(function () { toast(Object.keys(lr.novos).length ? 'Câmbio salvo.' : 'Nada mudou no câmbio.'); });
+      return;
+    }
     if (fid === 'fin-fcamb') {
       e.preventDefault();
       var mg = parseNum($('#fin-c-mg').value), lc = lerCambios('camb'), novos = lc.novos;
@@ -2331,7 +2648,7 @@
         catch (er) { erros.push('Não criei a carteira "' + wn.value.trim() + '": ' + er.message + '.'); }
       }
       S.setupOpen = false; S.wOpen = false;
-      if (criada) { S.sel = null; S.f = []; S.q = ''; }
+      if (criada) { S.sel = null; S.f = []; S.q = ''; S.resumo = false; }
       enqueue(function () { usarDados(x); localSave(); }).then(function () {
         recompute(); render();
         var msg = 'Configuração salva.' + (criada ? ' Carteira ' + criada.nome + ' criada: adicione o extrato dela.' : '') +
@@ -2368,11 +2685,15 @@
     S.metasOpen = true;
     enqueue(function () { return savePlan(p); }).then(function () { render(); toast('Metas salvas.'); });
   });
-  document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; if (e.target.id === 'fin-wnova') S.wOpen = e.target.open; }, true);
+  document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; if (e.target.id === 'fin-wnova') S.wOpen = e.target.open; if (e.target.id === 'fin-rcamb') S.rCamb = e.target.open; if (e.target.id === 'fin-rpor') S.rPor = e.target.open; if (e.target.id === 'fin-rfd') S.rFora = e.target.open; }, true);
   /* arrastar um extrato só vale com a aba Finanças aberta */
   window.addEventListener('dragover', function (e) { var r = $('#fin-app'); if (!r) return; e.preventDefault(); r.classList.add('arrasta'); });
   window.addEventListener('dragleave', function (e) { var r = $('#fin-app'); if (r && !e.relatedTarget) r.classList.remove('arrasta'); });
-  window.addEventListener('drop', function (e) { var r = $('#fin-app'); if (!r) return; e.preventDefault(); r.classList.remove('arrasta'); if (e.dataTransfer && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+  window.addEventListener('drop', function (e) { var r = $('#fin-app'); if (!r) return; e.preventDefault(); r.classList.remove('arrasta');
+    if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+    /* no Resumo, pergunta antes para qual carteira vai o arquivo */
+    if (emResumo() && !S.importar) { S.escolher = { files: Array.prototype.slice.call(e.dataTransfer.files) }; render(); window.scrollTo(0, 0); return; }
+    handleFiles(e.dataTransfer.files); });
 
   var rsz; window.addEventListener('resize', function () { clearTimeout(rsz); rsz = setTimeout(drawBal, 150); });
 
@@ -2390,7 +2711,7 @@
     el.innerHTML = tag + '<span class="fin-l"><span class="txt">' + f0(M.by[cur].gasto || 0) + ' <small>em ' + mShort(cur) + '</small></span><span class="mini" aria-hidden="true">' + bars + '</span></span><span class="pe">meta ' + f0(planTotal()) + ' por mês</span>';
   }
   function start() {
-    localLoad(); S.ready = true; recompute(); render(); cartao();
+    localLoad(); S.ready = true; S.resumo = true; recompute(); render(); cartao();
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
   document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,text/csv" multiple tabindex="-1" aria-label="Escolher extrato CSV"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');

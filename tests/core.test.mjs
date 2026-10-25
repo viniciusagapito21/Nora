@@ -10,7 +10,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, juntarMovimentos, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo };')();
 }
 function months(api) {
   const m = {};
@@ -905,4 +905,114 @@ test('câmbio: 1 da principal = X da outra; converte, avisa o que falta, e conta
   assert.equal(api.paraPrincipal(10, 'BRL', x), null, 'sem taxa: null, nunca um palpite');
   assert.deepEqual(api.moedasSemPrincipal(x), ['GBP', 'USD'], 'carteiras e pagamentos em aberto; o pago não conta');
   assert.equal(api.diasDesde('2026-09-10', '2026-10-22'), 42);
+});
+
+// ---------- 9.3c: períodos importados, cobertura e Resumo ----------
+test('períodos: campo opcional da carteira, sem nova versão; carteira antiga ganha um período da primeira à última data', () => {
+  const api = load(), v3 = v3Completo(api), x = api.migrate(v3);
+  assert.equal(x.v, 4);
+  assert.deepEqual(x.carteiras[0].periodos, [{ de: '2026-07-01', ate: '2026-10-15' }], 'da v3: das datas dos movimentos');
+  // v4 salva antes do campo: a migração acontece ao ler, com movimentos, saldos do dia e saldo informado
+  const semCampo = JSON.parse(JSON.stringify(x));
+  delete semCampo.carteiras[0].periodos;
+  semCampo.carteiras[0].saldosDia = { '2026-06-30': 50000 };
+  semCampo.carteiras[0].ancora = { data: '2026-10-20', valor: 1 };
+  assert.deepEqual(api.migrate(semCampo).carteiras[0].periodos, [{ de: '2026-06-30', ate: '2026-10-20' }]);
+  // carteira sem nada: lista vazia; com o campo, ele vale como está (só ordenado e unido)
+  const nova = api.novaCarteira(x, { nome: 'Wise', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  assert.deepEqual(nova.carteiras[1].periodos, []);
+  const comCampo = { ...x, carteiras: [{ ...x.carteiras[0], periodos: [{ de: '2026-09-01', ate: '2026-09-30' }, { de: '2026-08-01', ate: '2026-08-31' }] }] };
+  assert.deepEqual(api.migrate(comCampo).carteiras[0].periodos, [{ de: '2026-08-01', ate: '2026-09-30' }]);
+  assert.throws(() => api.migrate({ ...x, carteiras: [{ ...x.carteiras[0], periodos: [{ de: '1/9/2026', ate: '2026-09-30' }] }] }), /períodos em formato errado/);
+  // a ida e volta continua exata: a v3 não tem o campo e nada mais muda
+  assert.deepEqual(api.paraV3(api.lerSalvo(JSON.stringify(x))), api.migrarAteV3(v3, ''));
+  assert.deepEqual(api.paraV3(api.migrate(semCampo)).months, api.migrarAteV3(v3, '').months);
+});
+
+test('períodos: une os que se sobrepõem ou encostam, e mantém os buracos', () => {
+  const { juntarPeriodos } = load();
+  assert.deepEqual(juntarPeriodos([{ de: '2026-08-01', ate: '2026-08-31' }], { de: '2026-09-01', ate: '2026-09-15' }), [{ de: '2026-08-01', ate: '2026-09-15' }], 'encostados');
+  assert.deepEqual(juntarPeriodos([{ de: '2026-08-01', ate: '2026-08-20' }], { de: '2026-08-10', ate: '2026-08-15' }), [{ de: '2026-08-01', ate: '2026-08-20' }], 'dentro de outro');
+  assert.deepEqual(juntarPeriodos([{ de: '2026-08-01', ate: '2026-08-10' }], { de: '2026-08-20', ate: '2026-08-31' }), [{ de: '2026-08-01', ate: '2026-08-10' }, { de: '2026-08-20', ate: '2026-08-31' }], 'buraco');
+});
+
+test('período do arquivo: o que o cabeçalho informa; sem ele, primeira e última data entre movimentos e saldos do dia', () => {
+  const api = load();
+  const a = api.prepararImportacao(latin1(CSV_A.replace('Cliente: MARIA SILVA;Agência 0001', 'Período: 01/09/2026 a 30/09/2026')));
+  a.mapa.valor.saidas = 'negativas';
+  assert.deepEqual(api.interpretarCSV(a.rows, a.mapa).periodo, { de: '2026-09-01', ate: '2026-09-30', fonte: 'arquivo' }, 'vai além do último movimento (28/09)');
+  const sem = api.prepararImportacao(latin1(CSV_A)); sem.mapa.valor.saidas = 'negativas';
+  assert.deepEqual(api.interpretarCSV(sem.rows, sem.mapa).periodo, { de: '2026-09-01', ate: '2026-09-28', fonte: 'datas' });
+  const b = api.prepararImportacao(utf8(CSV_BTG)); b.mapa.valor.saidas = 'negativas';
+  assert.deepEqual(api.interpretarCSV(b.rows, b.mapa).periodo, { de: '2026-09-14', ate: '2026-09-18', fonte: 'arquivo' }, '"Período do extrato" do BTG');
+  // sem período no arquivo, a linha "Saldo Diário" do último dia conta, mesmo sem movimento nele
+  const c = api.prepararImportacao(utf8(CSV_BTG.replace(/,Período do extrato:[^\n]*/g, ',,,,') + '\n,19/09/2026 23:59,,,,,Saldo Diário,,,,"1,517.42"'));
+  c.mapa.valor.saidas = 'negativas';
+  assert.deepEqual(api.interpretarCSV(c.rows, c.mapa).periodo, { de: '2026-09-14', ate: '2026-09-19', fonte: 'datas' });
+});
+
+test('cobertura: pela união dos períodos, não pelo último movimento', () => {
+  const { cobreMes } = load();
+  const set = [{ de: '2026-08-15', ate: '2026-09-30' }];
+  assert.deepEqual(cobreMes(set, '2026-09', '2026-10-15'), { ok: true, faltas: [], nada: false }, 'dias sem movimento dentro do período contam');
+  assert.deepEqual(cobreMes(set, '2026-08', '2026-10-15').faltas, [{ de: '2026-08-01', ate: '2026-08-14' }]);
+  assert.equal(cobreMes(set, '2026-07', '2026-10-15').nada, true);
+  // mês em andamento: até o último dia importado (somando todas as carteiras), não até o fim do mês
+  assert.equal(cobreMes([{ de: '2026-10-01', ate: '2026-10-15' }], '2026-10', '2026-10-15').ok, true);
+  assert.deepEqual(cobreMes([{ de: '2026-10-01', ate: '2026-10-10' }], '2026-10', '2026-10-15').faltas, [{ de: '2026-10-11', ate: '2026-10-15' }]);
+  // buraco no meio, entre dois extratos
+  assert.deepEqual(cobreMes([{ de: '2026-09-01', ate: '2026-09-10' }, { de: '2026-09-21', ate: '2026-09-30' }], '2026-09', null).faltas, [{ de: '2026-09-11', ate: '2026-09-20' }]);
+});
+
+// duas carteiras inventadas: euro (Revolut, com saldo) e libra (sem saldo no extrato)
+function duasCarteiras(api, cambios) {
+  let x = api.migrate({ v: 3, months: { '2026-09': [['2026-09-01', 'Payment from Example Ltd', 'Others', 200000, 250000], ['2026-09-03', 'Tesco', 'Merchant', -5000, 245000],
+    ['2026-09-05', 'To MARIA SILVA', 'Others', -30000, 215000], ['2026-09-06', 'To Flexible Cash', 'Others', -10000, 205000]],
+    '2026-10': [['2026-10-02', 'Tesco', 'Merchant', -4000, 201000]] }, over: { 'TO MARIA SILVA': '_ignore' },
+    plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', configurado: true, cats: { mercado: 100 } }, summary: null, div: null });
+  x = api.novaCarteira(x, { nome: 'Wise libras', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  x.carteiras[1].months = { '2026-09': [['2026-09-10', 'Salary', 'Others', 86000, null], ['2026-09-12', 'Tesco', 'Others', -4300, null], ['2026-09-15', 'From MARIA SILVA', 'Others', 25800, null]] };
+  x.carteiras[1].periodos = [{ de: '2026-09-10', ate: '2026-09-30' }];
+  x.carteiras[0].periodos = [{ de: '2026-09-01', ate: '2026-10-15' }];
+  return { ...api.escolherCarteira(x, 'c1'), cambios: cambios || {} };
+}
+
+test('Resumo: soma na moeda principal pelo câmbio informado, avisa o mês que alguma carteira não cobre', () => {
+  const api = load(), x = duasCarteiras(api, { GBP: { rate: 0.86, data: '2026-10-01' } }), R = api.resumir(x);
+  assert.deepEqual([R.mp, R.ref, R.partial, R.meses, R.completos], ['EUR', '2026-10-15', '2026-10', ['2026-09', '2026-10'], ['2026-09']]);
+  assert.deepEqual(R.ws.map(w => w.ate), ['2026-10-15', '2026-09-30'], 'dados até: o fim do período importado');
+  assert.deepEqual(R.ws[0].saldo, { v: 2010, d: '2026-10-02', fonte: 'extrato' });
+  assert.equal(R.ws[1].saldo, null, 'sem saldo no extrato: fora do total');
+  const Q = api.mesResumo(R, x, '2026-09');
+  // euro: entrou 2000, gastou 50, guardou 100; libra: entrou 860 (= 1000 €), gastou 43 (= 50 €)
+  assert.equal(Q.total.entrou, 3000);
+  assert.equal(Q.total.gasto, 100);
+  assert.equal(Q.total.saved, 100);
+  assert.deepEqual([Q.total.spend.mercado, Q.total.spend.outros], [50, 50], 'o Tesco da libra cai em Outros (sem regras do Reino Unido)');
+  assert.deepEqual(Q.semCobertura.map(p => [p.w.nome, p.cob.faltas]), [['Wise libras', [{ de: '2026-09-01', ate: '2026-09-09' }]]]);
+  // "Entre contas suas" fica fora das somas, contado por carteira e na moeda dela
+  assert.deepEqual(Q.por.map(p => p.interno), [{ n: 1, entrou: 0, saiu: 300 }, { n: 1, entrou: 258, saiu: 0 }]);
+  const O = api.mesResumo(R, x, '2026-10');
+  assert.deepEqual(O.semCobertura.map(p => p.cob.nada), [true], 'a libra não tem nada de outubro');
+});
+
+test('Resumo: sem o câmbio de uma carteira com extrato, nenhum total; carteira vazia não bloqueia', () => {
+  const api = load(), x = duasCarteiras(api), R = api.resumir(x);
+  assert.deepEqual(R.faltaCambio, [{ moeda: 'GBP', nomes: ['Wise libras'] }]);
+  assert.equal(api.mesResumo(R, x, '2026-09').total, null);
+  assert.equal(api.previsaoResumo(R, x), null);
+  assert.ok(api.mesResumo(R, x, '2026-09').por.every(p => p.g), 'cada carteira continua na moeda dela');
+  const vazia = api.novaCarteira(duasCarteiras(api, { GBP: { rate: 0.86 } }), { nome: 'Nubank', moeda: 'BRL', pais: 'BR', banco: 'nubank' });
+  assert.deepEqual(api.resumir(vazia).faltaCambio, [], 'sem extrato, nada a converter');
+  const Rv = api.resumir(vazia);
+  assert.deepEqual(api.mesResumo(Rv, vazia, '2026-10').semCobertura.map(p => p.w.nome), ['Wise libras'], 'a carteira sem nenhum extrato não entra no aviso de cobertura');
+});
+
+test('Resumo: previsão do mês em andamento soma as das carteiras com dados nele', () => {
+  const api = load(), x = duasCarteiras(api, { GBP: { rate: 0.86, data: '2026-10-01' } }), R = api.resumir(x), P = api.previsaoResumo(R, x);
+  assert.deepEqual([P.m, P.dia, P.dim], ['2026-10', 15, 31]);
+  assert.deepEqual(P.por.map(q => q.w.nome), ['Revolut']);
+  assert.deepEqual(P.fora.map(w => w.nome), ['Wise libras'], 'sem movimentos de outubro: fora da previsão');
+  assert.equal(P.por[0].dia, 15, 'o ritmo vai até o fim do período importado (15 out), não até o último movimento (2 out)');
+  assert.equal(P.gasto, 40);
 });

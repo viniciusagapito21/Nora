@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 67 telas do painel (34 em 1280px, 33 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 79 telas do painel (40 em 1280px, 39 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 //
@@ -34,7 +34,7 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`;
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 const core = appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal };')();
+const api = new Function(core + '; return { parseCSV, extractTx, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -100,6 +100,26 @@ const comSaldoDiario = () => {
   c.saldosDia = r.saldos;
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
+// Resumo: o Revolut do exemplo (euro), o banco genérico do exemplo (real, sem saldo, período 1 ago a 15 out
+// informado no arquivo) e uma carteira de libra ainda sem extrato. "Entre contas suas" nas duas com extrato.
+// O câmbio do real tem 42 dias (fica em âmbar); sem ele, nenhum total.
+const comResumo = cambios => {
+  let x = api.migrate(JSON.parse(JSON.stringify({ ...comDados, over: { 'TO MARIA SILVA': '_ignore' } })));
+  x = api.novaCarteira(x, { nome: 'Banco Exemplo', moeda: 'BRL', pais: 'BR', banco: 'outro' });
+  const p = api.prepararImportacao(new Uint8Array(readFileSync(GENERICO)));
+  p.mapa.valor.saidas = 'negativas';
+  const r = api.interpretarCSV(p.rows, p.mapa), c = x.carteiras[1];
+  r.tx.forEach(t => { (c.months[t[0].slice(0, 7)] = c.months[t[0].slice(0, 7)] || []).push(t); });
+  c.periodos = api.juntarPeriodos([], r.periodo);
+  c.over = { '+PIX RECEBIDO JOÃO EXEMPLO': '_ignore' };
+  x = api.novaCarteira(x, { nome: 'Wise libras', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  x = { ...api.escolherCarteira(x, 'c2'), cambios };
+  return { 'cortex-financas.v4': JSON.stringify(x) };
+};
+const RESUMO = comResumo({ BRL: { rate: 6.2, data: '2026-09-10' }, USD: { rate: 1.08, data: '2026-10-15' }, GBP: { rate: 0.86, data: '2026-10-15' } });
+const RESUMO_SEM_CAMBIO = comResumo({ USD: { rate: 1.08, data: '2026-10-15' } });
+// com duas ou mais carteiras o painel abre no Resumo; as telas de uma carteira clicam na aba dela antes
+const aba = (id, depois) => async pg => { await pg.click(`[data-carteira="${id}"]`); if (depois) await depois(pg); };
 // cartão inventado e ambíguo de propósito: 03/04/2026, 1.234 e compras sem sinal
 const AMBIGUO = { name: 'cartao-exemplo.csv', mimeType: 'text/csv', buffer: Buffer.from('Data,Lançamento,Valor\n03/04/2026,LOJA EXEMPLO,1.234\n05/04/2026,MERCADO EXEMPLO,50\n07/04/2026,POSTO EXEMPLO,120\n') };
 // v3 com um campo grande (que o painel preserva): a v3 guardada e a v4 passam juntas de 4 MB
@@ -206,8 +226,8 @@ for (const w of [1280, 390]) {
   t('17-configuracoes-real', { storage: REAL, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
   t('18-painel-categorias-editadas', { storage: EDITADO, prepara: async pg => { await pg.click('#fin-gedit > summary'); } });
   t('19-configuracoes-categorias', { storage: EDITADO, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-kedit > summary'); } });
-  t('20-painel-carteiras', { storage: CARTEIRAS });
-  t('21-carteira-generica-vazia', { storage: SEM_LEITOR });
+  t('20-painel-carteiras', { storage: CARTEIRAS, prepara: aba('c1') });
+  t('21-carteira-generica-vazia', { storage: SEM_LEITOR, prepara: aba('c2') });
   t('22-configuracoes-carteiras', { storage: CARTEIRAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('#fin-wnova > summary'); await pg.selectOption('#fin-wn-banco', 'btg'); } });
   t('23-excluir-carteira', { storage: CARTEIRAS, prepara: async pg => { await pg.click('[data-fin-setup]'); await pg.click('[data-wexcluir=c1]'); } });
   t('24-aviso-espaco', { storage: GRANDE, viewport: true });
@@ -218,19 +238,26 @@ for (const w of [1280, 390]) {
     await pg.click('#fin-fimp details > summary');
   } });
   t('27-importar-ambiguo', { storage: comGenerica(false), prepara: async pg => { await pg.setInputFiles('#fin-csv', AMBIGUO); await pg.waitForSelector('#fin-fimp'); } });
-  t('28-painel-sem-saldo', { storage: comGenerica(true) });
+  t('28-painel-sem-saldo', { storage: comGenerica(true), prepara: aba('c2') });
   // saldo do dia em linhas próprias, conferido, com um saldo informado que não bate (falta rendimento no extrato)
   t('30-importar-saldo-diario', { storage: comGenerica(false), prepara: async pg => {
     await pg.setInputFiles('#fin-csv', SALDO_DIARIO); await pg.waitForSelector('#fin-fimp');
     await pg.click('input[name=sinal][value=negativas]'); await pg.waitForSelector('.imp-tot');
     await pg.fill('#fin-i-ancora', '6.050,00');
   } });
-  t('31-painel-saldo-estimado', { storage: comGenerica(true, { ancora: { data: '2026-10-14', valor: 1250000, informadoEm: '2026-10-15' } }) });
-  t('32-painel-saldo-diario', { storage: comSaldoDiario() });
+  t('31-painel-saldo-estimado', { storage: comGenerica(true, { ancora: { data: '2026-10-14', valor: 1250000, informadoEm: '2026-10-15' } }), prepara: aba('c2') });
+  t('32-painel-saldo-diario', { storage: comSaldoDiario(), prepara: aba('c2') });
   // Revisar categorias com saídas e entradas: o salário marcado como renda e o Pix como entre contas suas
   t('33-configuracoes-cambio', { storage: CAMBIO, prepara: async pg => { await pg.click('[data-fin-setup]'); } });
   t('34-painel-principal-libra', { storage: EM_LIBRA, prepara: async pg => { await pg.click('#fin-dcamb > summary'); } });
-  t('29-revisar-entradas', { storage: comGenerica(true, { over: { '+SALÁRIO EMPRESA EXEMPLO LTDA': '_renda', '+PIX RECEBIDO JOÃO EXEMPLO': '_ignore' } }), prepara: async pg => { await pg.click('#fin-revd > summary'); } });
+  t('29-revisar-entradas', { storage: comGenerica(true, { over: { '+SALÁRIO EMPRESA EXEMPLO LTDA': '_renda', '+PIX RECEBIDO JOÃO EXEMPLO': '_ignore' } }), prepara: aba('c2', async pg => { await pg.click('#fin-revd > summary'); }) });
+  // Resumo (9.3c): todas as carteiras juntas; setembro é o último mês completo
+  t('35-resumo', { storage: RESUMO });
+  t('36-resumo-sem-cambio', { storage: RESUMO_SEM_CAMBIO });
+  t('37-resumo-definir-cambio', { storage: RESUMO_SEM_CAMBIO, prepara: async pg => { await pg.click('[data-rcamb="BRL"]'); } });
+  t('38-resumo-mes-sem-cobertura', { storage: RESUMO, prepara: async pg => { await pg.click('[data-rmes="2026-07"]'); } });
+  t('39-resumo-detalhes', { storage: RESUMO, prepara: async pg => { await pg.click('#fin-rpor > summary'); await pg.click('#fin-rfd > summary'); } });
+  t('40-resumo-escolher-carteira', { storage: RESUMO, prepara: async pg => { await pg.click('[data-fin-add]'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   } });
