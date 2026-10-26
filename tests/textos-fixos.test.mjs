@@ -13,6 +13,7 @@ const D = JSON.parse(JSON.stringify(vm.runInContext('NORA_DICIONARIOS', ctx)));
 
 // funções do app.js cujas áreas já foram extraídas: cresce a cada commit do passo d; no fim, o arquivo todo
 const AREAS_FEITAS = {
+  'dicas do gráfico': ['tipHtml', 'showTip', 'placeTip', 'hideTip'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -78,4 +79,18 @@ test('dicionários: sem tag, sem entidade, sem espaço nas pontas, em NFC', () =
 test('PERMITIDOS e AREAS_FEITAS sempre com motivo e funções que existem', () => {
   for (const [t, m] of Object.entries(PERMITIDOS)) assert.ok(m.trim(), t);
   for (const f of Object.values(AREAS_FEITAS).flat()) assert.match(appJs, new RegExp(`\\n  function ${f}\\(`), `função ${f} não existe`);
+});
+
+test('index.html: todo texto e aria-label do <body> tem data-i18n (o <title> "Nora" é o nome do produto)', () => {
+  const corpo = indexHtml.slice(indexHtml.indexOf('<body>'));
+  const semMarca = [];
+  for (const m of corpo.matchAll(/<(\w+)([^>]*)>([^<]*)/g)) {
+    const [, tag, atrs, texto] = m;
+    if (/[A-Za-zÀ-ÿ]{2,}/.test(texto) && tag !== 'script' && !(texto.trim() in PERMITIDOS) && !/\bdata-i18n="/.test(atrs)) semMarca.push(`<${tag}> "${texto.trim()}"`);
+    if (/\baria-label="/.test(atrs) && !/\bdata-i18n-aria-label="/.test(atrs)) semMarca.push(`<${tag}> aria-label`);
+  }
+  assert.deepEqual(semMarca, []);
+  // o português fica no HTML e é o mesmo do dicionário
+  for (const m of corpo.matchAll(/data-i18n="([^"]+)"[^>]*>([^<]*)</g)) assert.equal(m[2], D['pt-BR'][m[1]], m[1]);
+  for (const m of corpo.matchAll(/aria-label="([^"]+)" data-i18n-aria-label="([^"]+)"/g)) assert.equal(m[1], D['pt-BR'][m[2]], m[2]);
 });

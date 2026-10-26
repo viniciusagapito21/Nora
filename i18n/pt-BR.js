@@ -21,5 +21,13 @@ NORA_DICIONARIOS['pt-BR'] = {
   'metas.padrao.invest': 'Investimentos',
   'metas.padrao.viagens': 'Viagens pequenas',
   'metas.padrao.viagem': 'Viagem grande do ano',
-  'cats.brasil.antigo': 'Contas no Brasil'
+  'cats.brasil.antigo': 'Contas no Brasil',
+  /* passo d: palavras repetidas em várias áreas */
+  'comum.gastou': 'Gastou',
+  'comum.entrou': 'Entrou',
+  /* passo d: index.html */
+  'casca.carregando': 'Carregando…',
+  'casca.financas': 'Finanças',
+  /* passo d: dicas do gráfico */
+  'dica.mesEmAndamento': '{mes} · em andamento'
 };

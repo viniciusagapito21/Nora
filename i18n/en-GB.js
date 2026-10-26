@@ -20,5 +20,13 @@ NORA_DICIONARIOS['en-GB'] = {
   'metas.padrao.invest': 'Investments',
   'metas.padrao.viagens': 'Short trips',
   'metas.padrao.viagem': 'Big trip of the year',
-  'cats.brasil.antigo': 'Accounts in Brazil'
+  'cats.brasil.antigo': 'Accounts in Brazil',
+  /* step d: words repeated across areas */
+  'comum.gastou': 'Spent',
+  'comum.entrou': 'Money in',
+  /* step d: index.html */
+  'casca.carregando': 'Loading…',
+  'casca.financas': 'Finances',
+  /* step d: chart tooltips */
+  'dica.mesEmAndamento': '{mes} · in progress'
 };

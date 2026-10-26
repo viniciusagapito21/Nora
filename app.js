@@ -3146,13 +3146,13 @@
 
   /* ---------- dica sobre a barra ---------- */
   function tipHtml(k) {
-    var g = M.by[k], h = '<h3>' + esc(mLabel(k)) + (M.partial === k ? ' · em andamento' : '') + '</h3>';
+    var g = M.by[k], h = '<h3>' + (M.partial === k ? tth('dica.mesEmAndamento', { mes: mLabel(k) }) : esc(mLabel(k))) + '</h3>';
     CATSV.forEach(function (c) {
       var v = g.spend[c.id] || 0;
       if (Math.abs(v) >= .5) h += '<div class="r"><i class="sw" style="background:' + colorOf(c) + '"></i><span>' + esc(catNome(c)) + '</span><b>' + f0(v) + '</b></div>';
     });
-    h += '<div class="r t"><i class="sw" style="background:transparent"></i><span>Gastou</span><b>' + f0(g.gasto) + '</b></div>';
-    h += '<div class="r"><i class="sw line"></i><span>Entrou</span><b>' + f0(g.entrou) + '</b></div>';
+    h += '<div class="r t"><i class="sw" style="background:transparent"></i><span>' + tth('comum.gastou') + '</span><b>' + f0(g.gasto) + '</b></div>';
+    h += '<div class="r"><i class="sw line"></i><span>' + tth('comum.entrou') + '</span><b>' + f0(g.entrou) + '</b></div>';
     return h;
   }
   function showTip(el, x, y) { placeTip(tipHtml(el.getAttribute('data-tip')), x, y); }
