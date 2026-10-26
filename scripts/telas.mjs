@@ -662,6 +662,32 @@ for (const s of TELAS) {
   await ctx.close();
 }
 
+// ---------- cadastro da carteira: moeda filtra os países, país preenche a moeda (sem mexer em moeda travada) ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage(), r = {};
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('países e moedas: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, CARTEIRAS);
+  await pg.reload(); await pg.waitForTimeout(150);
+  await pg.click('[data-fin-setup]'); await pg.click('#fin-wnova > summary');
+  const opcoesPais = id => pg.evaluate(i => [...document.querySelectorAll(i + ' option')].map(o => o.value), id);
+  await pg.selectOption('#fin-wn-moeda', 'EUR'); r.euro = (await opcoesPais('#fin-wn-pais optgroup:first-child')).length; r.todos = (await opcoesPais('#fin-wn-pais')).length;
+  await pg.selectOption('#fin-wn-pais', 'BR'); r.brasil = await pg.inputValue('#fin-wn-moeda');
+  await pg.selectOption('#fin-wn-pais', 'GB'); r.reino = await pg.inputValue('#fin-wn-moeda');
+  await pg.selectOption('#fin-wn-moeda', 'EUR'); r.volta = await pg.inputValue('#fin-wn-pais');
+  // nenhum país usa dólar: escolher USD não mexe no país
+  await pg.selectOption('#fin-wn-pais', 'BR'); await pg.selectOption('#fin-wn-moeda', 'USD'); r.dolar = await pg.inputValue('#fin-wn-pais');
+  // a carteira com extrato (c1, euro): moeda travada; trocar o país não muda a moeda
+  await pg.selectOption('#fin-w-c1-pais', 'BR'); r.travada = await pg.inputValue('#fin-w-c1-moeda');
+  r.nota = await pg.evaluate(() => /só existem para Irlanda e Brasil/.test(document.querySelector('#fin-wnova').textContent));
+  const ok = r.euro === 27 && r.todos === 29 && r.brasil === 'BRL' && r.reino === 'GBP' && r.volta === 'IE' && r.dolar === 'BR' && r.travada === 'EUR' && r.nota;
+  if (!ok) problemas.push('países e moedas: ' + JSON.stringify(r));
+  console.log(`países e moedas: ${ok ? 'EUR mostra os 27 países no primeiro grupo (29 no total); Brasil põe BRL, Reino Unido põe GBP; de volta a EUR, Irlanda; USD mantém o país; moeda travada não muda; aviso das regras de lojas' : 'FALHOU ' + JSON.stringify(r)}`);
+  await ctx.close();
+}
+
 // ---------- o leitor de planilhas só é pedido quando a pessoa escolhe uma planilha, e uma vez só ----------
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });

@@ -2075,3 +2075,39 @@ test('aviso dos envios: a resposta fica lembrada, mudar em Configurações tamb�
   z.carteiras[1].enviosDecidido = 'sim';
   assert.throws(() => AV.lerSalvo(JSON.stringify(z), ''), /resposta do aviso de envios em formato errado/);
 });
+
+// ---------- países e moedas do cadastro da carteira ----------
+test('países do euro: os 27 casam com EUR e vice-versa; Brasil e Reino Unido com a moeda deles; sem duplicados', () => {
+  const PM = carregarNucleo(['PAISES_MOEDA', 'paisesDaMoeda', 'moedaDoPais', 'paisPadraoDaMoeda']);
+  const EURO = { DE: 'Alemanha', AT: 'Áustria', BE: 'Bélgica', BG: 'Bulgária', CY: 'Chipre', HR: 'Croácia', SK: 'Eslováquia', SI: 'Eslovênia', ES: 'Espanha', EE: 'Estônia',
+    FI: 'Finlândia', FR: 'França', GR: 'Grécia', IE: 'Irlanda', IT: 'Itália', LV: 'Letônia', LT: 'Lituânia', LU: 'Luxemburgo', MT: 'Malta', NL: 'Países Baixos', PT: 'Portugal',
+    AD: 'Andorra', MC: 'Mônaco', SM: 'San Marino', VA: 'Vaticano', ME: 'Montenegro', XK: 'Kosovo' };
+  assert.equal(Object.keys(EURO).length, 27);
+  for (const [cod, nome] of Object.entries(EURO)) {
+    assert.equal(PM.moedaDoPais(cod), 'EUR', cod);
+    assert.equal(PM.PAISES_MOEDA.find(p => p[0] === cod)[1], nome, cod + ': nome');
+  }
+  assert.deepEqual(PM.paisesDaMoeda('EUR').map(p => p[0]).sort(), Object.keys(EURO).sort(), 'ao escolher EUR, aparecem exatamente os 27');
+  assert.deepEqual([PM.moedaDoPais('BR'), PM.moedaDoPais('GB')], ['BRL', 'GBP']);
+  assert.deepEqual(PM.paisesDaMoeda('BRL').map(p => p[0]), ['BR']); assert.deepEqual(PM.paisesDaMoeda('GBP').map(p => p[0]), ['GB']);
+  assert.equal(PM.paisesDaMoeda('USD').length, PM.PAISES_MOEDA.length, 'moeda sem país na lista: todos');
+  assert.equal(PM.moedaDoPais('US'), null);
+  const cods = PM.PAISES_MOEDA.map(p => p[0]), nomes = PM.PAISES_MOEDA.map(p => p[1]);
+  assert.equal(new Set(cods).size, cods.length, 'nenhum código duplicado'); assert.equal(new Set(nomes).size, nomes.length, 'nenhum nome duplicado');
+  assert.deepEqual(nomes, nomes.slice().sort((a, b) => a.localeCompare(b, 'pt-BR')), 'em ordem alfabética');
+  assert.deepEqual([PM.paisPadraoDaMoeda('EUR'), PM.paisPadraoDaMoeda('BRL'), PM.paisPadraoDaMoeda('GBP')], ['IE', 'BR', 'GB']);
+});
+
+test('países do euro: carteiras existentes não mudam (backup, edição e combinações antigas)', () => {
+  const PM = carregarNucleo(['migrate', 'novaCarteira', 'editarCarteira', 'lerSalvo']);
+  let x = PM.migrate({ v: 3, months: {}, over: {}, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE' }, summary: null, div: null });
+  x = PM.novaCarteira(x, { nome: 'Nubank', moeda: 'BRL', pais: 'BR', banco: 'nubank' });
+  x = PM.novaCarteira(x, { nome: 'Wise libras', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  x = PM.novaCarteira(x, { nome: 'Antiga', moeda: 'GBP', pais: 'IE', banco: 'outro' }); // combinação que a lista nova não sugere
+  x = PM.novaCarteira(x, { nome: 'Portugal', moeda: 'EUR', pais: 'PT', banco: 'outro' });
+  const antes = x.carteiras.map(c => [c.id, c.moeda, c.pais]);
+  assert.deepEqual(PM.lerSalvo(JSON.stringify(x), '').carteiras.map(c => [c.id, c.moeda, c.pais]), antes, 'o backup volta igual');
+  let y = x; for (const c of x.carteiras) y = PM.editarCarteira(y, c.id, { nome: c.nome + ' ' });
+  assert.deepEqual(y.carteiras.map(c => [c.id, c.moeda, c.pais]), antes, 'editar só o nome não mexe em moeda nem país');
+  assert.equal(PM.migrate({ v: 3, months: {}, over: {}, plan: {}, summary: null, div: null }).carteiras[0].pais, 'IE', 'sem país, continua Irlanda');
+});

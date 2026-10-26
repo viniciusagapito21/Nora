@@ -464,6 +464,22 @@
     if (igual) throw new Error('já existe uma carteira chamada ' + igual.nome);
     return nome;
   }
+  /* países do cadastro da carteira, com a moeda de cada um: os 27 que usam o euro (os 21 da zona do euro, mais
+     Andorra, Mônaco, San Marino, Vaticano, Montenegro e Kosovo), o Brasil e o Reino Unido. Nomes por enquanto fixos
+     em português; o código é o ISO (Kosovo: XK). Escolher a moeda põe os países dela no topo; escolher o país preenche a moeda. */
+  var PAISES_MOEDA = [
+    ['DE', 'Alemanha', 'EUR'], ['AD', 'Andorra', 'EUR'], ['AT', 'Áustria', 'EUR'], ['BE', 'Bélgica', 'EUR'], ['BR', 'Brasil', 'BRL'],
+    ['BG', 'Bulgária', 'EUR'], ['CY', 'Chipre', 'EUR'], ['HR', 'Croácia', 'EUR'], ['SK', 'Eslováquia', 'EUR'], ['SI', 'Eslovênia', 'EUR'],
+    ['ES', 'Espanha', 'EUR'], ['EE', 'Estônia', 'EUR'], ['FI', 'Finlândia', 'EUR'], ['FR', 'França', 'EUR'], ['GR', 'Grécia', 'EUR'],
+    ['IE', 'Irlanda', 'EUR'], ['IT', 'Itália', 'EUR'], ['XK', 'Kosovo', 'EUR'], ['LV', 'Letônia', 'EUR'], ['LT', 'Lituânia', 'EUR'],
+    ['LU', 'Luxemburgo', 'EUR'], ['MT', 'Malta', 'EUR'], ['MC', 'Mônaco', 'EUR'], ['ME', 'Montenegro', 'EUR'], ['NL', 'Países Baixos', 'EUR'],
+    ['PT', 'Portugal', 'EUR'], ['GB', 'Reino Unido', 'GBP'], ['SM', 'San Marino', 'EUR'], ['VA', 'Vaticano', 'EUR']
+  ];
+  /* moeda sem país na lista (ex.: USD): todos os países */
+  function paisesDaMoeda(m) { var l = PAISES_MOEDA.filter(function (p) { return p[2] === m; }); return l.length ? l : PAISES_MOEDA.slice(); }
+  function moedaDoPais(p) { var x = PAISES_MOEDA.filter(function (q) { return q[0] === p; })[0]; return x ? x[2] : null; }
+  /* o país que entra quando a moeda muda e o país atual não usa essa moeda: no euro, a Irlanda (tem regras de lojas) */
+  function paisPadraoDaMoeda(m) { var l = paisesDaMoeda(m); return l.some(function (p) { return p[0] === 'IE'; }) ? 'IE' : l[0][0]; }
   function conferirMoeda(m) { if (!/^[A-Z]{3}$/.test(m || '')) throw new Error('moeda ' + m + ' inválida'); return m; }
   function conferirBanco(b) { if (!BANCOS.some(function (o) { return o[0] === b; })) throw new Error('tipo de extrato ' + b + ' desconhecido'); return b; }
   /* a principal é a primeira; se a moeda dela mudou, o câmbio digitado deixa de valer */
@@ -1960,7 +1976,18 @@
   /* ---------- configuração guiada ---------- */
   /* a moeda escolhe a conta que o painel lê no extrato; o país escolhe as regras de comerciantes */
   var MOEDAS = [['EUR', 'Euro (€)'], ['BRL', 'Real (R$)'], ['GBP', 'Libra (£)'], ['USD', 'Dólar (US$)']];
-  var PAISES = [['IE', 'Irlanda'], ['PT', 'Portugal'], ['BR', 'Brasil'], ['GB', 'Reino Unido']];
+  var PAISES = PAISES_MOEDA.map(function (p) { return [p[0], p[1]]; });
+  /* todos os países, em dois grupos: primeiro os que usam a moeda escolhida, depois os outros (para escolher o país
+     antes e a moeda vir junto). País fora da lista (veio de um backup) continua na escolha: nada muda sozinho */
+  function opcoesPais(moedaSel, sel) {
+    var da = PAISES_MOEDA.filter(function (p) { return p[2] === moedaSel; }), resto = PAISES_MOEDA.filter(function (p) { return p[2] !== moedaSel; });
+    var par = function (p) { return [p[0], p[1]]; }, extra = sel && !PAISES_MOEDA.some(function (p) { return p[0] === sel; }) ? [[sel, sel]] : [];
+    if (!da.length) return opcoes(PAISES.concat(extra), sel);
+    var nomeM = (MOEDAS.filter(function (m) { return m[0] === moedaSel; })[0] || [0, moedaSel])[1];
+    return '<optgroup label="' + esc('Usam ' + nomeM.charAt(0).toLowerCase() + nomeM.slice(1)) + '">' + opcoes(da.map(par), sel) + '</optgroup>' +
+      '<optgroup label="Outros países">' + opcoes(resto.map(par).concat(extra), sel) + '</optgroup>';
+  }
+  function notaRegrasPais() { return 'Regras que reconhecem lojas e serviços só existem para ' + PAISES_COM_REGRAS.map(nomePais).join(' e ') + '. Nos outros países, só marcas internacionais (Netflix, Spotify, Uber…).'; }
   function configurado() { return !!(S.plan && S.plan.configurado); }
   function temRegras(pais) { return PAISES_COM_REGRAS.indexOf(pais || 'IE') >= 0; }
   function suportado() { return !S.plan || temRegras(S.plan.pais); }
@@ -2003,7 +2030,7 @@
         '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + GENERICO + '</small></label>' +
         '<label>Moeda da conta<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
         (trava ? '' : '<small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small>') + '</label>' +
-        '<label>País<select id="' + k + '-pais">' + opcoes(PAISES, c.pais) + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label>' +
+        '<label>País<select id="' + k + '-pais">' + opcoesPais(c.moeda, c.pais) + '</select></label>' +
         '<label>' + esc(catNome(catPor('brasil'))) + '<select id="' + k + '-envios">' + opcoes([['gasto', 'Contam como gasto'], ['movido', 'Dinheiro movido, não gasto']], c.envios === 'movido' ? 'movido' : 'gasto') + '</select><small>Enviar dinheiro para pagar contas em outro país é gasto; se ele só mudou de conta, escolha "dinheiro movido". Muda quando quiser.</small></label></div>' +
         (trava ? '<p class="passo" id="' + k + '-trava">Extrato e moeda não mudam depois que há extratos salvos nesta carteira: os valores estão em ' + esc(nomeMoeda(c.moeda)) + ' e não seriam convertidos. Para outro banco ou outra moeda, crie outra carteira.</p>' : '') +
         '<p class="aviso" id="' + k + '-aviso"' + (temRegras(c.pais) ? ' hidden' : '') + '>' + avisoSuporte(c.pais) + '</p></div>';
@@ -2015,7 +2042,7 @@
         '<div class="mgrid"><label>Nome da carteira<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Wise libras"></label>' +
         '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + GENERICO + '</small></label>' +
         '<label>Moeda da conta<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
-        '<label>País<select id="fin-wn-pais">' + opcoes(PAISES, carteiraAtiva(x).pais) + '</select></label></div>' +
+        '<label>País<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small>' + notaRegrasPais() + '</small></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
     var mp = '';
     if (varias) {
@@ -3261,12 +3288,22 @@
     if (t.hasAttribute && t.hasAttribute('data-imp-campo') && S.importar) { mudarImportacao(t); return; }
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
-    var wm = /^(fin-w-.+|fin-wn)-(pais|banco)$/.exec(t.id || '');
+    var wm = /^(fin-w-.+|fin-wn)-(pais|banco|moeda)$/.exec(t.id || '');
+    if (wm && wm[2] === 'moeda') {
+      var ps = $('#' + wm[1] + '-pais'), atual = ps.value, novo = moedaDoPais(atual) === t.value || !PAISES_MOEDA.some(function (p) { return p[2] === t.value; }) ? atual : paisPadraoDaMoeda(t.value);
+      ps.innerHTML = opcoesPais(t.value, novo); ps.value = novo;
+      var av0 = $('#' + wm[1] + '-aviso'); if (av0) { av0.innerHTML = avisoSuporte(ps.value); av0.hidden = temRegras(ps.value); }
+      return;
+    }
     if (t.id === 'fin-w-mp') {
       var tr0 = t.value !== S.dados.config.moedaPrincipal, cw = $('#fin-cambc-w'), ct = $('#fin-cambc-troca');
       if (cw) cw.hidden = tr0; if (ct) ct.hidden = !tr0; return;
     }
-    if (wm && wm[2] === 'pais') { var av = $('#' + wm[1] + '-aviso'); av.innerHTML = avisoSuporte(t.value); av.hidden = temRegras(t.value); return; }
+    if (wm && wm[2] === 'pais') {
+      var mo = $('#' + wm[1] + '-moeda'), mp = moedaDoPais(t.value);
+      if (mo && !mo.disabled && mp && mp !== mo.value) { mo.value = mp; var ps2 = $('#' + wm[1] + '-pais'), sel2 = t.value; ps2.innerHTML = opcoesPais(mp, sel2); ps2.value = sel2; }
+      var av = $('#' + wm[1] + '-aviso'); av.innerHTML = avisoSuporte(t.value); av.hidden = temRegras(t.value); return;
+    }
     if (wm) { $('#' + wm[1] + '-leitor').hidden = temLeitor(t.value); return; }
     if (t.id === 'fin-json') { lerBackup(t.files && t.files[0]).then(function () { t.value = ''; }); return; }
     if (t.hasAttribute && t.hasAttribute('data-ov') && t.closest('#fin-app')) {
