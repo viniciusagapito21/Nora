@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Nora brand board</title><desc id="desc">Initial visual identity showing logo, palette, typography, and app icon.</desc>
+  <rect width="1440" height="1000" fill="#F7F5EF"/>
+  <text x="88" y="88" fill="#607278" font-family="Inter,system-ui,sans-serif" font-size="18" font-weight="600" letter-spacing="3">INITIAL BRAND DIRECTION · OCT 2026</text>
+  <text x="88" y="184" fill="#17343B" font-family="Manrope,Inter,system-ui,sans-serif" font-size="66" font-weight="700" letter-spacing="-3">Clarity you can act on.</text>
+  <text x="90" y="234" fill="#607278" font-family="Inter,system-ui,sans-serif" font-size="24">A calm, human identity for everyday financial decisions.</text>
+  <rect x="88" y="292" width="1264" height="316" rx="26" fill="#FFFFFF"/>
+  <path d="M168 500V382c0-8 10-11 15-6l89 115c5 6 15 2 15-6V382" fill="none" stroke="#2F8F7B" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="350" y="484" fill="#17343B" font-family="Manrope,Inter,system-ui,sans-serif" font-size="116" font-weight="650" letter-spacing="-6">Nora</text>
+  <text x="355" y="535" fill="#607278" font-family="Inter,system-ui,sans-serif" font-size="19" letter-spacing="2">PRIMARY WORDMARK</text>
+  <rect x="1110" y="365" width="150" height="150" rx="36" fill="#17343B"/>
+  <path d="M1146 467V410c0-4 5-5 8-2l46 57c2 3 7 1 7-3v-52" fill="none" stroke="#DCEFE8" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1110" y="550" fill="#607278" font-family="Inter,system-ui,sans-serif" font-size="17" letter-spacing="2">APP ICON</text>
+  <text x="88" y="684" fill="#17343B" font-family="Manrope,Inter,system-ui,sans-serif" font-size="28" font-weight="700">Color system</text>
+  <g font-family="Inter,system-ui,sans-serif" font-size="16" fill="#17343B">
+    <rect x="88" y="720" width="205" height="132" rx="16" fill="#17343B"/><text x="108" y="882">Deep Fjord</text><text x="108" y="907">#17343B</text>
+    <rect x="310" y="720" width="205" height="132" rx="16" fill="#2F8F7B"/><text x="330" y="882">Nora Teal</text><text x="330" y="907">#2F8F7B</text>
+    <rect x="532" y="720" width="205" height="132" rx="16" fill="#DCEFE8" stroke="#D8E1DD"/><text x="552" y="882">Pale Mint</text><text x="552" y="907">#DCEFE8</text>
+    <rect x="754" y="720" width="205" height="132" rx="16" fill="#F7F5EF" stroke="#D8E1DD"/><text x="774" y="882">Warm Paper</text><text x="774" y="907">#F7F5EF</text>
+    <rect x="976" y="720" width="174" height="132" rx="16" fill="#E7A278"/><text x="996" y="882">Apricot</text><text x="996" y="907">#E7A278</text>
+    <text x="1190" y="760" font-family="Manrope,Inter,system-ui,sans-serif" font-size="30" font-weight="700">Manrope</text>
+    <text x="1190" y="799" font-size="17">Headlines · 600–700</text>
+    <text x="1190" y="845" font-family="Inter,system-ui,sans-serif" font-size="26" font-weight="500">Inter</text>
+    <text x="1190" y="882" font-size="17">Product UI · 400–600</text>
+  </g>
+</svg>

@@ -3,3 +3,14 @@ node_modules/
 *.local.csv
 telas/atual/
 telas/diff/
+
+# dados pessoais: capturas de tela e extratos reais nunca vão para o git; só os exemplos inventados de exemplo/
+capturas/
+*.pdf
+*.xls
+*.xlsx
+*.ods
+*.ofx
+!exemplo/*.pdf
+!exemplo/*.xls
+!exemplo/*.ofx
