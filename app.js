@@ -480,6 +480,10 @@
   function moedaDoPais(p) { var x = PAISES_MOEDA.filter(function (q) { return q[0] === p; })[0]; return x ? x[2] : null; }
   /* o país que entra quando a moeda muda e o país atual não usa essa moeda: no euro, a Irlanda (tem regras de lojas) */
   function paisPadraoDaMoeda(m) { var l = paisesDaMoeda(m); return l.some(function (p) { return p[0] === 'IE'; }) ? 'IE' : l[0][0]; }
+  /* "Adicionar carteira": o banco sugere moeda e país, só enquanto a pessoa não mexeu em nenhum dos dois.
+     Wise e "Outro banco" não sugerem nada (a Wise tem conta em várias moedas). Carteira existente nunca passa por aqui. */
+  var BANCO_MOEDA_PAIS = { btg: ['BRL', 'BR'], itau: ['BRL', 'BR'], nubank: ['BRL', 'BR'], revolut: ['EUR', 'IE'], aib: ['EUR', 'IE'], boi: ['EUR', 'IE'] };
+  function preenchimentoDoBanco(banco, mexeu) { var b = BANCO_MOEDA_PAIS[banco]; return b && !mexeu ? { moeda: b[0], pais: b[1] } : null; }
   function conferirMoeda(m) { if (!/^[A-Z]{3}$/.test(m || '')) throw new Error('moeda ' + m + ' inválida'); return m; }
   function conferirBanco(b) { if (!BANCOS.some(function (o) { return o[0] === b; })) throw new Error('tipo de extrato ' + b + ' desconhecido'); return b; }
   /* a principal é a primeira; se a moeda dela mudou, o câmbio digitado deixa de valer */
@@ -3289,6 +3293,15 @@
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
     var wm = /^(fin-w-.+|fin-wn)-(pais|banco|moeda)$/.exec(t.id || '');
+    /* no formulário novo, quem escolheu moeda ou país já decidiu: o banco não sobrescreve mais */
+    if (wm && wm[1] === 'fin-wn' && wm[2] !== 'banco') $('#fin-wnova').setAttribute('data-mexeu', '1');
+    if (wm && wm[1] === 'fin-wn' && wm[2] === 'banco') {
+      var pb = preenchimentoDoBanco(t.value, $('#fin-wnova').hasAttribute('data-mexeu'));
+      if (pb) {
+        var mb = $('#fin-wn-moeda'), pbs = $('#fin-wn-pais'); mb.value = pb.moeda; pbs.innerHTML = opcoesPais(pb.moeda, pb.pais); pbs.value = pb.pais;
+        var avb = $('#fin-wn-aviso'); avb.innerHTML = avisoSuporte(pb.pais); avb.hidden = temRegras(pb.pais);
+      }
+    }
     if (wm && wm[2] === 'moeda') {
       var ps = $('#' + wm[1] + '-pais'), atual = ps.value, novo = moedaDoPais(atual) === t.value || !PAISES_MOEDA.some(function (p) { return p[2] === t.value; }) ? atual : paisPadraoDaMoeda(t.value);
       ps.innerHTML = opcoesPais(t.value, novo); ps.value = novo;

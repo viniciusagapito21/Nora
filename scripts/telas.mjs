@@ -679,12 +679,23 @@ for (const s of TELAS) {
   await pg.selectOption('#fin-wn-moeda', 'EUR'); r.volta = await pg.inputValue('#fin-wn-pais');
   // nenhum país usa dólar: escolher USD não mexe no país
   await pg.selectOption('#fin-wn-pais', 'BR'); await pg.selectOption('#fin-wn-moeda', 'USD'); r.dolar = await pg.inputValue('#fin-wn-pais');
+  // o banco preenche moeda e país só enquanto a pessoa não mexeu neles (formulário recém-aberto)
+  await pg.reload(); await pg.waitForTimeout(150); await pg.click('[data-fin-setup]'); await pg.click('#fin-wnova > summary');
+  const mp = () => pg.evaluate(() => document.querySelector('#fin-wn-moeda').value + '/' + document.querySelector('#fin-wn-pais').value);
+  await pg.selectOption('#fin-wn-banco', 'itau'); r.itau = await mp();
+  await pg.selectOption('#fin-wn-banco', 'wise'); r.wise = await mp();
+  await pg.selectOption('#fin-wn-banco', 'revolut'); r.revolut = await mp();
+  await pg.selectOption('#fin-wn-banco', 'itau'); await pg.selectOption('#fin-wn-banco', 'boi'); r.boi = await mp();
+  await pg.selectOption('#fin-wn-banco', 'outro'); r.outro = await mp();
+  await pg.selectOption('#fin-wn-pais', 'PT'); await pg.selectOption('#fin-wn-banco', 'nubank'); r.mexeu = await mp();
+  // carteira existente sem extrato (c2, Wise em libra): trocar o banco não mexe em moeda nem país
+  await pg.selectOption('#fin-w-c2-banco', 'btg'); r.existente = await pg.evaluate(() => document.querySelector('#fin-w-c2-moeda').value + '/' + document.querySelector('#fin-w-c2-pais').value);
   // a carteira com extrato (c1, euro): moeda travada; trocar o país não muda a moeda
   await pg.selectOption('#fin-w-c1-pais', 'BR'); r.travada = await pg.inputValue('#fin-w-c1-moeda');
   r.nota = await pg.evaluate(() => /só existem para Irlanda e Brasil/.test(document.querySelector('#fin-wnova').textContent));
-  const ok = r.euro === 27 && r.todos === 29 && r.brasil === 'BRL' && r.reino === 'GBP' && r.volta === 'IE' && r.dolar === 'BR' && r.travada === 'EUR' && r.nota;
+  const ok = r.euro === 27 && r.todos === 29 && r.brasil === 'BRL' && r.reino === 'GBP' && r.volta === 'IE' && r.dolar === 'BR' && r.itau === 'BRL/BR' && r.wise === 'BRL/BR' && r.revolut === 'EUR/IE' && r.boi === 'EUR/IE' && r.outro === 'EUR/IE' && r.mexeu === 'EUR/PT' && r.existente === 'GBP/GB' && r.travada === 'EUR' && r.nota;
   if (!ok) problemas.push('países e moedas: ' + JSON.stringify(r));
-  console.log(`países e moedas: ${ok ? 'EUR mostra os 27 países no primeiro grupo (29 no total); Brasil põe BRL, Reino Unido põe GBP; de volta a EUR, Irlanda; USD mantém o país; moeda travada não muda; aviso das regras de lojas' : 'FALHOU ' + JSON.stringify(r)}`);
+  console.log(`países e moedas: ${ok ? 'EUR mostra os 27 países no primeiro grupo (29 no total); Brasil põe BRL, Reino Unido põe GBP; de volta a EUR, Irlanda; USD mantém o país; banco preenche (Itaú → BRL/Brasil, Revolut e Bank of Ireland → EUR/Irlanda, Wise e Outro banco não mexem) e nunca depois da escolha da pessoa nem em carteira existente; moeda travada não muda; aviso das regras de lojas' : 'FALHOU ' + JSON.stringify(r)}`);
   await ctx.close();
 }
 

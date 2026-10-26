@@ -2077,6 +2077,18 @@ test('aviso dos envios: a resposta fica lembrada, mudar em Configurações tamb�
 });
 
 // ---------- países e moedas do cadastro da carteira ----------
+test('banco preenche moeda e país na carteira nova, só se a pessoa não mexeu; carteira existente não muda', () => {
+  const B = carregarNucleo(['preenchimentoDoBanco', 'migrate', 'novaCarteira', 'editarCarteira']);
+  for (const b of ['btg', 'itau', 'nubank']) assert.deepEqual(B.preenchimentoDoBanco(b, false), { moeda: 'BRL', pais: 'BR' }, b);
+  for (const b of ['revolut', 'aib', 'boi']) assert.deepEqual(B.preenchimentoDoBanco(b, false), { moeda: 'EUR', pais: 'IE' }, b);
+  for (const b of ['wise', 'outro']) assert.equal(B.preenchimentoDoBanco(b, false), null, b + ': sem preencher');
+  for (const b of ['btg', 'itau', 'nubank', 'revolut', 'aib', 'boi', 'wise']) assert.equal(B.preenchimentoDoBanco(b, true), null, b + ': a pessoa já escolheu, nunca sobrescreve');
+  let x = B.migrate({ v: 3, months: {}, over: {}, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE' }, summary: null, div: null });
+  x = B.novaCarteira(x, { nome: 'Wise libras', moeda: 'GBP', pais: 'GB', banco: 'wise' });
+  const id = x.carteiras[1].id, y = B.editarCarteira(x, id, { banco: 'btg' });
+  assert.deepEqual([y.carteiras[1].banco, y.carteiras[1].moeda, y.carteiras[1].pais], ['btg', 'GBP', 'GB'], 'trocar o banco de uma carteira existente não mexe em moeda nem país');
+});
+
 test('países do euro: os 27 casam com EUR e vice-versa; Brasil e Reino Unido com a moeda deles; sem duplicados', () => {
   const PM = carregarNucleo(['PAISES_MOEDA', 'paisesDaMoeda', 'moedaDoPais', 'paisPadraoDaMoeda']);
   const EURO = { DE: 'Alemanha', AT: 'Áustria', BE: 'Bélgica', BG: 'Bulgária', CY: 'Chipre', HR: 'Croácia', SK: 'Eslováquia', SI: 'Eslovênia', ES: 'Espanha', EE: 'Estônia',
