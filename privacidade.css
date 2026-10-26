@@ -1,0 +1,92 @@
+html { min-width: 320px; }
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: var(--sp-24) var(--sp-16);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--ui);
+}
+.privacidade {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+.cabecalho, footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-16);
+}
+.cabecalho { margin-bottom: var(--sp-48); }
+.marca {
+  color: var(--fg);
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.04em;
+  text-decoration: none;
+}
+.marca img { display: block; height: 44px; width: auto; }
+.selo, .sobretitulo {
+  color: var(--accent-ink);
+  font-family: var(--ui);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.idioma {
+  padding: clamp(var(--sp-20), 5vw, var(--sp-48));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--elev);
+}
+.idioma + .idioma { margin-top: var(--sp-24); }
+.idioma h1 {
+  margin-top: var(--sp-8);
+  color: var(--fg);
+  font-family: var(--display);
+  font-size: clamp(36px, 8vw, 56px);
+  font-weight: 700;
+  letter-spacing: -.04em;
+  line-height: 1.05;
+}
+.abertura {
+  margin-top: var(--sp-16);
+  color: var(--soft);
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+}
+article {
+  margin-top: var(--sp-32);
+  padding-top: var(--sp-20);
+  border-top: 1px solid var(--line);
+}
+article h2 {
+  color: var(--fg);
+  font-family: var(--display);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+article p {
+  margin-top: var(--sp-8);
+  color: var(--body);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+}
+strong { color: var(--fg); font-weight: 600; }
+footer {
+  flex-wrap: wrap;
+  margin: var(--sp-24) var(--sp-8) 0;
+  color: var(--muted);
+  font-size: var(--fs-label);
+}
+footer span:first-child { color: var(--accent-ink); font-weight: 700; }
+a:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 4px; }
+@media (max-width: 480px) {
+  body { padding: var(--sp-16) var(--sp-12); }
+  .cabecalho { margin-bottom: var(--sp-24); }
+  .selo { text-align: right; }
+}
