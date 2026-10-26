@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas, comSenha, extratoBtgExemplo } from './planilhas.mjs';
+import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraCelulas, comSenha, extratoBtgExemplo, pdfAMao, carregarPdfjs, extratoItauExemplo, itauExemploLinhas } from './planilhas.mjs';
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 // regras (rules/) e leitores (parsers/) vêm antes do app.js, na ordem do index.html: a lista sai da própria página
@@ -643,11 +643,11 @@ test('criar carteira: nome, moeda, país e banco; vira a ativa; até 5', () => {
   assert.equal(api.novaCarteira(quatro, { nome: 'N6', moeda: 'EUR', banco: 'revolut' }).carteiras[4].id, 'c6');
 });
 
-test('Revolut e BTG têm leitor próprio; os outros bancos usam o importador genérico', () => {
+test('Revolut, BTG e Itaú têm leitor próprio; os outros bancos usam o importador genérico', () => {
   const api = load();
-  ['revolut', 'btg'].forEach(b => assert.equal(api.temLeitor(b), true, b));
+  ['revolut', 'btg', 'itau'].forEach(b => assert.equal(api.temLeitor(b), true, b));
   ['aib', 'boi', 'wise', 'nubank', 'outro'].forEach(b => assert.equal(api.temLeitor(b), false, b));
-  assert.deepEqual(api.BANCOS.map(b => b[0]), ['revolut', 'aib', 'boi', 'wise', 'nubank', 'btg', 'outro']);
+  assert.deepEqual(api.BANCOS.map(b => b[0]), ['revolut', 'aib', 'boi', 'wise', 'nubank', 'btg', 'itau', 'outro']);
 });
 
 test('editar carteira: nome e país sempre; moeda e banco só sem movimentos', () => {
@@ -851,7 +851,7 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
 test('a página carrega as regras de cada país e os leitores de banco antes do app.js, do próprio projeto', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'app.js']);
+  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
@@ -1752,4 +1752,149 @@ test('BTG: um extrato já importado pelo genérico não duplica quando o leitor 
   const L = B.LEITORES.btg.ler(linhasBtg(), 'BRL'), porMes = {};
   L.tx.forEach(t => { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
   for (const m in porMes) { const j = B.juntarMovimentos(antes[m], porMes[m]); assert.equal(j.novos, 0, m); assert.equal(j.repetidos, porMes[m].length, m); }
+});
+
+// ---------- pdf.js (vendor/pdfjs): leitor de PDF, carregado só quando a pessoa escolhe um PDF ----------
+test('leitor de PDF: os arquivos do projeto são os conferidos, e a página não os carrega de início', async () => {
+  const versao = readFileSync(new URL('../vendor/pdfjs/VERSAO.md', import.meta.url), 'utf8');
+  for (const f of ['pdf.min.mjs', 'pdf.worker.min.mjs']) {
+    const sha = createHash('sha256').update(readFileSync(new URL('../vendor/pdfjs/' + f, import.meta.url))).digest('hex');
+    assert.match(versao, new RegExp('`' + f.replace(/\./g, '\\.') + '` \\| `' + sha + '`'), 'o SHA-256 anotado em VERSAO.md é o de ' + f);
+  }
+  const pdfjs = await import(new URL('../vendor/pdfjs/pdf.min.mjs', import.meta.url));
+  assert.equal(pdfjs.version, '6.4.299');
+  assert.match(readFileSync(new URL('../vendor/pdfjs/LICENSE', import.meta.url), 'utf8'), /Apache License/);
+  assert.doesNotMatch(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /pdfjs/);
+});
+
+test('leitor de PDF: só os 4 trechos conhecidos parecem navegação, e nenhum navega', () => {
+  // as mesmas expressões do teste de navegação do projeto; no pdf.js há 3 leituras de window.location (montar
+  // endereço, comparar origem) e o texto "window.open" numa lista de ações de JavaScript de PDF
+  const NAVEGA = [/(?<![\w$.\]])location\s*(?:=(?!=)|\.\s*(?:href|assign|replace)\b)/g, /\b(?:window|document|self|top|parent|globalThis)\s*\.\s*location\b/g,
+    /(?<![\w$.])open\s*\(/g, /\bwindow\s*\.\s*open\b/g, /sendBeacon/g];
+  const achados = f => { const s = readFileSync(new URL('../vendor/pdfjs/' + f, import.meta.url), 'utf8'); return NAVEGA.flatMap(re => [...s.matchAll(re)].map(m => s.slice(m.index - 20, m.index + 25))); };
+  const a = achados('pdf.min.mjs'), w = achados('pdf.worker.min.mjs');
+  assert.equal(a.length, 3); assert.ok(a.every(t => /window\.location[,)]/.test(t)), 'só leituras de window.location');
+  assert.equal(w.length, 1); assert.match(w[0], /"window\.open"/, 'só o texto "window.open" numa lista');
+});
+
+// ---------- PDF: lerPdf (pdf.js do projeto) e tabelaDoPdf; PDFs inventados, montados à mão ----------
+const D = carregarNucleo(['lerPdf', 'tabelaDoPdf', 'tipoArquivo']);
+const cab = (y = 245) => [{ s: 'data', x: 31, y }, { s: 'lançamentos', x: 96, y }, { s: 'valor (R$)', dir: 466, y }, { s: 'saldo (R$)', dir: 565, y }];
+
+test('lerPdf: texto e posição de cada trecho, pelo pdf.js do projeto; senha, arquivo estragado e limites', async () => {
+  const pdfjs = await carregarPdfjs();
+  const b = pdfAMao([{ textos: [{ s: 'Olá EXEMPLO', x: 40, y: 100, tam: 10 }, { s: '-1.234,56', dir: 466, y: 100 }] }, { textos: [] }]);
+  assert.equal(D.tipoArquivo(b), 'pdf');
+  const ps = await D.lerPdf(pdfjs, b);
+  assert.equal(ps.length, 2); assert.equal(ps[1].itens.length, 0, 'página sem texto');
+  const [t, v] = ps[0].itens;
+  assert.equal(t.s, 'Olá EXEMPLO', 'acentos'); assert.ok(Math.abs(t.x - 40) < 0.01 && Math.abs(t.y - 100) < 0.01);
+  assert.ok(Math.abs(v.x + v.w - 466) < 0.01, 'borda direita do número');
+  assert.equal(b[0], 0x25, 'os bytes originais não são entregues ao pdf.js (ele fica com o buffer)');
+  await assert.rejects(D.lerPdf(pdfjs, pdfAMao([{ textos: [{ s: 'x', x: 10, y: 10 }] }], { senha: true })), /protegido por senha/);
+  await assert.rejects(D.lerPdf(pdfjs, new Uint8Array(Buffer.from('%PDF-1.7\n% inventado e cortado\n'))), /danificado ou incompleto/);
+  await assert.rejects(D.lerPdf(pdfjs, pdfAMao(Array.from({ length: 51 }, () => ({ textos: [] })))), /passa de 50 páginas/);
+  const grande = new Uint8Array(10 * 1024 * 1024 + 1); grande.set([0x25, 0x50, 0x44, 0x46]);
+  await assert.rejects(D.lerPdf(pdfjs, grande), /passa de 10 MB/);
+});
+
+test('tabelaDoPdf: colunas pelo cabeçalho, números pela borda direita, página sem cabeçalho usa o anterior', () => {
+  const it = (s, x, y, w) => ({ s, x, y, w: w != null ? w : s.length * 4.8 });
+  const r = (s, dir, y) => ({ s, x: dir - s.length * 4.8, y, w: s.length * 4.8 });
+  const p1 = { itens: [
+    it('MARIA EXEMPLO', 31, 72), it('agência 0000 conta 00000-0', 200, 72), // dados pessoais: nunca copiados
+    it('saldo em conta', 31, 119), r('1.000,00', 466, 138), // quadro de saldos: nunca copiado
+    it('período de visualização: 01/08/2026 até 15/10/2026', 28, 211),
+    ...cab().map(c => (c.dir ? r(c.s, c.dir, c.y) : it(c.s, c.x, c.y))),
+    it('16/10/2026', 31, 270), it('SALDO DO DIA', 96, 270), r('4.000,00', 565, 270),
+    it('15/10/2026', 31, 289), it('FATURA', 96, 289, 28.8), it('AZUL MC', 124.8, 289), r('-1.234,56', 466, 289),
+    it('15/10/2026', 31, 308), it('PIX TRANSF', 96, 308), it('JOAO E14/10', 150, 308), r('200,00', 466, 308)
+  ] };
+  const p2 = { itens: [it('14/10/2026', 31, 39), it('SALDO DO DIA', 96, 39), r('5.034,56', 564, 39), it('Aviso: a data do lançamento e o valor podem mudar', 28, 400)] };
+  const t = D.tabelaDoPdf([p1, p2]);
+  const cheias = t.linhas.filter(l => l.length);
+  assert.deepEqual(cheias, [
+    ['período de visualização: 01/08/2026 até 15/10/2026'],
+    ['data', 'lançamentos', 'valor (R$)', 'saldo (R$)'],
+    ['16/10/2026', 'SALDO DO DIA', '', '4.000,00'],
+    ['15/10/2026', 'FATURAAZUL MC', '-1.234,56', ''],
+    ['15/10/2026', 'PIX TRANSF JOAO E14/10', '200,00', ''],
+    ['14/10/2026', 'SALDO DO DIA', '', '5.034,56']
+  ], 'trechos encostados ficam colados; separados, com espaço; saldo na página 2 pelas colunas da página 1');
+  assert.ok(!JSON.stringify(t.linhas).includes('MARIA') && !JSON.stringify(t.linhas).includes('agência') && !JSON.stringify(t.linhas).includes('saldo em conta'), 'nada do topo além do período');
+  assert.equal(t.linhas.length, 10, 'uma linha por linha do PDF (8 na página 1, 2 na 2; as de fora da tabela ficam vazias)');
+  assert.deepEqual([t.paginas, t.comTexto], [2, 2]);
+  // a linha do aviso legal tem "data", "lançamento" e "valor", mas num trecho só: não é cabeçalho
+  assert.equal(D.tabelaDoPdf([p2]).linhas.filter(l => l.length).length, 0, 'sem cabeçalho, nenhuma linha de tabela');
+  assert.deepEqual(D.tabelaDoPdf([{ itens: [] }, { itens: [] }]).comTexto, 0, 'PDF só com imagem');
+});
+
+// ---------- leitor do Itaú (parsers/itau.js), com o PDF inventado de exemplo ----------
+const I = carregarNucleo(['lerPdf', 'tabelaDoPdf', 'detectarBanco', 'LEITORES', 'perguntasImportacao', 'interpretarCSV', 'classify', 'conferirSaldos']);
+const tabelaItau = async (b = exemplo('extrato-itau-exemplo.pdf')) => I.tabelaDoPdf(await I.lerPdf(await carregarPdfjs(), b));
+
+test('exemplo do Itaú: o arquivo é exatamente o que o gerador produz; 3 páginas, cabeçalho só na primeira', async () => {
+  assert.ok(Buffer.from(exemplo('extrato-itau-exemplo.pdf')).equals(Buffer.from(extratoItauExemplo())), 'rode node scripts/gerar-exemplos.mjs');
+  const ps = await I.lerPdf(await carregarPdfjs(), exemplo('extrato-itau-exemplo.pdf'));
+  assert.equal(ps.length, 3);
+  const cab = ps.map(p => p.itens.some(i => i.s === 'data' && Math.abs(i.x - 31) < 1));
+  assert.deepEqual(cab, [true, false, false], 'só a página 1 tem cabeçalho');
+  assert.ok(ps[1].itens.some(i => Math.abs(i.y - 39) < 1), 'nas outras, a tabela começa em y 39');
+  const t = await tabelaItau();
+  assert.deepEqual(t.linhas.filter(l => l.length === 4).slice(1), itauExemploLinhas().linhas, 'cada linha do PDF volta igual, pelas colunas');
+});
+
+test('Itaú: reconhecido pelo cabeçalho; o mesmo resultado que o PDF descreve, sem perguntas', async () => {
+  const t = await tabelaItau();
+  assert.equal(I.detectarBanco(t.linhas), 'itau');
+  assert.equal(I.detectarBanco([['data', 'lançamentos', 'valor (R$)']]), null, 'outro cabeçalho: não é o Itaú');
+  const L = I.LEITORES.itau.ler(t.linhas, 'BRL', {});
+  assert.equal(L.tx.length, 37); assert.equal(Object.keys(L.saldosDia).length, 32);
+  assert.deepEqual(L.periodo, { de: '2026-08-01', ate: '2026-10-15', fonte: 'arquivo' });
+  assert.deepEqual(L.tx[0].slice(0, 2), ['2026-08-01', 'SALARIO EMPRESA EXEMPLO'], 'na ordem do acontecido (o PDF vem do mais novo para o mais antigo)');
+  assert.ok(L.tx.every((x, k) => !k || x[0] >= L.tx[k - 1][0]));
+  // o SALDO DO DIA do topo (20/10, depois do período) é o saldo atual, e não entra nos saldos do dia
+  assert.equal(L.saldoAtual, itauExemploLinhas().saldoFinal); assert.equal(L.saldoAtualData, '2026-10-20');
+  assert.ok(!('2026-10-20' in L.saldosDia));
+  assert.deepEqual(I.perguntasImportacao(L.previa.rows, L.previa.mapa), [], 'sem perguntas');
+  assert.deepEqual(I.interpretarCSV(L.previa.rows, L.previa.mapa).ignoradas, [], 'topo, quadro de saldos, aviso legal: nada sobra');
+  assert.deepEqual(I.conferirSaldos(L.tx, L.saldosDia).divergencias, [], 'saldos do dia coerentes com os movimentos');
+  // nada do topo sai do leitor: nome, agência, conta, quadro de saldos
+  const tudo = JSON.stringify(L);
+  for (const x of ['agência', 'conta 00000', 'saldo em conta', 'limite da conta', 'emitido em']) assert.ok(!tudo.includes(x), x);
+  assert.ok(!L.previa.rows.some(r => r.length && r[0] === 'MARIA EXEMPLO'));
+  assert.deepEqual(I.LEITORES.itau.ler(t.linhas, 'EUR', {}).tx, [], 'carteira em outra moeda: nada');
+});
+
+test('Itaú: tipos pelos nomes do extrato (rendimento, investimento, fatura, estorno); o resto, caminho genérico', async () => {
+  const L = I.LEITORES.itau.ler((await tabelaItau()).linhas, 'BRL', {}), cl = t => I.classify(t, {}, 'MARIA EXEMPLO', 'BR');
+  const tipo = d => L.tx.filter(t => t[1].startsWith(d)).map(t => t[2]);
+  for (const d of ['REND PAGO', 'COR DIVIDENDOS', 'COR JSCP']) tipo(d).forEach(x => assert.equal(x, 'Rendimento', d));
+  L.tx.filter(t => t[2] === 'Rendimento').forEach(t => { assert.equal(cl(t).kind, 'outras'); assert.equal(cl(t).autoE, '_outras'); });
+  for (const d of ['APLICACAO CDB', 'RESGATE CDB', 'INT RESGATE']) tipo(d).forEach(x => assert.equal(x, 'Invest', d));
+  assert.equal(cl(L.tx.find(t => t[1] === 'APLICACAO CDB EXEMPLO')).kind, 'invest');
+  for (const d of ['RESGATE CDB', 'INT RESGATE']) { const t = L.tx.find(x => x[1].startsWith(d)); assert.equal(cl(t).kind, 'invest'); assert.equal(cl(t).autoE, '_invest', d + ': Resgate de investimento'); }
+  for (const d of ['CARTAO EXEMPLOAZUL MC', 'FATURAEXEMPLO ITAU MC', 'INT EXEMPLO AZUL MC']) { const t = L.tx.find(x => x[1] === d); assert.equal(t[2], 'Fatura', d); assert.equal(cl(t).cat, 'outros'); }
+  assert.equal(L.tx.find(t => t[1] === 'INT ITAU CLICK')[2], 'Others', 'INT ITAU CLICK fica no caminho genérico');
+  // estorno de débito automático: só com o DA do mesmo dia, empresa e valor; volta na mesma categoria
+  const da = L.tx.find(t => t[0] === '2026-08-03' && t[1].startsWith('DA ')), est = L.tx.find(t => t[0] === '2026-08-03' && t[1].startsWith('EST '));
+  assert.equal(est[2], 'Estorno'); assert.equal(cl(est).kind, 'gasto'); assert.equal(cl(est).cat, cl(da).cat, 'mesma categoria do débito');
+  assert.equal(L.tx.find(t => t[1].startsWith('EST LOJA'))[2], 'Others', 'estorno sem débito igual no dia: caminho genérico');
+  assert.equal(cl(L.tx.find(t => t[1] === 'SALARIO EMPRESA EXEMPLO')).kind, 'renda', 'salário pelas regras do Brasil');
+  assert.equal(cl(L.tx.find(t => t[1].startsWith('PIX TRANSF IMOBILI'))).cat, 'outros', 'nome cortado do Pix: sem regra');
+});
+
+test('Itaú: Pix para o titular é só sugestão (começo do nome, 5 letras ou mais, sem acento nem maiúsculas)', async () => {
+  const linhas = (await tabelaItau()).linhas;
+  const L = I.LEITORES.itau.ler(linhas, 'BRL', { titular: 'María Exemplo' });
+  assert.deepEqual(L.sugestoes.map(k => L.tx[k][1]), ['PIX TRANSF MARIA E07/08', 'PIX TRANSF MARIA E18/08', 'PIX TRANSF MARIA E22/09', 'PIX TRANSF MARIA E13/10']);
+  // nada é decidido sozinho: sem a escolha da pessoa, o Pix para "MARIA E" não vira entre contas suas
+  L.sugestoes.forEach(k => { const c = I.classify(L.tx[k], {}, 'María Exemplo', 'BR'); assert.notEqual(c.kind, 'interno'); assert.notEqual(c.cat, 'brasil'); });
+  assert.deepEqual(I.LEITORES.itau.ler(linhas, 'BRL', {}).sugestoes, [], 'sem titular configurado, nenhuma sugestão');
+  assert.deepEqual(I.LEITORES.itau.ler(linhas, 'BRL', { titular: 'Ana Exemplo' }).sugestoes.map(k => I.LEITORES.itau.ler(linhas, 'BRL', {}).tx[k][1]), ['PIX TRANSF ANA EXE28/08', 'PIX TRANSF ANA EXE14/10']);
+  assert.deepEqual(I.LEITORES.itau.ler(linhas, 'BRL', { titular: 'Joana' }).sugestoes, [], '"JOAOEX" não é o começo de "JOANA"');
+  // menos de 5 letras no nome cortado: nunca sugere
+  const curto = [['período de visualização: 01/08/2026 até 15/10/2026'], ['data', 'lançamentos', 'valor (R$)', 'saldo (R$)'], ['02/08/2026', 'PIX TRANSF ANA02/08', '-10,00', ''], ['02/08/2026', 'SALDO DO DIA', '', '90,00']];
+  assert.deepEqual(I.LEITORES.itau.ler(curto, 'BRL', { titular: 'Ana Exemplo' }).sugestoes, []);
 });

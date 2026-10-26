@@ -129,7 +129,8 @@
   }
   /* leitores próprios de banco (parsers/<banco>.js, carregados antes deste arquivo; contrato no começo de
      parsers/revolut.js). Banco sem leitor usa o importador genérico */
-  var LEITORES = { revolut: LEITOR_REVOLUT({ cents: cents, isoDate: isoDate }), btg: LEITOR_BTG({ cents: cents, interpretarCSV: interpretarCSV }) };
+  var LEITORES = { revolut: LEITOR_REVOLUT({ cents: cents, isoDate: isoDate }), btg: LEITOR_BTG({ cents: cents, interpretarCSV: interpretarCSV }),
+    itau: LEITOR_ITAU({ interpretarCSV: interpretarCSV, lerData: lerData, lerNumero: lerNumero }) };
   /* o banco pelo conteúdo do arquivo (cabeçalho), ou null */
   function detectarBanco(rows) {
     var ks = Object.keys(LEITORES);
@@ -174,6 +175,10 @@
        e pagamento de fatura do cartão (sempre "Pessoas, taxas e outros", sem regra de comerciante) */
     if (rc === 'Invest') kind = 'invest';
     else if (rc === 'Fatura' && a < 0) { kind = 'gasto'; cat = 'outros'; }
+    /* parsers/itau.js: rendimento (dividendos, JSCP, rendimento de aplicação) é "Outras entradas"; o estorno de um
+       débito automático volta como devolução na mesma categoria que o débito teria (as mesmas regras) */
+    else if (rc === 'Rendimento' && a > 0) kind = 'outras';
+    else if (rc === 'Estorno' && a > 0) { kind = 'gasto'; cat = byRule(D, a, 'Others', pais); }
     else if (a > 0) {
       if (/^PAYMENT FROM /.test(D) && !(OWN && D.indexOf(OWN) >= 0)) kind = 'renda';
       else if (D.indexOf('FLEXIBLE CASH') >= 0) kind = 'flex';
@@ -405,7 +410,7 @@
      com uma carteira só, ela acompanha a moeda da carteira. Quando a moeda principal muda, o câmbio é apagado e
      pedido de novo. Uma carteira = um banco e uma moeda; com movimentos salvos, moeda e banco não mudam (para
      mudar, cria-se outra carteira). */
-  var BANCOS = [['revolut', 'Revolut'], ['aib', 'AIB'], ['boi', 'Bank of Ireland'], ['wise', 'Wise'], ['nubank', 'Nubank'], ['btg', 'BTG Pactual'], ['outro', 'Outro banco']];
+  var BANCOS = [['revolut', 'Revolut'], ['aib', 'AIB'], ['boi', 'Bank of Ireland'], ['wise', 'Wise'], ['nubank', 'Nubank'], ['btg', 'BTG Pactual'], ['itau', 'Itaú'], ['outro', 'Outro banco']];
   var COM_LEITOR = Object.keys(LEITORES);
   function temLeitor(banco) { return COM_LEITOR.indexOf(banco) >= 0; }
   function acharCarteira(x, id) {
@@ -999,6 +1004,94 @@
       .filter(function (a) { return linhasCheias(a.rows).length; });
     if (!abas.length) throw new Error('a planilha não tem nenhuma tabela');
     return abas;
+  }
+  /* ---------- PDF (extrato do Itaú) ----------
+     O pdf.js (vendor/pdfjs) entra como parâmetro, como o SheetJS; o núcleo não sabe de onde ele vem nem usa DOM.
+     lerPdf devolve, de cada página, os trechos de texto com a posição (x da esquerda, y a partir do topo, largura);
+     tabelaDoPdf monta as linhas da tabela pelas colunas do cabeçalho. */
+  var LIMITE_PDF = 10 * 1024 * 1024, LIMITE_PAGINAS_PDF = 50;
+  var SENHA_PDF = 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco';
+  function lerPdf(pdfjs, bytes) {
+    if (bytes.length > LIMITE_PDF) return Promise.reject(new Error('o PDF passa de 10 MB'));
+    /* uma cópia dos bytes: o pdf.js fica com o buffer que recebe */
+    var tarefa = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, disableFontFace: true, useSystemFonts: false, verbosity: 0 });
+    return tarefa.promise.then(function (d) {
+      if (d.numPages > LIMITE_PAGINAS_PDF) throw new Error('o PDF passa de ' + LIMITE_PAGINAS_PDF + ' páginas');
+      var n = [];
+      for (var i = 1; i <= d.numPages; i++) n.push(i);
+      return n.reduce(function (acc, k) { return acc.then(function (ps) { return paginaPdf(d, k).then(function (p) { ps.push(p); return ps; }); }); }, Promise.resolve([]));
+    }).then(function (ps) { tarefa.destroy(); return ps; }, function (e) {
+      tarefa.destroy();
+      if (e && e.name === 'PasswordException') throw new Error(SENHA_PDF);
+      if (e && /^o PDF passa de/.test(e.message)) throw e;
+      throw new Error('o PDF está danificado ou incompleto');
+    });
+  }
+  /* o texto pelo stream, lido à mão (o atalho getTextContent falha no WebKit) */
+  function paginaPdf(doc, k) {
+    return doc.getPage(k).then(function (pg) {
+      var alt = pg.getViewport({ scale: 1 }).height, rd = pg.streamTextContent().getReader(), itens = [];
+      var ler = function () {
+        return rd.read().then(function (r) {
+          if (r.done) return { altura: alt, itens: itens };
+          r.value.items.forEach(function (i) { if (i.str && i.str.trim()) itens.push({ s: i.str, x: i.transform[4], y: alt - i.transform[5], w: i.width }); });
+          return ler();
+        });
+      };
+      return ler();
+    });
+  }
+  /* trechos na mesma altura (até 2 pt) formam uma linha, da esquerda para a direita */
+  function linhasPdf(itens) {
+    var ls = [];
+    itens.slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; }).forEach(function (i) {
+      var l = ls.filter(function (z) { return Math.abs(z.y - i.y) <= 2; })[0];
+      if (l) l.itens.push(i); else ls.push({ y: i.y, itens: [i] });
+    });
+    ls.forEach(function (l) { l.itens.sort(function (a, b) { return a.x - b.x; }); });
+    return ls;
+  }
+  /* o pdf.js parte o texto em trechos do jeito dele ("valor" e "(R$)" podem vir separados): trechos a menos de 6 pt
+     um do outro viram um bloco só, com espaço quando há folga e colados quando encostam (o banco cola palavras,
+     como "FATURAAZUL"). As colunas do extrato ficam bem mais longe umas das outras (a menor folga é de 17 pt). */
+  function blocosPdf(its) {
+    var bs = [];
+    its.forEach(function (i) {
+      var b = bs[bs.length - 1], folga = b ? i.x - (b.x + b.w) : Infinity;
+      if (folga < 6) { b.s += (folga > 1 ? ' ' : '') + i.s.trim(); b.w = i.x + i.w - b.x; }
+      else bs.push({ s: i.s.trim(), x: i.x, y: i.y, w: i.w });
+    });
+    bs.forEach(function (b) { b.s = b.s.replace(/\s+/g, ' ').trim(); });
+    return bs;
+  }
+  var CAB_PDF = 'DATA|LANCAMENTOS|VALOR (R$)|SALDO (R$)', TOL_PDF = 6;
+  /* linhas [data, lançamentos, valor, saldo]. As colunas vêm do cabeçalho (só a primeira página do Itaú tem; as
+     outras usam o último visto); número vai para a coluna cuja borda direita está mais perto (são alinhados à
+     direita). Antes do primeiro cabeçalho, só a linha do período é copiada (dados pessoais e o quadro de saldos
+     nunca); fora da tabela, linha vazia, para os números de linha continuarem os do arquivo. */
+  function tabelaDoPdf(paginas) {
+    var rows = [], col = null, comTexto = 0;
+    paginas.forEach(function (p) {
+      if (p.itens.length) comTexto++;
+      linhasPdf(p.itens).forEach(function (l) {
+        var its = blocosPdf(l.itens), chave = its.map(function (i) { return semAcento(normDesc(i.s)); }).join('|');
+        if (chave === CAB_PDF) {
+          col = { data: its[0].x, valor: its[2].x + its[2].w, saldo: its[3].x + its[3].w };
+          rows.push(its.map(function (i) { return i.s.trim(); }));
+          return;
+        }
+        if (!col) { var t = its.map(function (b) { return b.s; }).join(' '); rows.push(/^PERIODO\b/.test(semAcento(normDesc(t))) ? [t] : []); return; }
+        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(its[0].s.trim()) || Math.abs(its[0].x - col.data) > TOL_PDF) { rows.push([]); return; }
+        var desc = [], valor = '', saldo = '';
+        its.slice(1).forEach(function (i) {
+          var v = i.s.trim(), dir = i.x + i.w, dv = Math.abs(dir - col.valor), ds = Math.abs(dir - col.saldo);
+          if (/^-?[\d.]+,\d{2}$/.test(v) && Math.min(dv, ds) <= TOL_PDF) { if (dv <= ds) valor = v; else saldo = v; }
+          else desc.push(i);
+        });
+        rows.push([its[0].s.trim(), desc.map(function (b) { return b.s; }).join(' '), valor, saldo]);
+      });
+    });
+    return { linhas: rows, paginas: paginas.length, comTexto: comTexto };
   }
   /* sem aba escolhida: a que tem o formato lembrado, senão a primeira com cabeçalho, senão a primeira */
   function prepararPlanilha(X, bytes, tipo, lembrados, aba) {
@@ -1946,6 +2039,10 @@
       if (c.id !== x.ativa) return c;
       var n = Object.assign({}, c, { periodos: juntarPeriodos(c.periodos, r.periodo) });
       if (!I.leitor) n.importacao = lembrarMapa(c.importacao, I.rows, I.mapa);
+      if (I.leitor && I.sugTitular && I.lido.sugestoes) {
+        n.over = Object.assign({}, c.over || {});
+        I.lido.sugestoes.forEach(function (k) { var t = I.lido.tx[k], key = String(t[1]).toUpperCase().replace(/\s+/g, ' ').trim(); if (t[3] > 0) n.over['+' + key] = '_ignore'; else n.over[key] = 'brasil'; });
+      }
       if (Object.keys(r.saldos).length) n.saldosDia = Object.assign({}, c.saldosDia || {}, r.saldos);
       if (an != null) { n.ancora = { data: r.ate, valor: an, informadoEm: todayIso() }; delete n.ancoraDispensada; }
       return n;
@@ -1962,7 +2059,7 @@
     var f = files[0];
     return f.arrayBuffer().then(function (buf) {
       var b = new Uint8Array(buf), c = cartAtual(), tipo = tipoArquivo(b), lem = c && c.importacao;
-      if (tipo === 'pdf') throw new Error('PDF não dá para ler; baixe o extrato em CSV ou planilha (.xls, .xlsx)');
+      if (tipo === 'pdf') return abrirPdf(f.name, b);
       if (tipo === 'zip') throw new Error('é um arquivo compactado, não uma planilha');
       if (tipo === 'senha') throw new Error(SENHA);
       if (tipo === 'vazio') throw new Error('o arquivo está vazio');
@@ -1977,7 +2074,7 @@
   function comLeitor(I) {
     var lb = detectarBanco(I.rows);
     if (!lb || !LEITORES[lb].previa) return I;
-    var L = LEITORES[lb].ler(I.rows, moeda());
+    var L = LEITORES[lb].ler(I.rows, moeda(), { titular: S.plan && S.plan.titular });
     if (!L.tx.length && L.moedas.length && L.moedas.indexOf(moeda()) < 0) throw new Error('é um extrato do ' + LEITORES[lb].nome + ' em ' + nomeMoeda(L.moedas[0]) + ', e esta carteira é em ' + nomeMoeda());
     return Object.assign(I, { leitor: lb, lido: L, rows: L.previa.rows, mapa: L.previa.mapa, lembrado: false });
   }
@@ -1986,9 +2083,31 @@
     return f.arrayBuffer().then(function (buf) {
       var b = new Uint8Array(buf), tipo = tipoArquivo(b);
       if (ehPlanilha(tipo)) return carregarLeitorPlanilhas().then(function (X) { return prepararPlanilha(X, b, tipo).rows; });
+      if (tipo === 'pdf') return location.protocol === 'file:' ? [] : carregarPdfjs().then(function (pdfjs) { return lerPdf(pdfjs, b); }).then(function (ps) { return tabelaDoPdf(ps).linhas; });
       if (tipo !== 'texto') return [];
       return prepararImportacao(b).rows;
     });
+  }
+  /* PDF: só o extrato do Itaú, e só com o painel servido (aberto do disco, o navegador não carrega o pdf.js) */
+  var PDF_DO_DISCO = 'para ler PDF, abra o painel pelo endereço do npm start (aberto direto do disco, o navegador não carrega o leitor de PDF). CSV e planilha funcionam dos dois jeitos';
+  function abrirPdf(nome, b) {
+    if (location.protocol === 'file:') return Promise.reject(new Error(PDF_DO_DISCO));
+    return carregarPdfjs().then(function (pdfjs) { return lerPdf(pdfjs, b); }).then(function (ps) {
+      var t = tabelaDoPdf(ps), lb = detectarBanco(t.linhas);
+      if (!t.comTexto) throw new Error('este PDF é uma imagem (escaneado), sem texto para ler. Baixe o extrato em PDF pelo app ou pelo internet banking do banco');
+      if (!lb || !LEITORES[lb].previa) throw new Error('não reconheci este PDF: por enquanto só o extrato de conta corrente do Itaú é lido');
+      return { nome: nome, bytes: b, tipo: 'pdf', cod: null, sep: 'pdf', rows: t.linhas, mapa: { cab: -1 }, lembrado: false };
+    });
+  }
+  /* o pdf.js (vendor/pdfjs, 1,8 MB) só entra quando a pessoa escolhe um PDF; sem worker: o código dele roda na
+     própria página (window.pdfjsWorker), sob a CSP dela */
+  var leitorPdf = null;
+  function carregarPdfjs() {
+    if (leitorPdf) return leitorPdf;
+    leitorPdf = import('./vendor/pdfjs/pdf.min.mjs').then(function (pdfjs) {
+      return import('./vendor/pdfjs/pdf.worker.min.mjs').then(function (w) { window.pdfjsWorker = w; return pdfjs; });
+    }).catch(function () { leitorPdf = null; throw new Error('o leitor de PDF não abriu'); });
+    return leitorPdf;
   }
   /* o leitor de planilhas (vendor/sheetjs, 0,5 MB) só entra na página quando a pessoa escolhe uma planilha */
   var leitorPlanilhas = null;
@@ -2027,7 +2146,17 @@
   }
   function avisoLeitor(I) {
     var L = I.lido, ks = Object.keys(L.saldosDia || {}).sort(), ult = ks[ks.length - 1], h = '<p class="aviso">Reconheci um extrato do ' + esc(LEITORES[I.leitor].nome) + ': colunas e formatos já definidos. Confira a prévia.</p>';
-    if (L.saldoAtual != null && ult) {
+    /* Pix cujo nome cortado é o começo do nome do titular: só sugestão, a pessoa marca se quiser */
+    if (L.sugestoes && L.sugestoes.length) {
+      var ns = L.sugestoes.length;
+      h += '<div class="radios"><label class="chk"><input type="checkbox" id="fin-i-titular"' + (I.sugTitular ? ' checked' : '') + '><span>' + ns + (ns === 1 ? ' Pix parece ser' : ' Pix parecem ser') + ' entre contas suas: o nome no Pix começa como o seu (' + esc(S.plan.titular) + '). Marcar as entradas como "Entre contas suas" e as saídas como "Envios para outra conta sua".</span></label></div>';
+    }
+    /* saldo atual com data depois do período (Itaú): só informação, a diferença vem de movimentos depois dele */
+    if (L.saldoAtual != null && ult && L.saldoAtualData && L.saldoAtualData > ult) {
+      h += '<p class="passo">Saldo em ' + esc(dFull(L.saldoAtualData)) + ', depois do período do extrato: ' + esc(f2(L.saldoAtual / 100)) + (Math.abs(L.saldoAtual - L.saldosDia[ult]) <= ARREDONDAMENTO
+        ? ', igual ao último saldo do período (' + esc(dFull(ult)) + ').</p>'
+        : '. O último saldo do período é ' + esc(f2(L.saldosDia[ult] / 100)) + ', em ' + esc(dFull(ult)) + '; a diferença vem de movimentos depois dele.</p>');
+    } else if (L.saldoAtual != null && ult) {
       var dif = L.saldoAtual - L.saldosDia[ult];
       h += Math.abs(dif) <= ARREDONDAMENTO
         ? '<p class="passo">O "Saldo atual" do extrato (' + esc(f2(L.saldoAtual / 100)) + ') bate com o último saldo do dia, em ' + esc(dFull(ult)) + '.</p>'
@@ -2234,7 +2363,7 @@
   }
   function emptyState() {
     if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
-      '<ol><li>No app ou no site de ' + esc(origem()) + ', baixe o extrato da conta em CSV ou planilha (.xls, .xlsx).</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li>' +
+      '<ol><li>No app ou no site de ' + esc(origem()) + ', baixe o extrato da conta ' + (bancoAtual() === 'itau' ? 'em PDF' : 'em CSV ou planilha (.xls, .xlsx)') + '.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li>' +
       '<li>Na primeira vez, diga quais colunas são a data, a descrição e o valor, e confira a prévia antes de importar.</li></ol>' +
       '<button class="btn pri" type="button" data-fin-add>Escolher arquivo</button></section>';
     return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
@@ -2817,7 +2946,7 @@
     root.innerHTML = header() + abas() + perguntaAluguel() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
-      '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + (bancoAtual() === 'revolut' ? ' em CSV' : ' em CSV ou planilha') + ' e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
+      '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + (bancoAtual() === 'revolut' ? ' em CSV' : bancoAtual() === 'itau' ? ' em PDF' : ' em CSV ou planilha') + ' e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
     var s2 = $('.fin .cscroll');
     if (s2) s2.scrollLeft = keep != null ? keep : s2.scrollWidth;
     drawBal();
@@ -2990,6 +3119,7 @@
   document.addEventListener('scroll', hideTip, true);
   document.addEventListener('change', function (e) {
     var t = e.target;
+    if (t.id === 'fin-i-titular' && S.importar) { S.importar.sugTitular = t.checked; return; }
     if (t.hasAttribute && t.hasAttribute('data-imp-campo') && S.importar) { mudarImportacao(t); return; }
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
@@ -3152,7 +3282,7 @@
     localLoad(); S.ready = true; S.resumo = true; recompute(); render(); cartao();
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
-  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple tabindex="-1" aria-label="Escolher extrato"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');
+  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf" multiple tabindex="-1" aria-label="Escolher extrato"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');
   window.__cortexFin = { montar: function () { render(); }, cartao: cartao };
   render();
   start();

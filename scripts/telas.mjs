@@ -12,7 +12,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { createServer } from 'node:http';
-import { xlsxAMao, paraCelulas, comSenha, carregarXLSX, extratoBtgExemplo } from '../tests/planilhas.mjs';
+import { xlsxAMao, paraCelulas, comSenha, carregarXLSX, extratoBtgExemplo, pdfAMao, carregarPdfjs } from '../tests/planilhas.mjs';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, cpSync, statSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +24,7 @@ const aprovar = process.argv.includes('--aprovar');
 const AGORA = new Date('2026-10-22T12:00:00+01:00');
 
 // ---------- servidor estático só para a pasta do projeto ----------
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.csv': 'text/csv', '.json': 'application/json' };
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.pdf': 'application/pdf', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.csv': 'text/csv', '.json': 'application/json' };
 const servidor = createServer((req, res) => {
   const p = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
   const f = join(RAIZ, p || 'index.html');
@@ -38,7 +38,8 @@ const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`, ORI
 // WebSocket, EventSource, beacon), nem de outra origem
 const anotarViolacoes = () => { window.__violacoes = []; document.addEventListener('securitypolicyviolation', e => window.__violacoes.push(e.violatedDirective + ' ' + (e.blockedURI || ''))); };
 const TIPOS_PERMITIDOS = ['document', 'script', 'stylesheet', 'font', 'image'];
-const pedidoPermitido = r => (r.url().startsWith(ORIGEM + '/') && TIPOS_PERMITIDOS.includes(r.resourceType())) || /^(blob|data):/.test(r.url());
+const URL_DISCO = pathToFileURL(join(RAIZ, 'index.html')).href, PASTA_DISCO = URL_DISCO.replace(/index\.html$/, '');
+const pedidoPermitido = r => ((r.url().startsWith(ORIGEM + '/') || r.url().startsWith(PASTA_DISCO)) && TIPOS_PERMITIDOS.includes(r.resourceType())) || /^(blob|data):/.test(r.url());
 
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
@@ -123,6 +124,19 @@ const arrastar = async (pg, arq) => {
     d.items.add(new File([u], name)); return d;
   }, { b64: arq.buffer.toString('base64'), name: arq.name });
   await pg.dispatchEvent('#fin-app', 'drop', { dataTransfer: dt });
+};
+// Itaú (PDF): o extrato inventado de exemplo, numa carteira Itaú com titular "Maria Exemplo" (para a sugestão de Pix
+// entre contas suas aparecer); e PDFs que não dá para ler: escaneado (só imagem), com senha, de outro tipo
+const pdf = (name, bytes) => ({ name, mimeType: 'application/pdf', buffer: Buffer.from(bytes) });
+const ITAU_PDF = pdf('extrato-itau.pdf', readFileSync(join(RAIZ, 'exemplo/extrato-itau-exemplo.pdf')));
+const PDF_ESCANEADO = pdf('extrato-escaneado.pdf', pdfAMao([{ imagem: true }]));
+const PDF_SENHA = pdf('extrato-com-senha.pdf', pdfAMao([{ textos: [{ s: 'Extrato inventado', x: 40, y: 100 }] }], { senha: true }));
+const PDF_DESCONHECIDO = pdf('fatura-cartao.pdf', pdfAMao([{ textos: [{ s: 'Fatura do cartão EXEMPLO', x: 40, y: 80 }, { s: 'Total a pagar', x: 40, y: 100 }, { s: '1.234,56', dir: 300, y: 100 }] }]));
+const comItau = () => {
+  let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
+  x = api.novaCarteira(x, { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
+  x.config.titular = 'Maria Exemplo';
+  return { 'cortex-financas.v4': JSON.stringify(x) };
 };
 const COM_SENHA = { name: 'extrato-banco-exemplo.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(comSenha(carregarXLSX())) };
 const PDF = { name: 'extrato-banco-exemplo.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n% extrato inventado\n') };
@@ -348,6 +362,11 @@ for (const w of [1280, 390]) {
   t('52-importar-btg', { storage: comBtg(), prepara: async pg => { await pg.setInputFiles('#fin-csv', BTG_XLS); await pg.waitForSelector('#fin-fimp .imp-tot'); await pg.click('#fin-fimp details > summary'); } });
   t('53-btg-saldo-atual-diferente', { storage: comBtg(), prepara: async pg => { await pg.setInputFiles('#fin-csv', BTG_XLS_DIFERENTE); await pg.waitForSelector('#fin-fimp .imp-tot'); } });
   t('54-resumo-arquivo-do-btg', { storage: RESUMO_BTG, prepara: async pg => { await arrastar(pg, BTG_XLS); await pg.waitForSelector('#fin-escolher .aviso'); } });
+  t('55-importar-itau', { storage: comItau(), prepara: async pg => { await pg.setInputFiles('#fin-csv', ITAU_PDF); await pg.waitForSelector('#fin-fimp .imp-tot'); } });
+  t('56-pdf-painel-do-disco', { storage: comItau(), disco: true, viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', ITAU_PDF); await pg.waitForSelector('#toast:not([hidden])'); } });
+  t('57-pdf-escaneado', { storage: comItau(), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF_ESCANEADO); await pg.waitForSelector('#toast:not([hidden])'); } });
+  t('58-pdf-com-senha', { storage: comItau(), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
+  t('59-pdf-desconhecido', { storage: comItau(), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF_DESCONHECIDO); await pg.waitForSelector('#toast:not([hidden])'); } });
   t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
@@ -368,7 +387,7 @@ for (const s of TELAS) {
   await pg.addInitScript(anotarViolacoes);
   pg.on('request', r => { if (!pedidoPermitido(r)) problemas.push(`${arq}: pedido fora do permitido: ${r.resourceType()} ${r.url()}`); });
   pg.on('console', m => { if (m.type() === 'error') erros.push(arq + ': ' + m.text()); });
-  await pg.goto(URL_PAGINA);
+  await pg.goto(s.disco ? URL_DISCO : URL_PAGINA);
   await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, s.storage || {});
   await pg.reload(); await pg.waitForTimeout(150);
   if (s.prepara) await s.prepara(pg);
@@ -495,6 +514,35 @@ for (const s of TELAS) {
   await ctx.close();
 }
 
+// ---------- importar o extrato do Itaú pela tela (PDF, parsers/itau.js), marcando a sugestão de Pix entre contas ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage();
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('importar Itaú: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comItau());
+  await pg.reload(); await pg.waitForTimeout(150);
+  const N = new Function(core + '; return { LEITORES, lerPdf, tabelaDoPdf };')();
+  const L = N.LEITORES.itau.ler(N.tabelaDoPdf(await N.lerPdf(await carregarPdfjs(), new Uint8Array(ITAU_PDF.buffer))).linhas, 'BRL', { titular: 'Maria Exemplo' });
+  await pg.setInputFiles('#fin-csv', ITAU_PDF); await pg.waitForSelector('#fin-fimp .imp-tot');
+  const desmarcada = await pg.evaluate(() => { const c = document.getElementById('fin-i-titular'); return !!c && !c.checked; });
+  await pg.check('#fin-i-titular');
+  await pg.click('#fin-fimp button[type=submit]'); await pg.waitForSelector('#toast:not([hidden])');
+  const aviso = await pg.textContent('#toast-txt');
+  const c = await pg.evaluate(() => JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[1]);
+  const ord = l => l.slice().sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const salvos = ord(Object.values(c.months).flat());
+  const marcados = Object.entries(c.over || {});
+  const ok = JSON.stringify(salvos) === JSON.stringify(ord(L.tx)) && JSON.stringify(c.saldosDia) === JSON.stringify(L.saldosDia) && !c.importacao;
+  const sugOk = desmarcada && marcados.length === L.sugestoes.length && marcados.every(([k, v]) => (k[0] === '+' ? v === '_ignore' : v === 'brasil'));
+  if (!ok) problemas.push('importar Itaú: o que ficou salvo não é o que o leitor devolve');
+  if (!sugOk) problemas.push('importar Itaú: a sugestão de Pix entre contas não começou desmarcada ou não marcou só os Pix sugeridos');
+  const tipos = salvos.reduce((o, t) => ((o[t[2]] = (o[t[2]] || 0) + 1), o), {});
+  console.log(`importar Itaú pela tela: ${ok ? salvos.length + ' movimentos iguais aos do leitor (' + Object.entries(tipos).map(([k, v]) => v + ' ' + k).join(', ') + '), ' + Object.keys(c.saldosDia).length + ' saldos do dia' : 'FALHOU'}; sugestão de Pix: ${sugOk ? 'começou desmarcada; marcada, ' + marcados.length + ' Pix (' + marcados.filter(([k]) => k[0] === '+').length + ' entradas entre contas, ' + marcados.filter(([k]) => k[0] !== '+').length + ' saídas para outra conta sua)' : 'FALHOU'} ("${aviso}")`);
+  await ctx.close();
+}
+
 // ---------- o leitor de planilhas só é pedido quando a pessoa escolhe uma planilha, e uma vez só ----------
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
@@ -559,6 +607,7 @@ await browser.close();
       const pg = await ctx.newPage();
       await pg.addInitScript(anotarViolacoes);
       pg.on('pageerror', e => falhas.push('erro na página: ' + e.message));
+      let workers = 0; pg.on('worker', () => { workers++; });
       try {
         await pg.goto(modo === 'servidor' ? URL_PAGINA : pathToFileURL(join(RAIZ, 'index.html')).href);
         await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comGenerica(false));
@@ -568,6 +617,18 @@ await browser.close();
         await pg.setInputFiles('#fin-csv', PLANILHA); await pg.waitForSelector('#fin-fimp', { timeout: 10000 });
         if (!(await pg.evaluate(() => typeof window.XLSX === 'object'))) falhas.push('o SheetJS não carregou');
         await pg.click('[data-imp=cancelar]');
+        // PDF: servido, o pdf.js carrega e roda na própria página (nenhum worker); do disco, o aviso
+        await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
+        await pg.setInputFiles('#fin-csv', ITAU_PDF);
+        if (modo === 'servidor') {
+          await pg.waitForSelector('#fin-fimp .imp-tot', { timeout: 15000 });
+          if (!(await pg.evaluate(() => !!(window.pdfjsWorker && window.pdfjsWorker.WorkerMessageHandler)))) falhas.push('o pdf.js não carregou');
+          await pg.click('[data-imp=cancelar]');
+        } else {
+          await pg.waitForSelector('#toast:not([hidden])', { timeout: 10000 });
+          if (!/npm start/.test(await pg.textContent('#toast-txt'))) falhas.push('do disco, o PDF não deu o aviso de abrir pelo npm start');
+        }
+        if (workers) falhas.push(workers + ' worker(s) criado(s): o pdf.js tinha que rodar na própria página');
         await pg.click('[data-fin-setup]');
         const [dl] = await Promise.all([pg.waitForEvent('download', { timeout: 10000 }), pg.click('[data-backup=baixar]')]);
         const bk = JSON.parse(readFileSync(await dl.path(), 'utf8'));
@@ -580,7 +641,7 @@ await browser.close();
         const nV = (await pg.evaluate(() => window.__violacoes)).length;
         const n = conexoes - antes;
         if (n) falhas.push(`a isca recebeu ${n} conexão(ões)`);
-        console.log(`${rot}: ${falhas.length ? 'FALHOU' : 'ok'}; painel, planilha (SheetJS) e backup sem violação; ` +
+        console.log(`${rot}: ${falhas.length ? 'FALHOU' : 'ok'}; painel, planilha (SheetJS), ${modo === 'servidor' ? 'PDF (pdf.js, sem worker)' : 'aviso do PDF aberto do disco'} e backup sem violação; ` +
           `isca: 12 tentativas, ${n} conexões recebidas, ${nV} violações registradas (${Object.entries(r).map(([k, x]) => k + ' ' + x).join(', ')})`);
       } catch (e) { falhas.push('não terminou: ' + e.message.split('\n')[0]); console.log(`${rot}: FALHOU`); }
       falhas.forEach(f => problemas.push(`${rot}: ${f}`));

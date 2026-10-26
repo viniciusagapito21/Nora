@@ -188,3 +188,120 @@ export function extratoBtgExemplo(X, { saldoAtualExtra = 0 } = {}) {
   const wb = { SheetNames: ['Extrato'], Sheets: { Extrato: ws }, Props: {} };
   return new Uint8Array(X.write(wb, { type: 'array', bookType: 'biff8' }));
 }
+
+// ---------- PDF montado à mão (para os testes do leitor de PDF e o exemplo do Itaú) ----------
+// Fonte padrão Courier (cada letra tem 0,6 do tamanho de largura), então dá para alinhar à direita sem biblioteca.
+// paginas: [{ largura, altura, textos: [{ s, x, y (do topo), tam, dir (borda direita, no lugar de x) }], imagem }]
+// imagem: só um retângulo desenhado, sem texto (como um PDF escaneado). senha: o PDF pede senha para abrir.
+export const larguraCourier = (s, tam) => 0.6 * tam * s.length;
+export function pdfAMao(paginas, { senha = false } = {}) {
+  const esc = s => s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const objs = [];
+  const add = corpo => { objs.push(corpo); return objs.length; };
+  const catalogo = add(null), raiz = add(null), fonte = add('<</Type/Font/Subtype/Type1/BaseFont/Courier/Encoding/WinAnsiEncoding>>');
+  const kids = [];
+  for (const p of paginas) {
+    const L = p.largura || 595, A = p.altura || 842;
+    let c = p.imagem ? '0.8 0.8 0.8 rg 40 40 515 760 re f\n' : '';
+    for (const t of p.textos || []) {
+      const tam = t.tam || 8, x = t.dir != null ? t.dir - larguraCourier(t.s, tam) : t.x;
+      c += `BT /F1 ${tam} Tf 1 0 0 1 ${x.toFixed(3)} ${(A - t.y).toFixed(3)} Tm (${esc(t.s)}) Tj ET\n`;
+    }
+    const cont = add(`<</Length ${Buffer.byteLength(c, 'latin1')}>>\nstream\n${c}endstream`);
+    kids.push(add(`<</Type/Page/Parent ${raiz} 0 R/MediaBox[0 0 ${L} ${A}]/Contents ${cont} 0 R/Resources<</Font<</F1 ${fonte} 0 R>>>>>>`));
+  }
+  objs[catalogo - 1] = `<</Type/Catalog/Pages ${raiz} 0 R>>`;
+  objs[raiz - 1] = `<</Type/Pages/Kids[${kids.map(k => k + ' 0 R').join(' ')}]/Count ${kids.length}>>`;
+  // proteção "Standard" com valores que não batem com a senha vazia: o leitor tem que pedir senha
+  const cifra = senha ? add(`<</Filter/Standard/V 1/R 2/O<${'4f'.repeat(32)}>/U<${'55'.repeat(32)}>/P -44>>`) : 0;
+  let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
+  const pos = [];
+  objs.forEach((o, i) => { pos.push(Buffer.byteLength(out, 'latin1')); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const xref = Buffer.byteLength(out, 'latin1');
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + pos.map(p => String(p).padStart(10, '0') + ' 00000 n \n').join('');
+  out += `trailer\n<</Size ${objs.length + 1}/Root ${catalogo} 0 R${cifra ? `/Encrypt ${cifra} 0 R/ID[<${'0a'.repeat(16)}><${'0a'.repeat(16)}>]` : ''}>>\nstartxref\n${xref}\n%%EOF\n`;
+  return new Uint8Array(Buffer.from(out, 'latin1'));
+}
+// o pdf.js do projeto, no Node, sem worker (como na página)
+export async function carregarPdfjs() {
+  const pdfjs = await import(new URL('../vendor/pdfjs/pdf.min.mjs', import.meta.url));
+  globalThis.pdfjsWorker = await import(new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url));
+  return pdfjs;
+}
+
+// ---------- extrato inventado no layout do PDF do Itaú (exemplo/extrato-itau-exemplo.pdf) ----------
+// As posições (colunas, onde a tabela começa em cada página, espaço entre linhas, topo, rodapé) foram medidas num
+// extrato real; TODO o conteúdo é inventado. Dias do mais novo para o mais antigo; em cada dia, os movimentos e
+// depois o "SALDO DO DIA", calculado a partir dos movimentos (o rendimento já é movimento: REND PAGO).
+const ITAU_INICIAL = 300000;
+const ITAU_DIAS = [
+  ['01/08/2026', [['SALARIO EMPRESA EXEMPLO', 520000]]],
+  ['03/08/2026', [['PIX TRANSF IMOBILI03/08', -180000], ['DA TELEFONIA EX 12345678', -11990], ['EST TELEFONIA EX 12345678', 11990]]],
+  ['05/08/2026', [['APLICACAO CDB EXEMPLO', -100000]]],
+  ['07/08/2026', [['PIX TRANSF JOAO EX07/08', -15000], ['PIX TRANSF MARIA E07/08', -50000]]],
+  ['10/08/2026', [['CARTAO EXEMPLOAZUL MC', -123456]]],
+  ['12/08/2026', [['REND PAGO APLIC AUT EXEMPLO', 42], ['PIX QRS PADARIA EX12/08', -2350]]],
+  ['15/08/2026', [['TED 000 0001 EMPRESA EX', 35000]]],
+  ['18/08/2026', [['PIX TRANSF MARIA E18/08', 30000]]],
+  ['20/08/2026', [['INT ITAU CLICK', -8990]]],
+  ['21/08/2026', [['EST LOJA EXEMPLO 87654321', 4500]]],
+  ['25/08/2026', [['COR DIVIDENDOS EXEMPLO', 1234]]],
+  ['28/08/2026', [['PIX TRANSF ANA EXE28/08', -6000]]],
+  ['01/09/2026', [['SALARIO EMPRESA EXEMPLO', 520000]]],
+  ['02/09/2026', [['PIX TRANSF IMOBILI02/09', -180000]]],
+  ['03/09/2026', [['DA TELEFONIA EX 12345678', -11990]]],
+  ['05/09/2026', [['RESGATE CDB EXEMPLO', 102035]]],
+  ['08/09/2026', [['FATURAEXEMPLO ITAU MC', -98710]]],
+  ['10/09/2026', [['REND PAGO APLIC AUT EXEMPLO', 38]]],
+  ['12/09/2026', [['PIX TRANSF PEDRO E12/09', -4500], ['PIX TRANSF LUCIA E12/09', -3000]]],
+  ['15/09/2026', [['COR JSCP EXEMPLO', 820]]],
+  ['19/09/2026', [['INT RESGATE EXEMPLO', 20000]]],
+  ['22/09/2026', [['PIX TRANSF MARIA E22/09', -40000]]],
+  ['25/09/2026', [['APLICACAO CDB EXEMPLO', -200000]]],
+  ['29/09/2026', [['PIX QRS MERCADO EX29/09', -31045]]],
+  ['01/10/2026', [['SALARIO EMPRESA EXEMPLO', 520000]]],
+  ['02/10/2026', [['PIX TRANSF IMOBILI02/10', -180000]]],
+  ['03/10/2026', [['DA TELEFONIA EX 12345678', -11990]]],
+  ['06/10/2026', [['INT EXEMPLO AZUL MC', -110233]]],
+  ['08/10/2026', [['PIX TRANSF JOAO EX08/10', -7500]]],
+  ['10/10/2026', [['REND PAGO APLIC AUT EXEMPLO', 35]]],
+  ['13/10/2026', [['PIX TRANSF MARIA E13/10', 25000]]],
+  ['14/10/2026', [['PIX TRANSF ANA EXE14/10', -4000]]]
+];
+const brl = c => (c < 0 ? '-' : '') + (Math.abs(c) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+export function itauExemploLinhas() {
+  let saldo = ITAU_INICIAL;
+  const dias = ITAU_DIAS.map(([d, movs]) => { movs.forEach(m => { saldo += m[1]; }); return { d, movs, saldo }; });
+  // o "SALDO DO DIA" do topo: depois do fim do período (15/10), o saldo de hoje
+  const linhas = [['20/10/2026', 'SALDO DO DIA', '', brl(saldo)]];
+  dias.slice().reverse().forEach(({ d, movs, saldo: s }) => {
+    movs.forEach(([desc, v]) => linhas.push([d, desc, brl(v), '']));
+    linhas.push([d, 'SALDO DO DIA', '', brl(s)]);
+  });
+  return { linhas, saldoFinal: saldo };
+}
+export function extratoItauExemplo() {
+  const { linhas, saldoFinal } = itauExemploLinhas(), PASSO = 18.75, T = 8;
+  const linhaTabela = (l, y) => [{ s: l[0], x: 31, y, tam: T }, { s: l[1], x: 96, y, tam: T }, ...(l[2] ? [{ s: l[2], dir: 466, y, tam: T }] : []), ...(l[3] ? [{ s: l[3], dir: 565, y, tam: T }] : [])];
+  const p1 = [
+    { s: 'MARIA EXEMPLO', x: 31, y: 72, tam: 9 }, { s: 'agência 0000', x: 300, y: 72, tam: 9 }, { s: 'conta 00000-0', x: 400, y: 72, tam: 9 },
+    { s: 'saldo em conta', x: 31, y: 119 }, { s: 'limite da conta', x: 137, y: 119 }, { s: 'utilizado da conta', x: 286, y: 119 }, { s: 'disponível total *', x: 438, y: 119 },
+    { s: brl(saldoFinal), dir: 120, y: 138 }, { s: '1.000,00', dir: 260, y: 138 }, { s: '0,00', dir: 410, y: 138 }, { s: brl(saldoFinal + 100000), dir: 560, y: 138 },
+    { s: '* Total disponível considera o saldo em conta e o limite contratado, sujeito a juros.', x: 171, y: 164, tam: 6 },
+    { s: 'extrato conta corrente', x: 31, y: 197, tam: 10 },
+    { s: 'período de visualização: 01/08/2026 até 15/10/2026', x: 28, y: 211 }, { s: 'emitido em 20/10/2026 09:12', x: 400, y: 214 },
+    { s: 'data', x: 31, y: 245 }, { s: 'lançamentos', x: 96, y: 245 }, { s: 'valor (R$)', dir: 466, y: 245 }, { s: 'saldo (R$)', dir: 565, y: 245 }
+  ];
+  const paginas = [p1];
+  let y = 270, atual = p1, k = 0;
+  for (const l of linhas) {
+    if (y > 790) { atual = []; paginas.push(atual); y = 39; }
+    atual.push(...linhaTabela(l, Math.round(y))); y += PASSO; k++;
+  }
+  // aviso legal no fim da última página (uma das linhas tem "data", "lançamento" e "valor", num trecho só)
+  const aviso = ['Aviso', 'O saldo do dia considera os lançamentos até as 23h59 e pode mudar com estornos.', 'Lançamentos futuros: o valor do débito e a data de pagamento podem ser alterados até a compensação.',
+    'Em caso de dúvida, fale com a central de atendimento: 0000 000 0000 (capitais) ou 0000 000 0000 (demais localidades).', 'Ouvidoria: 0000 000 0000, nos dias úteis.'];
+  y = Math.max(y + 20, 379);
+  aviso.forEach((s, i) => atual.push({ s, x: 28, y: Math.round(y + i * 12), tam: 6 }));
+  return pdfAMao(paginas.map(textos => ({ textos })));
+}
