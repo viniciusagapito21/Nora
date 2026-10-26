@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX xmlns="http://ofx.net/types/2003/04">
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <STMTRS>
+        <CURDEF>GBP</CURDEF>
+        <BANKACCTFROM><BANKID>BANK-FAKE</BANKID><ACCTID>ACCOUNT-FAKE-002</ACCTID></BANKACCTFROM>
+        <BANKTRANLIST>
+          <DTSTART>20260501</DTSTART>
+          <DTEND>20260531</DTEND>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20260508103000.000[+01:BST]</DTPOSTED>
+            <TRNAMT>-8.40</TRNAMT>
+            <FITID>XML-EXAMPLE-001</FITID>
+            <NAME>Café fictif</NAME>
+            <MEMO>Transaction inventée</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>CREDIT</TRNTYPE>
+            <DTPOSTED>20260515120000</DTPOSTED>
+            <TRNAMT>20.05</TRNAMT>
+            <FITID>XML-EXAMPLE-002</FITID>
+            <NAME>Crédito fictício</NAME>
+          </STMTTRN>
+        </BANKTRANLIST>
+        <LEDGERBAL><BALAMT>85.65</BALAMT><DTASOF>20260531</DTASOF></LEDGERBAL>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>
