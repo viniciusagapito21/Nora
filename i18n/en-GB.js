@@ -14,5 +14,11 @@ NORA_DICIONARIOS['en-GB'] = {
   'idioma.pt-BR': 'Português (Brasil)',
   'idioma.en-GB': 'English (UK)',
   'importar.adicionou': { one: 'Added {n} transaction across {meses}', other: 'Added {n} transactions across {meses}' },
-  'importar.meses': { one: '{n} month', other: '{n} months' }
+  'importar.meses': { one: '{n} month', other: '{n} months' },
+  /* default names stored in the data (step c): the pt-BR text is what gets saved; see nomeExibido in app.js */
+  'metas.padrao.reserva': 'Emergency fund',
+  'metas.padrao.invest': 'Investments',
+  'metas.padrao.viagens': 'Short trips',
+  'metas.padrao.viagem': 'Big trip of the year',
+  'cats.brasil.antigo': 'Accounts in Brazil'
 };

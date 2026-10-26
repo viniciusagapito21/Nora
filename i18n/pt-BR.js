@@ -15,5 +15,11 @@ NORA_DICIONARIOS['pt-BR'] = {
   'idioma.pt-BR': 'Português (Brasil)',
   'idioma.en-GB': 'English (UK)',
   'importar.adicionou': { one: 'Adicionei {n} movimentação em {meses}', other: 'Adicionei {n} movimentações em {meses}' },
-  'importar.meses': { one: '{n} mês', other: '{n} meses' }
+  'importar.meses': { one: '{n} mês', other: '{n} meses' },
+  /* nomes padrão que ficam gravados nos dados (passo c): o texto pt-BR é o que se grava; veja nomeExibido no app.js */
+  'metas.padrao.reserva': 'Reserva de emergência',
+  'metas.padrao.invest': 'Investimentos',
+  'metas.padrao.viagens': 'Viagens pequenas',
+  'metas.padrao.viagem': 'Viagem grande do ano',
+  'cats.brasil.antigo': 'Contas no Brasil'
 };

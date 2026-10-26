@@ -33,13 +33,43 @@
      e "Outros" (slot 0): uma categoria nova pega a cor de uma escondida. "Outros" não se esconde. */
   var FIXAS_PADRAO = ['aluguel', 'assin', 'brasil'];
   var MAX_CORES = 8;
-  function montarCats(plan) {
+  /* nomes padrão que ficam gravados nos dados, sempre em pt-BR: as metas de poupança de fábrica (gravadas ao salvar o
+     formulário) e o "Contas no Brasil" que a migração da v1 põe na categoria brasil. Sem marcador nem versão nova: é
+     padrão o nome de um id de fábrica igual ao texto da chave em qualquer dicionário, ou a um texto pt-BR antigo
+     (NOMES_ANTIGOS). Padrão é traduzido na tela; o que a pessoa digitou nunca muda. Mudou um texto padrão em
+     i18n/pt-BR.js? Acrescente o antigo em NOMES_ANTIGOS (tests/nomes-padrao.test.mjs trava isso). */
+  var NOMES_PADRAO = {
+    meta: { reserva: 'metas.padrao.reserva', invest: 'metas.padrao.invest', viagens: 'metas.padrao.viagens', viagem: 'metas.padrao.viagem' },
+    cat: { brasil: 'cats.brasil.antigo' }
+  };
+  var NOMES_ANTIGOS = {};
+  /* a chave do dicionário se o nome é o padrão daquele id; senão null */
+  function chavePadrao(tipo, id, nome) {
+    var k = NOMES_PADRAO[tipo] && Object.prototype.hasOwnProperty.call(NOMES_PADRAO[tipo], id) ? NOMES_PADRAO[tipo][id] : null;
+    if (!k || typeof nome !== 'string') return null;
+    var textos = (NOMES_ANTIGOS[k] || []).slice(), dics = typeof NORA_DICIONARIOS !== 'undefined' ? NORA_DICIONARIOS : {};
+    Object.keys(dics).forEach(function (i) { if (typeof dics[i][k] === 'string') textos.push(dics[i][k]); });
+    return textos.indexOf(nome) >= 0 ? k : null;
+  }
+  /* o nome para mostrar: a tradução (tr = t do i18n.js) só quando é padrão; sem tradução, o próprio nome */
+  function nomeExibido(tipo, id, nome, tr) {
+    var k = chavePadrao(tipo, id, nome), s = k && tr ? tr(k) : null;
+    return typeof s === 'string' && s && s !== k ? s : nome;
+  }
+  /* o nome para gravar: campo igual a um padrão (de qualquer idioma) grava o texto pt-BR padrão */
+  function nomeParaGravar(tipo, id, digitado) {
+    var k = chavePadrao(tipo, id, digitado), pt = k && typeof NORA_DICIONARIOS !== 'undefined' && NORA_DICIONARIOS['pt-BR'] ? NORA_DICIONARIOS['pt-BR'][k] : null;
+    return typeof pt === 'string' ? pt : digitado;
+  }
+  /* tr: a função de tradução (nos testes, a de um idioma); sem ela, a do i18n.js */
+  function montarCats(plan, tr) {
+    tr = tr || (typeof NORA_I18N !== 'undefined' ? NORA_I18N.t : null);
     var p = plan || {}, nomes = p.nomes || {}, ocultas = p.ocultas || [], fixas = Array.isArray(p.fixas) ? p.fixas : FIXAS_PADRAO;
     var lista = CATS.filter(function (c) { return c.id !== 'outros'; }).map(function (c) { return Object.assign({}, c); });
     (p.proprias || []).forEach(function (c) { lista.push({ id: c.id, nome: c.nome, slot: c.slot, propria: true }); });
     lista.push(Object.assign({}, CAT_BY.outros));
     return lista.map(function (c) {
-      return Object.assign(c, { padrao: c.propria ? c.nome : CAT_BY[c.id].nome, nome: (!c.propria && nomes[c.id]) || c.nome,
+      return Object.assign(c, { padrao: c.propria ? c.nome : CAT_BY[c.id].nome, nome: (!c.propria && nomes[c.id] && nomeExibido('cat', c.id, nomes[c.id], tr)) || c.nome,
         oculta: c.id !== 'outros' && ocultas.indexOf(c.id) >= 0, fixa: fixas.indexOf(c.id) >= 0 });
     });
   }
@@ -2382,7 +2412,7 @@
   function lerCategorias(p) {
     var nomes = {}, ocultas = [], fixas = [], proprias = [], tirar = [];
     CATST.forEach(function (c) {
-      var k = '#fin-k-' + c.id, nm = $(k + '-nome').value.trim(), oc = $(k + '-oculta'), ex = $(k + '-excluir');
+      var k = '#fin-k-' + c.id, nm = c.propria ? $(k + '-nome').value.trim() : nomeParaGravar('cat', c.id, $(k + '-nome').value.trim()), oc = $(k + '-oculta'), ex = $(k + '-excluir');
       if (ex && ex.checked) { tirar.push(c.id); return; }
       if (c.propria) proprias.push({ id: c.id, nome: nm || c.nome, slot: c.slot });
       else if (nm && nm !== c.padrao) nomes[c.id] = nm;
@@ -2924,6 +2954,8 @@
   var ORIGENS = [['', 'Digitado por você'], ['flex', 'Saldo do Flexible Cash'], ['invest', 'Investimentos e cripto']];
   var DE_ORIGEM = { flex: 'Flexible Cash', invest: 'investimentos e cripto' };
   function metasPoupanca() { return listaMetasPoupanca(S.plan); }
+  /* nome da meta na tela: o de fábrica traduzido, o da pessoa como está */
+  function nomeMeta(g) { return nomeExibido('meta', g.id, g.nome, NORA_I18N.t); }
   function pct(v) { return nn.format(v) + '%'; }
   function goalCfg(id) { var g = S.plan && S.plan.goals; return (g && g[id]) || {}; }
   /* valor atual da meta; null quando falta o câmbio de uma carteira Revolut (fica em goalFalta) */
@@ -2972,7 +3004,7 @@
       else if (!alvo) st = 'Defina o valor em Editar metas de poupança.';
       else if (falta < 0.5) st = '<span class="d good">Meta batida</span>';
       else st = 'Faltam ' + f0(falta) + (ml ? '<br>' + f0(falta / ml) + ' por mês até ' + esc(mesAno(c.prazo)) : '<br>sem prazo definido');
-      h += '<div class="kpi goal"><span class="l">' + esc(g.nome) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>de ' + f0(alvo) + '</small>' : '') + '</span>' +
+      h += '<div class="kpi goal"><span class="l">' + esc(nomeMeta(g)) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>de ' + f0(alvo) + '</small>' : '') + '</span>' +
         '<span class="gbar" role="img" aria-label="' + (alvo ? nn.format(pc) + '% da meta' : 'sem meta') + '"><i style="width:' + pc.toFixed(1) + '%"></i></span>' +
         '<span class="s">' + st + (g.src ? '<br><span class="src">valor atual: ' + DE_ORIGEM[g.src] + '</span>' : '') + '</span></div>';
     });
@@ -2980,8 +3012,8 @@
     var lista = metasPoupanca();
     lista.forEach(function (g) {
       var c = goalCfg(g.id), k = 'fin-g-' + g.id;
-      h += '<fieldset><legend>' + esc(g.nome) + '</legend><div class="mgrid">' +
-        '<label>Nome<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(g.nome) + '"></label>' +
+      h += '<fieldset><legend>' + esc(nomeMeta(g)) + '</legend><div class="mgrid">' +
+        '<label>Nome<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(nomeMeta(g)) + '"></label>' +
         '<label>De onde vem o valor<select id="' + k + '-src">' + opcoes(ORIGENS, g.src || '') + '</select></label>' +
         '<label>Meta (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
         '<label>Prazo<input id="' + k + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
@@ -3425,7 +3457,7 @@
         var o = { alvo: Math.max(0, +$(k + '-alvo').value || 0), tem: Math.max(0, +$(k + '-tem').value || 0) }, pz = $(k + '-prazo').value;
         if (/^\d{4}-\d{2}$/.test(pz)) o.prazo = pz;
         gs[g.id] = o;
-        lm.push({ id: g.id, nome: $(k + '-nome').value.trim() || g.nome, src: $(k + '-src').value || null });
+        lm.push({ id: g.id, nome: nomeParaGravar('meta', g.id, $(k + '-nome').value.trim() || g.nome), src: $(k + '-src').value || null });
       });
       var ng = $('#fin-g-nova'), nn2 = ng ? ng.value.trim() : '';
       if (nn2 && lm.length < MAX_METAS_POUP) {
