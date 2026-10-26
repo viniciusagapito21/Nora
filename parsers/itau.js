@@ -27,6 +27,12 @@ var LEITOR_ITAU = function (ajuda) {
     return 'Others';
   }
   function letras(s) { return n(s).replace(/[^A-Z]/g, ''); }
+  /* Pix com o nome cortado do titular ("PIX TRANSF MARIA E07/08"): 5 letras ou mais, começo do nome completo do
+     titular, sem acento, sem diferenciar maiúsculas, sem espaços. Usada na prévia e em "Revisar categorias". */
+  function pixDoTitular(desc, titular) {
+    var tit = letras(titular), m = n(desc).match(/^PIX TRANSF (.*?)(\d{2}\/\d{2})?$/), f = m ? letras(m[1]) : '';
+    return tit.length >= 5 && f.length >= 5 && tit.indexOf(f) === 0;
+  }
   function ler(rows, moeda, ctx) {
     var cab = -1, i;
     for (i = 0; i < rows.length; i++) if (ehCabecalho(rows[i])) { cab = i; break; }
@@ -51,12 +57,9 @@ var LEITOR_ITAU = function (ajuda) {
       var d = n(t[1]);
       if (t[3] > 0 && /^EST /.test(d) && tx.some(function (u) { return u[0] === t[0] && u[3] === -t[3] && n(u[1]) === 'DA ' + d.slice(4); })) t[2] = 'Estorno';
     });
-    var tit = letras(ctx && ctx.titular), sugestoes = [];
-    if (tit.length >= 5) tx.forEach(function (t, k) {
-      var m = n(t[1]).match(/^PIX TRANSF (.*?)(\d{2}\/\d{2})?$/), f = m ? letras(m[1]) : '';
-      if (f.length >= 5 && tit.indexOf(f) === 0) sugestoes.push(k);
-    });
+    var sugestoes = [];
+    tx.forEach(function (t, k) { if (pixDoTitular(t[1], ctx && ctx.titular)) sugestoes.push(k); });
     return { tx: tx, moedas: ['BRL'], saldos: null, periodo: res.periodo, saldosDia: res.saldos, saldoAtual: saldoAtual, saldoAtualData: saldoAtualData, sugestoes: sugestoes, previa: { rows: limpas, mapa: mapa } };
   }
-  return { id: 'itau', nome: 'Itaú', previa: true, reconhece: reconhece, ler: ler };
+  return { id: 'itau', nome: 'Itaú', previa: true, reconhece: reconhece, ler: ler, pixDoTitular: pixDoTitular };
 };

@@ -1898,3 +1898,38 @@ test('Itaú: Pix para o titular é só sugestão (começo do nome, 5 letras ou m
   const curto = [['período de visualização: 01/08/2026 até 15/10/2026'], ['data', 'lançamentos', 'valor (R$)', 'saldo (R$)'], ['02/08/2026', 'PIX TRANSF ANA02/08', '-10,00', ''], ['02/08/2026', 'SALDO DO DIA', '', '90,00']];
   assert.deepEqual(I.LEITORES.itau.ler(curto, 'BRL', { titular: 'Ana Exemplo' }).sugestoes, []);
 });
+
+// ---------- Pix para o titular depois da importação (Revisar categorias) ----------
+test('Pix para o titular depois da importação: lista sem decidir, aplica só os marcados, desfaz só o que a sugestão marcou', async () => {
+  const A = carregarNucleo(['LEITORES', 'lerPdf', 'tabelaDoPdf', 'pixParaTitular', 'aplicarPixTitular', 'desfazerPixTitular', 'classify', 'lerSalvo', 'novaCarteira', 'migrate']);
+  const L = A.LEITORES.itau.ler(A.tabelaDoPdf(await A.lerPdf(await carregarPdfjs(), exemplo('extrato-itau-exemplo.pdf'))).linhas, 'BRL', {});
+  const months = {}; L.tx.forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
+  // a mesma regra da prévia: a função é a do leitor
+  assert.equal(A.LEITORES.itau.pixDoTitular('PIX TRANSF MARIA E07/08', 'María Exemplo'), true);
+  assert.equal(A.LEITORES.itau.pixDoTitular('PIX TRANSF ANA02/08', 'Ana Exemplo'), false, 'menos de 5 letras');
+  let P = A.pixParaTitular(months, {}, 'Maria Exemplo', []);
+  assert.deepEqual(P.pendentes.map(x => x.chave), ['PIX TRANSF MARIA E07/08', '+PIX TRANSF MARIA E18/08', 'PIX TRANSF MARIA E22/09', '+PIX TRANSF MARIA E13/10']);
+  assert.deepEqual(P.aplicados, []);
+  assert.deepEqual(A.pixParaTitular(months, {}, '', []).pendentes, [], 'sem titular, nada');
+  // escolha manual: fica de fora da lista
+  P = A.pixParaTitular(months, { 'PIX TRANSF MARIA E22/09': 'mercado' }, 'Maria Exemplo', []);
+  assert.equal(P.pendentes.length, 3);
+  // aplicar só os marcados: saída vira Envios para outra conta sua; entrada, Entre contas suas
+  let r = A.aplicarPixTitular({ 'PIX TRANSF MARIA E22/09': 'mercado' }, [], ['PIX TRANSF MARIA E07/08', '+PIX TRANSF MARIA E18/08']);
+  assert.deepEqual(r.over, { 'PIX TRANSF MARIA E22/09': 'mercado', 'PIX TRANSF MARIA E07/08': 'brasil', '+PIX TRANSF MARIA E18/08': '_ignore' });
+  const tx = k => L.tx.find(t => t[1] === k);
+  assert.equal(A.classify(tx('PIX TRANSF MARIA E07/08'), r.over, 'Maria Exemplo', 'BR').cat, 'brasil');
+  assert.equal(A.classify(tx('PIX TRANSF MARIA E18/08'), r.over, 'Maria Exemplo', 'BR').kind, 'interno');
+  P = A.pixParaTitular(months, r.over, 'Maria Exemplo', r.aplicados);
+  assert.deepEqual([P.pendentes.length, P.aplicados.length], [1, 2], 'os aplicados saem da lista e aparecem para desfazer');
+  // escolha feita à mão depois: o Desfazer não mexe nela
+  r.over['PIX TRANSF MARIA E07/08'] = 'lazer';
+  const d = A.desfazerPixTitular(r.over, r.aplicados);
+  assert.deepEqual(d, { over: { 'PIX TRANSF MARIA E22/09': 'mercado', 'PIX TRANSF MARIA E07/08': 'lazer' }, aplicados: [] });
+  // o campo da carteira passa pela validação do backup; em formato errado, nada é lido
+  let x = A.novaCarteira(A.migrate({ v: 3, months: {}, over: {}, plan: { titular: 'Maria Exemplo' }, summary: null, div: null }), { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
+  x.carteiras[1].pixTitular = ['PIX TRANSF MARIA E07/08'];
+  assert.deepEqual(A.lerSalvo(JSON.stringify(x), '').carteiras[1].pixTitular, ['PIX TRANSF MARIA E07/08']);
+  x.carteiras[1].pixTitular = 'errado';
+  assert.throws(() => A.lerSalvo(JSON.stringify(x), ''), /Pix marcados como seus em formato errado/);
+});

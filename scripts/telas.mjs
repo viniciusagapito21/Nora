@@ -132,10 +132,18 @@ const ITAU_PDF = pdf('extrato-itau.pdf', readFileSync(join(RAIZ, 'exemplo/extrat
 const PDF_ESCANEADO = pdf('extrato-escaneado.pdf', pdfAMao([{ imagem: true }]));
 const PDF_SENHA = pdf('extrato-com-senha.pdf', pdfAMao([{ textos: [{ s: 'Extrato inventado', x: 40, y: 100 }] }], { senha: true }));
 const PDF_DESCONHECIDO = pdf('fatura-cartao.pdf', pdfAMao([{ textos: [{ s: 'Fatura do cartão EXEMPLO', x: 40, y: 80 }, { s: 'Total a pagar', x: 40, y: 100 }, { s: '1.234,56', dir: 300, y: 100 }] }]));
-const comItau = () => {
+// com o extrato do Itaú já importado (lido pelo próprio leitor), sem nenhuma sugestão aplicada
+const IT = new Function(core + '; return { LEITORES, lerPdf, tabelaDoPdf };')();
+const itauLido = IT.LEITORES.itau.ler(IT.tabelaDoPdf(await IT.lerPdf(await carregarPdfjs(), new Uint8Array(ITAU_PDF.buffer))).linhas, 'BRL', {});
+const comItau = comMeses => {
   let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
   x = api.novaCarteira(x, { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
   x.config.titular = 'Maria Exemplo';
+  if (comMeses) {
+    const c = x.carteiras[1];
+    itauLido.tx.forEach(t => { (c.months[t[0].slice(0, 7)] = c.months[t[0].slice(0, 7)] || []).push(t); });
+    c.saldosDia = itauLido.saldosDia; c.periodos = [{ de: itauLido.periodo.de, ate: itauLido.periodo.ate }];
+  }
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
 const COM_SENHA = { name: 'extrato-banco-exemplo.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(comSenha(carregarXLSX())) };
@@ -367,6 +375,10 @@ for (const w of [1280, 390]) {
   t('57-pdf-escaneado', { storage: comItau(), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF_ESCANEADO); await pg.waitForSelector('#toast:not([hidden])'); } });
   t('58-pdf-com-senha', { storage: comItau(), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   t('59-pdf-desconhecido', { storage: comItau(), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', PDF_DESCONHECIDO); await pg.waitForSelector('#toast:not([hidden])'); } });
+  // Pix para o titular depois da importação: a lista em Revisar categorias, com duas caixas marcadas; e depois de aplicar
+  const abrirPix = async pg => { await pg.click('#fin-revd > summary'); await pg.waitForSelector('#fin-pixtit'); };
+  t('60-revisar-pix-titular', { storage: comItau(true), prepara: aba('c2', async pg => { await abrirPix(pg); await pg.click('[data-pixtit-marcar="2026-08"]'); }) });
+  t('61-pix-titular-aplicados', { storage: comItau(true), prepara: aba('c2', async pg => { await abrirPix(pg); await pg.check('[data-pixtit="PIX TRANSF MARIA E07/08"]'); await pg.check('[data-pixtit="+PIX TRANSF MARIA E18/08"]'); await pg.click('[data-pixtit-aplicar]'); await pg.waitForSelector('[data-pixtit-desfazer]'); }) });
   t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
@@ -540,6 +552,45 @@ for (const s of TELAS) {
   if (!sugOk) problemas.push('importar Itaú: a sugestão de Pix entre contas não começou desmarcada ou não marcou só os Pix sugeridos');
   const tipos = salvos.reduce((o, t) => ((o[t[2]] = (o[t[2]] || 0) + 1), o), {});
   console.log(`importar Itaú pela tela: ${ok ? salvos.length + ' movimentos iguais aos do leitor (' + Object.entries(tipos).map(([k, v]) => v + ' ' + k).join(', ') + '), ' + Object.keys(c.saldosDia).length + ' saldos do dia' : 'FALHOU'}; sugestão de Pix: ${sugOk ? 'começou desmarcada; marcada, ' + marcados.length + ' Pix (' + marcados.filter(([k]) => k[0] === '+').length + ' entradas entre contas, ' + marcados.filter(([k]) => k[0] !== '+').length + ' saídas para outra conta sua)' : 'FALHOU'} ("${aviso}")`);
+  await ctx.close();
+}
+
+// ---------- Pix para o titular depois da importação: aplicar e desfazer, pela tela ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage();
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('Pix para o titular: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comItau(true));
+  await pg.reload(); await pg.waitForTimeout(150);
+  await pg.click('[data-carteira="c2"]'); await pg.click('#fin-revd > summary'); await pg.waitForSelector('#fin-pixtit');
+  const estado = () => pg.evaluate(() => { const c = JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[1]; return { over: c.over || {}, ap: c.pixTitular || [] }; });
+  const caixas = await pg.evaluate(() => [...document.querySelectorAll('[data-pixtit]')].map(i => i.checked));
+  const antes = await estado();
+  // "Marcar todos de <mês>" e "Marcar todos" só marcam as caixas: nada é gravado até "Aplicar aos marcados"
+  const marcadas = () => pg.evaluate(() => [...document.querySelectorAll('[data-pixtit]')].filter(i => i.checked).map(i => i.getAttribute('data-pixtit')));
+  await pg.click('[data-pixtit-marcar="2026-08"]');
+  const soAgosto = await marcadas(), gravadoMes = await estado();
+  await pg.click('[data-pixtit-marcar=""]');
+  const todas = await marcadas(), gravadoTodos = await estado();
+  const botoes = await pg.evaluate(() => [...document.querySelectorAll('[data-pixtit-marcar]')].map(b => b.textContent));
+  const marcarOk = JSON.stringify(soAgosto) === JSON.stringify(['PIX TRANSF MARIA E07/08', '+PIX TRANSF MARIA E18/08']) && todas.length === 4 &&
+    JSON.stringify(gravadoMes) === JSON.stringify(antes) && JSON.stringify(gravadoTodos) === JSON.stringify(antes) &&
+    JSON.stringify(botoes) === JSON.stringify(['Marcar todos', 'Marcar todos de agosto de 2026', 'Marcar todos de setembro de 2026', 'Marcar todos de outubro de 2026']);
+  if (!marcarOk) problemas.push('Pix para o titular: "Marcar todos" ou "Marcar todos de <mês>" não marcou só as caixas certas, ou gravou algo');
+  await pg.evaluate(() => document.querySelectorAll('[data-pixtit]').forEach(i => { i.checked = false; }));
+  await pg.check('[data-pixtit="PIX TRANSF MARIA E07/08"]'); await pg.check('[data-pixtit="+PIX TRANSF MARIA E18/08"]');
+  await pg.click('[data-pixtit-aplicar]'); await pg.waitForSelector('[data-pixtit-desfazer]');
+  const depois = await estado(), resto = await pg.evaluate(() => document.querySelectorAll('[data-pixtit]').length);
+  await pg.click('[data-pixtit-desfazer]'); await pg.waitForFunction(() => !document.querySelector('[data-pixtit-desfazer]'));
+  const desfeito = await estado();
+  const ok = caixas.length === 4 && caixas.every(c => !c) && Object.keys(antes.over).length === 0 &&
+    JSON.stringify(depois.over) === JSON.stringify({ 'PIX TRANSF MARIA E07/08': 'brasil', '+PIX TRANSF MARIA E18/08': '_ignore' }) && depois.ap.length === 2 && resto === 2 &&
+    Object.keys(desfeito.over).length === 0 && desfeito.ap.length === 0;
+  if (!ok) problemas.push('Pix para o titular: aplicar ou desfazer não deu o esperado');
+  console.log(`Pix para o titular, marcar: ${marcarOk ? '"Marcar todos de agosto de 2026" marca as 2 caixas de agosto, "Marcar todos" as 4, e nada é gravado' : 'FALHOU'}`);
+  console.log(`Pix para o titular pela tela: ${ok ? '4 sugeridos, todos desmarcados; aplicar 2 grava 1 envio e 1 entre contas, sobram 2 na lista; desfazer volta ao automático' : 'FALHOU'}`);
   await ctx.close();
 }
 

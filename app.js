@@ -131,6 +131,36 @@
      parsers/revolut.js). Banco sem leitor usa o importador genérico */
   var LEITORES = { revolut: LEITOR_REVOLUT({ cents: cents, isoDate: isoDate }), btg: LEITOR_BTG({ cents: cents, interpretarCSV: interpretarCSV }),
     itau: LEITOR_ITAU({ interpretarCSV: interpretarCSV, lerData: lerData, lerNumero: lerNumero }) };
+  /* Pix para o titular depois da importação (carteira do Itaú): a chave de cada um como em over (saída: a descrição;
+     entrada: "+" e a descrição) e o que a sugestão grava (saída: Envios para outra conta sua; entrada: Entre contas
+     suas). Ficam de fora os que já têm escolha manual; os que a sugestão marcou voltam em "aplicados". */
+  function chavePix(t) { var k = String(t[1]).toUpperCase().replace(/\s+/g, ' ').trim(); return t[3] > 0 ? '+' + k : k; }
+  function marcaPix(chave) { return chave.charAt(0) === '+' ? '_ignore' : 'brasil'; }
+  function pixParaTitular(months, over, titular, aplicados) {
+    var ap = {}, pend = [], vistos = {};
+    over = over || {};
+    (aplicados || []).forEach(function (k) { if (over[k] === marcaPix(k)) ap[k] = 1; });
+    Object.keys(months || {}).sort().forEach(function (m) {
+      (months[m] || []).forEach(function (t) {
+        if (!LEITORES.itau.pixDoTitular(t[1], titular)) return;
+        var k = chavePix(t);
+        if (ap[k] || over[k] || vistos[k]) return;
+        vistos[k] = 1; pend.push({ data: t[0], desc: t[1], valor: t[3], chave: k });
+      });
+    });
+    return { pendentes: pend, aplicados: Object.keys(ap) };
+  }
+  function aplicarPixTitular(over, aplicados, chaves) {
+    var o = Object.assign({}, over || {}), a = (aplicados || []).slice();
+    chaves.forEach(function (k) { o[k] = marcaPix(k); if (a.indexOf(k) < 0) a.push(k); });
+    return { over: o, aplicados: a };
+  }
+  /* só desfaz o que ainda está como a sugestão gravou: escolha feita depois, à mão, fica */
+  function desfazerPixTitular(over, aplicados) {
+    var o = Object.assign({}, over || {});
+    (aplicados || []).forEach(function (k) { if (o[k] === marcaPix(k)) delete o[k]; });
+    return { over: o, aplicados: [] };
+  }
   /* o banco pelo conteúdo do arquivo (cabeçalho), ou null */
   function detectarBanco(rows) {
     var ks = Object.keys(LEITORES);
@@ -344,6 +374,12 @@
       try { var a = JSON.parse(k); return !Array.isArray(a) || a.length !== 4 || a.some(function (v) { return typeof v !== 'string'; }); } catch (e) { return true; }
     })) throw new Error('sugestões dispensadas em formato errado na carteira ' + w.id);
   }
+  /* pixTitular: as chaves (como em over) que a sugestão de Pix para o titular marcou; "Desfazer" só tira essas */
+  function checarPixTitular(l, id) {
+    if (l == null) return l;
+    if (!Array.isArray(l) || l.some(function (k) { return typeof k !== 'string'; })) throw new Error('Pix marcados como seus em formato errado na carteira ' + id);
+    return l;
+  }
   /* importacao: { código do cabeçalho: { sep, data, desc, valor, ... } }, as colunas lembradas do importador */
   function checarImportacao(imp, id) {
     var erro = 'colunas do importador em formato errado na carteira ' + id;
@@ -384,6 +420,7 @@
       w.periodos = c.periodos === undefined ? periodosMigrados(w) : checarPeriodos(c.periodos, c.id);
       checarTransf(w);
       checarImportacao(w.importacao, c.id);
+      checarPixTitular(w.pixTitular, c.id);
       return w;
     });
     /* transferência com uma carteira que não existe mais (backup antigo): sai, e a ponta volta ao que era */
@@ -2040,8 +2077,8 @@
       var n = Object.assign({}, c, { periodos: juntarPeriodos(c.periodos, r.periodo) });
       if (!I.leitor) n.importacao = lembrarMapa(c.importacao, I.rows, I.mapa);
       if (I.leitor && I.sugTitular && I.lido.sugestoes) {
-        n.over = Object.assign({}, c.over || {});
-        I.lido.sugestoes.forEach(function (k) { var t = I.lido.tx[k], key = String(t[1]).toUpperCase().replace(/\s+/g, ' ').trim(); if (t[3] > 0) n.over['+' + key] = '_ignore'; else n.over[key] = 'brasil'; });
+        var ap = aplicarPixTitular(c.over, c.pixTitular, I.lido.sugestoes.map(function (k) { return chavePix(I.lido.tx[k]); }));
+        n.over = ap.over; n.pixTitular = ap.aplicados;
       }
       if (Object.keys(r.saldos).length) n.saldosDia = Object.assign({}, c.saldosDia || {}, r.saldos);
       if (an != null) { n.ancora = { data: r.ate, valor: an, informadoEm: todayIso() }; delete n.ancoraDispensada; }
@@ -2563,10 +2600,41 @@
     if (ent.length > 40) h += '<p class="passo" style="padding-top:12px">Mostrando 40 de ' + ent.length + ' entradas. Use a busca para achar as outras.</p>';
     return h;
   }
+  /* Pix para o titular, em carteira do Itaú com titular configurado: caixas desmarcadas, "Aplicar aos marcados",
+     e "Desfazer" para o que a sugestão marcou */
+  function pixTitularBloco(cw) {
+    var tit = S.plan && S.plan.titular;
+    if (!cw || cw.banco !== 'itau' || !tit) return { n: 0, h: '' };
+    var P = pixParaTitular(S.months, S.over, tit, cw.pixTitular);
+    if (!P.pendentes.length && !P.aplicados.length) return { n: 0, h: '' };
+    var mes = {}, h = '<div class="card ggrid" id="fin-pixtit" tabindex="-1"><h3 class="rvt">Pix que parecem ser para você</h3>';
+    P.pendentes.forEach(function (x) { var m = mes[x.data.slice(0, 7)] = mes[x.data.slice(0, 7)] || { s: 0, vs: 0, e: 0, ve: 0 }; if (x.valor < 0) { m.s++; m.vs -= x.valor; } else { m.e++; m.ve += x.valor; } });
+    if (P.pendentes.length) {
+      h += '<p class="passo">O nome no Pix começa como o seu (' + esc(tit) + '). Marque os que são entre contas suas: as entradas ficam "Entre contas suas" e as saídas, "Envios para outra conta sua". Nada muda sem você marcar.</p>' +
+        '<p class="passo">' + Object.keys(mes).sort().map(function (m) { var x = mes[m]; return esc(mLabel(m)) + ': ' + (x.s ? x.s + (x.s === 1 ? ' saída' : ' saídas') + ' (' + esc(f2(x.vs / 100)) + ')' : '') + (x.s && x.e ? ', ' : '') + (x.e ? x.e + (x.e === 1 ? ' entrada' : ' entradas') + ' (' + esc(f2(x.ve / 100)) + ')' : ''); }).join(' · ') + '</p>' +
+        /* "Marcar todos" e "Marcar todos de <mês>" só marcam as caixas: quem confirma é o "Aplicar aos marcados" */
+        '<div class="grupo"><button class="btn sm" type="button" data-pixtit-marcar="">Marcar todos</button>' + Object.keys(mes).sort().map(function (m) {
+          return '<button class="btn sm" type="button" data-pixtit-marcar="' + m + '">Marcar todos de ' + esc(mLabel(m)) + '</button>';
+        }).join('') + '</div>' +
+        '<div class="radios">' + P.pendentes.map(function (x) {
+          return '<label class="chk"><input type="checkbox" data-pixtit="' + esc(x.chave) + '" data-mes="' + x.data.slice(0, 7) + '"><span>' + esc(dFull(x.data)) + ' · ' + esc(x.desc) + ' · ' + (x.valor > 0 ? '+' : '−') + esc(f2(Math.abs(x.valor) / 100)) + '</span></label>';
+        }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-pixtit-aplicar>Aplicar aos marcados</button></div>';
+    }
+    if (P.aplicados.length) h += '<p class="passo">' + P.aplicados.length + (P.aplicados.length === 1 ? ' Pix marcado' : ' Pix marcados') + ' por esta sugestão.</p><div class="grupo"><button class="btn" type="button" data-pixtit-desfazer>Desfazer</button></div>';
+    return { n: P.pendentes.length, h: h + '</div>' };
+  }
+  /* grava over e a lista do que a sugestão marcou, na carteira ativa */
+  function salvarPixTitular(r, msg) {
+    S.over = r.over;
+    var x = dadosAtuais();
+    usarDados(Object.assign({}, x, { carteiras: x.carteiras.map(function (c) { return c.id !== x.ativa ? c : Object.assign({}, c, { pixTitular: r.aplicados }); }) }));
+    enqueue(saveOver).then(function () { recompute(); render(); toast(msg); var b = $('#fin-pixtit'); if (b) b.focus(); });
+  }
   function review() {
     var nc = merchants().length, ne = entradas().length, cw = cartAtual(), np = TR ? TR.S.pares.filter(function (p) { return p.s.w.id === cw.id || p.e.w.id === cw.id; }).length : 0;
+    var pt = pixTitularBloco(cw);
     return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>Revisar categorias</h2><span class="hint">' + nc + ' comerciantes e ' + ne + (ne === 1 ? ' entrada' : ' entradas') +
-      (np ? ' · ' + np + (np === 1 ? ' transferência sugerida' : ' transferências sugeridas') : '') + '. Abra para trocar a categoria de algum.</span></summary><div class="rv-c">' + transfBloco(cw.id) + '<p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. ' +
+      (np ? ' · ' + np + (np === 1 ? ' transferência sugerida' : ' transferências sugeridas') : '') + (pt.n ? ' · ' + pt.n + (pt.n === 1 ? ' Pix parece' : ' Pix parecem') + ' ser para você' : '') + '. Abra para trocar a categoria de algum.</span></summary><div class="rv-c">' + transfBloco(cw.id) + pt.h + '<p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. ' +
       'O que for dinheiro seu indo ou vindo de outra conta sua, marque como "Entre contas suas": não conta como gasto nem como entrada.</p>' +
       '<div class="fbusca"><label class="vh" for="fin-q">Buscar comerciante ou entrada</label><input id="fin-q" type="search" placeholder="Buscar comerciante ou entrada" value="' + esc(S.q) + '" autocomplete="off"></div><div class="card" id="fin-revlist">' + revList() + '</div></div></details></section>';
   }
@@ -2978,7 +3046,7 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
+    var t = e.target.closest && e.target.closest('[data-pixtit-marcar],[data-pixtit-aplicar],[data-pixtit-desfazer],[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) {
       if (emResumo()) { S.escolher = {}; render(); var ec = $('#fin-escolher input:checked'); if (ec) ec.focus(); window.scrollTo(0, 0); return; }
@@ -3088,6 +3156,18 @@
       }
       return;
     }
+    if (t.hasAttribute('data-pixtit-aplicar')) {
+      var ks = Array.prototype.map.call(document.querySelectorAll('#fin-pixtit [data-pixtit]:checked'), function (i) { return i.getAttribute('data-pixtit'); });
+      if (!ks.length) { toast('Marque pelo menos um Pix antes de aplicar.'); return; }
+      salvarPixTitular(aplicarPixTitular(S.over, cartAtual().pixTitular, ks), (ks.length === 1 ? 'Marquei 1 Pix' : 'Marquei ' + ks.length + ' Pix') + ' como entre contas suas.');
+      return;
+    }
+    if (t.hasAttribute('data-pixtit-marcar')) {
+      var mm = t.getAttribute('data-pixtit-marcar');
+      Array.prototype.forEach.call(document.querySelectorAll('#fin-pixtit [data-pixtit]'), function (i) { if (!mm || i.getAttribute('data-mes') === mm) i.checked = true; });
+      return;
+    }
+    if (t.hasAttribute('data-pixtit-desfazer')) { salvarPixTitular(desfazerPixTitular(S.over, cartAtual().pixTitular), 'Desfeito: os Pix voltaram à categoria automática.'); return; }
     if (t.hasAttribute('data-sel')) { S.sel = t.getAttribute('data-sel'); S.more = 12; hideTip(); render(); return; }
     if (t.hasAttribute('data-all')) { S.sel = S.sel === 'all' ? (M.complete.length ? M.complete[M.complete.length - 1] : M.keys[M.keys.length - 1]) : 'all'; S.more = 12; render(); return; }
     if (t.hasAttribute('data-f')) {
