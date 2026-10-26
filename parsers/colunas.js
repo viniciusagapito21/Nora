@@ -1,7 +1,8 @@
+var NORA_COLUNAS = (function () {
 const SINONIMOS = {
-  data: ['data', 'date', 'fecha', 'transaction date', 'posting date', 'value date', 'data lancamento', 'data transacao', 'fecha operacion'],
+  data: ['data', 'date', 'fecha', 'transaction date', 'posting date', 'posted date', 'posted transactions date', 'value date', 'data lancamento', 'data transacao', 'fecha operacion'],
   descricao: ['descricao', 'description', 'concept', 'concepto', 'historico', 'historial', 'detalhe', 'detail', 'details', 'memo', 'narrative', 'movement description'],
-  valor: ['valor', 'amount', 'importe', 'value'],
+  valor: ['valor', 'amount', 'importe'],
   debito: ['debito', 'debit', 'cargo', 'debe'],
   credito: ['credito', 'credit', 'abono', 'haber'],
   saldo: ['saldo', 'balance'],
@@ -34,16 +35,44 @@ function pareceData(valor) {
     || /^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(texto);
 }
 
-function melhorColuna(cabecalho, amostra, campo, valida) {
+function melhorColuna(cabecalho, amostra, campo, valida, excluidas = new Set()) {
   let melhor = null;
   let melhorNota = -1;
   for (let indice = 0; indice < cabecalho.length; indice++) {
+    if (excluidas.has(indice)) continue;
     const pontuacao = pontuarCabecalho(cabecalho[indice], SINONIMOS[campo]);
     if (!pontuacao) continue;
     let validas = 0;
     for (const linha of amostra) {
       if (Array.isArray(linha) && valida(linha[indice])) validas++;
     }
+    const nota = pontuacao * 1000 + validas;
+    if (nota > melhorNota) {
+      melhor = indice;
+      melhorNota = nota;
+    }
+  }
+  return melhor;
+}
+
+function pontuarValor(cabecalho) {
+  const texto = normalizarCabecalho(cabecalho);
+  if (texto === 'value' || texto === 'amount value') return 3;
+  return pontuarCabecalho(cabecalho, SINONIMOS.valor);
+}
+
+function melhorColunaValor(cabecalho, amostra, excluidas) {
+  let melhor = null;
+  let melhorNota = -1;
+  for (let indice = 0; indice < cabecalho.length; indice++) {
+    if (excluidas.has(indice)) continue;
+    const pontuacao = pontuarValor(cabecalho[indice]);
+    if (!pontuacao) continue;
+    let validas = 0;
+    for (const linha of amostra) {
+      if (Array.isArray(linha) && centavosDeTexto(String(linha[indice] ?? '')) !== null) validas++;
+    }
+    if (amostra.length && validas === 0) continue;
     const nota = pontuacao * 1000 + validas;
     if (nota > melhorNota) {
       melhor = indice;
@@ -113,24 +142,40 @@ function centavosDeTexto(valor) {
 }
 
 /** Detecta os índices das colunas a partir de um cabeçalho e linhas de amostra. */
-export function detectarColunas(cabecalho, amostra = []) {
+function detectarColunas(cabecalho, amostra = []) {
   if (!Array.isArray(cabecalho)) return null;
   const linhas = Array.isArray(amostra) ? amostra : [];
   const data = melhorColuna(cabecalho, linhas, 'data', pareceData);
-  const descricao = melhorColuna(cabecalho, linhas, 'descricao', valor => String(valor ?? '').trim() !== '');
-  const saldo = melhorColuna(cabecalho, linhas, 'saldo', valor => centavosDeTexto(String(valor ?? '')) !== null);
-  const valor = melhorColuna(cabecalho, linhas, 'valor', item => centavosDeTexto(String(item ?? '')) !== null);
+  if (data === null) return null;
+  const usadas = new Set([data]);
+  const descricao = melhorColuna(cabecalho, linhas, 'descricao', valor => String(valor ?? '').trim() !== '', usadas);
 
-  if (data === null || descricao === null) return null;
+  if (descricao === null) return null;
+  usadas.add(descricao);
+  const saldo = melhorColuna(cabecalho, linhas, 'saldo', valor => centavosDeTexto(String(valor ?? '')) !== null, usadas);
+  if (saldo !== null) usadas.add(saldo);
+
+  const debito = melhorColuna(cabecalho, linhas, 'debito', item => centavosDeTexto(String(item ?? '')) !== null, usadas);
+  const credito = melhorColuna(cabecalho, linhas, 'credito', item => centavosDeTexto(String(item ?? '')) !== null, usadas);
+  if (debito !== null && credito !== null && debito !== credito
+      && pontuarCabecalho(cabecalho[debito], SINONIMOS.debito) >= 2
+      && pontuarCabecalho(cabecalho[credito], SINONIMOS.credito) >= 2
+      && !usadas.has(debito) && !usadas.has(credito)) {
+    return { data, descricao, debito, credito, saldo };
+  }
+
+  if (debito !== null) usadas.add(debito);
+  if (credito !== null) usadas.add(credito);
+  const valor = melhorColunaValor(cabecalho, linhas, usadas);
   if (valor !== null) return { data, descricao, valor, saldo };
 
-  const debito = melhorColuna(cabecalho, linhas, 'debito', item => centavosDeTexto(String(item ?? '')) !== null);
-  const credito = melhorColuna(cabecalho, linhas, 'credito', item => centavosDeTexto(String(item ?? '')) !== null);
-  if (debito === null || credito === null) return null;
-  return { data, descricao, debito, credito, saldo };
+  return null;
 }
 
 /** Converte texto monetário para centavos exatos; retorna null se o texto for inválido. */
-export function paraCentavos(valor) {
+function paraCentavos(valor) {
   return centavosDeTexto(valor);
 }
+
+return { detectarColunas: detectarColunas, paraCentavos: paraCentavos };
+})();

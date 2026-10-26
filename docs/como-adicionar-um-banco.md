@@ -25,3 +25,7 @@ Leia apenas os campos necessários ao resultado. Não carregue linhas inteiras a
 ## Privacidade
 
 Use exclusivamente dados inventados em exemplos e testes. Nunca adicione extratos reais, PDFs, planilhas pessoais, nomes, documentos, números de conta ou identificadores bancários ao repositório. Não imprima conteúdo de arquivos em falhas, logs ou diagnósticos. Se a estrutura tiver sido estudada com um documento real fora do repositório, construa uma fixture nova do zero e verifique que ela e o código não preservaram texto ou valores pessoais antes de propor a integração.
+
+## Quando o extrato é de um banco novo
+
+Comece pelo `LEITOR_GENERICO`: ele tenta reconhecer data, descrição, valor (ou débito/crédito) e saldo por cabeçalho, sem precisar conhecer o banco. Confira a prévia e, se as colunas ou o formato de data/valor não forem reconhecidos, peça ajuda descrevendo os nomes das colunas e o formato geral — nunca envie o extrato, capturas ou dados da conta. Se o caminho genérico não bastar, siga este guia para propor um leitor específico usando apenas exemplos inventados.

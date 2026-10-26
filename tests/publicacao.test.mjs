@@ -14,6 +14,7 @@ test('dist publica _headers e index.html na raiz', () => {
   assert.ok(existsSync(join(dist, '_headers')));
   assert.ok(existsSync(join(dist, 'index.html')));
   assert.ok(!existsSync(join(dist, 'parsers', '_modelo.js')), 'o leitor modelo não deve ser publicado');
+  for (const parser of ['revolut.js', 'btg.js', 'itau.js', 'ofx.js', 'colunas.js', 'generico.js']) assert.ok(existsSync(join(dist, 'parsers', parser)), `parsers/${parser} deve ser publicado`);
 });
 
 test('dist não inclui arquivos de desenvolvimento nem dados locais', () => {

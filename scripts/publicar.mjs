@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,7 @@ const arquivos = [
   'icon.svg',
 ];
 const diretorios = ['fonts', 'rules', 'vendor'];
+const arquivosParsersDist = ['revolut.js', 'btg.js', 'itau.js', 'ofx.js', 'colunas.js', 'generico.js'];
 
 rmSync(saida, { recursive: true, force: true });
 mkdirSync(saida, { recursive: true });
@@ -33,9 +34,10 @@ for (const diretorio of diretorios) {
 const parsers = join(raiz, '..', 'parsers');
 if (!existsSync(parsers)) throw new Error('Diretório necessário para publicação ausente: parsers/');
 mkdirSync(join(saida, 'parsers'), { recursive: true });
-for (const entrada of readdirSync(parsers, { withFileTypes: true })) {
-  if (entrada.name === '_modelo.js') continue;
-  cpSync(join(parsers, entrada.name), join(saida, 'parsers', entrada.name), { recursive: true });
+for (const arquivo of arquivosParsersDist) {
+  const origem = join(parsers, arquivo);
+  if (!existsSync(origem)) throw new Error(`Arquivo necessário para publicação ausente: parsers/${arquivo}`);
+  cpSync(origem, join(saida, 'parsers', arquivo));
 }
 
 for (const opcional of ['prefs.js', 'i18n.js', 'i18n']) {
