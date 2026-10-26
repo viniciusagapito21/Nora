@@ -1933,3 +1933,102 @@ test('Pix para o titular depois da importação: lista sem decidir, aplica só o
   x.carteiras[1].pixTitular = 'errado';
   assert.throws(() => A.lerSalvo(JSON.stringify(x), ''), /Pix marcados como seus em formato errado/);
 });
+
+// ---------- envios para outra conta sua como "dinheiro movido" (opção por carteira) ----------
+const MV = carregarNucleo(['metaDaCarteira', 'buildModel', 'preverMes', 'detectarRecorrentes', 'sugerirMetas', 'montarCats', 'novaCarteira', 'editarCarteira', 'migrate', 'lerSalvo', 'resumir', 'mesResumo', 'previsaoResumo', 'resumoBackup', 'LEITORES', 'lerPdf', 'tabelaDoPdf', 'extractTx', 'parseCSV']);
+const somaMes = (months, m) => months[m].reduce((a, t) => a + t[3], 0) / 100;
+const fecha = (g) => g.entrou - g.gasto - g.saved - g.movido;
+
+test('dinheiro movido: entrou − gastou − guardou − movido é a variação do saldo, nos dois modos', async () => {
+  // Revolut de exemplo, com os envios "To MARIA SILVA" e um mês com eles marcados como "Entre contas suas"
+  const rev = MV.extractTx(MV.parseCSV(csv), 'EUR'), mr = {};
+  rev.forEach(t => { (mr[t[0].slice(0, 7)] = mr[t[0].slice(0, 7)] || []).push(t); });
+  // Itaú de exemplo, com os Pix para a titular marcados (saída: envio; entrada: entre contas suas)
+  const L = MV.LEITORES.itau.ler(MV.tabelaDoPdf(await MV.lerPdf(await carregarPdfjs(), exemplo('extrato-itau-exemplo.pdf'))).linhas, 'BRL', { titular: 'Maria Exemplo' }), mi = {}, ovi = {};
+  L.tx.forEach(t => { (mi[t[0].slice(0, 7)] = mi[t[0].slice(0, 7)] || []).push(t); });
+  L.sugestoes.forEach(k => { const t = L.tx[k], key = t[1].toUpperCase(); if (t[3] > 0) ovi['+' + key] = '_ignore'; else ovi[key] = 'brasil'; });
+  for (const [nome, months, over, tit, pais] of [['Revolut', mr, { 'TO MARIA SILVA': 'brasil' }, 'MARIA SILVA', 'IE'], ['Itaú', mi, ovi, 'Maria Exemplo', 'BR']]) {
+    for (const envios of ['gasto', 'movido']) {
+      const M = MV.buildModel(months, over, tit, pais, null, null, null, { envios });
+      for (const m of M.keys) {
+        assert.ok(Math.abs(fecha(M.by[m]) - somaMes(months, m)) < 0.005, `${nome}, ${envios}, ${m}: saldo do mês ${fecha(M.by[m])} = variação ${somaMes(months, m)}`);
+        assert.equal(M.by[m].saldo, fecha(M.by[m]));
+      }
+    }
+    const G = MV.buildModel(months, over, tit, pais), V = MV.buildModel(months, over, tit, pais, null, null, null, { envios: 'movido' });
+    for (const m of G.keys) {
+      assert.ok(Math.abs(G.by[m].gasto - V.by[m].gasto - (G.by[m].spend.brasil || 0)) < 0.005, nome + ' ' + m + ': no modo movido, o gasto perde exatamente os envios');
+      assert.equal(V.by[m].spend.brasil || 0, 0);
+      assert.ok(Math.abs(G.by[m].envios - V.by[m].envios) < 0.005, 'o total de envios (gráfico) é o mesmo nos dois modos');
+      assert.ok(Math.abs(V.by[m].movido - G.by[m].movido - (G.by[m].spend.brasil || 0)) < 0.005, 'e eles passam para o movido');
+    }
+  }
+  // sem a opção, o modelo é o de antes (o mesmo que "gasto")
+  assert.deepEqual(JSON.stringify(MV.buildModel(mr, {}, 'MARIA SILVA', 'IE')), JSON.stringify(MV.buildModel(mr, {}, 'MARIA SILVA', 'IE', null, null, null, { envios: 'gasto' })));
+});
+
+test('dinheiro movido: fora das metas, da previsão e das contas fixas; continua no gráfico de envios', () => {
+  const months = {}; MV.extractTx(MV.parseCSV(csv), 'EUR').forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
+  const cats = MV.montarCats(null), G = MV.buildModel(months, {}, 'MARIA SILVA', 'IE', cats), V = MV.buildModel(months, {}, 'MARIA SILVA', 'IE', cats, null, null, { envios: 'movido' });
+  assert.ok(MV.sugerirMetas(G, cats).cats.brasil > 0); assert.equal(MV.sugerirMetas(V, cats).cats.brasil || 0, 0, 'sem meta sugerida para envios');
+  // a meta de envios de cada modo, como o painel a lê (em "movido", 0)
+  const cG = { metas: { cats: { brasil: 150 } } }, cV = { metas: { cats: { brasil: 150 } }, envios: 'movido' };
+  assert.equal(MV.metaDaCarteira(cG, G, cats)('brasil'), 150); assert.equal(MV.metaDaCarteira(cV, V, cats)('brasil'), 0);
+  const pG = MV.preverMes(G, MV.metaDaCarteira(cG, G, cats), cats), pV = MV.preverMes(V, MV.metaDaCarteira(cV, V, cats), cats);
+  assert.ok(Math.abs(pG.proj - pV.proj - 150) < 0.005, `a previsão perde exatamente os envios do mês (${pG.proj} → ${pV.proj})`);
+  assert.equal(pV.falFix, pG.falFix, 'e nada aparece como conta fixa que falta');
+  assert.ok(!MV.detectarRecorrentes(V).some(r => /MARIA/.test(r.nome || r.desc || '')), 'envio movido não vira conta fixa');
+  assert.ok(V.rows.filter(r => r.kind === 'movido').every(r => r.cat === 'brasil'), 'a categoria fica, para mostrar');
+});
+
+test('dinheiro movido no Resumo: carteira em "gasto" e outra em "movido", sem contar duas vezes nem esquecer nada', () => {
+  let x = MV.migrate({ v: 3, months: {}, over: {}, plan: { titular: 'MARIA SILVA', moeda: 'EUR', pais: 'IE', configurado: true }, summary: null, div: null });
+  x = MV.novaCarteira(x, { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
+  const [A, B] = x.carteiras;
+  // A (euro, "gasto"): renda, um mercado, um envio "To MARIA SILVA" para fora do painel e outro que chega em B
+  A.months = { '2026-09': [['2026-09-01', 'Payment from ACME', 'Others', 100000, null], ['2026-09-02', 'Tesco', 'Merchant', -5000, null], ['2026-09-03', 'To MARIA SILVA', 'Others', -15000, null], ['2026-09-04', 'To MARIA SILVA ITAU', 'Others', -10000, null]] };
+  A.over = { 'TO MARIA SILVA ITAU': '_ignore' };
+  // B (real, "movido"): salário, mercado, um Pix para a titular para fora do painel, e a entrada que veio de A (900 = 150 €)
+  B.months = { '2026-09': [['2026-09-02', 'SALARIO EMPRESA', 'Others', 300000, null], ['2026-09-06', 'Supermercado X', 'Others', -10000, null], ['2026-09-07', 'PIX TRANSF MARIA S07/09', 'Others', -50000, null], ['2026-09-05', 'TED RECEBIDA MARIA SILVA ITAU', 'Others', 60000, null]] };
+  B.over = { 'PIX TRANSF MARIA S07/09': 'brasil', '+TED RECEBIDA MARIA SILVA ITAU': '_ignore' };
+  B.envios = 'movido';
+  x.cambios = { BRL: { rate: 6, data: '2026-09-30' } };
+  const R = MV.resumir(x), Q = MV.mesResumo(R, x, '2026-09'), T = Q.total;
+  const [ga, gb] = R.ws.map(w => w.M.by['2026-09']);
+  assert.deepEqual([ga.gasto, ga.spend.brasil, ga.movido], [200, 150, 100], 'A: o envio para fora é gasto; o que vai para B é movido');
+  assert.deepEqual([gb.gasto, gb.spend.brasil || 0, gb.movido], [100, 0, -100], 'B: o Pix para fora é movido (+500) e a entrada de A também (−600)');
+  // total em euro: cada coisa uma vez
+  assert.ok(Math.abs(T.gasto - (200 + 100 / 6)) < 0.01, 'gasto: o de A (com o envio dele) + o mercado de B; o Pix movido de B fica fora');
+  assert.ok(Math.abs(T.movido - (100 - 100 / 6)) < 0.01, 'movido: A→B se anula (100 € de um lado, 600 R$ = 100 € do outro); sobra o Pix de B para fora');
+  const variacao = somaMes(A.months, '2026-09') + somaMes(B.months, '2026-09') / 6;
+  assert.ok(Math.abs(T.saldo - variacao) < 0.01, `saldo do Resumo ${T.saldo} = soma das variações ${variacao}`);
+  assert.ok(Math.abs(T.entrou - T.gasto - T.saved - T.movido - T.saldo) < 0.01, 'entrou − gastou − guardou − movido = saldo, no total');
+  // a meta da categoria de envios não entra na meta do mês da carteira em "movido" (a de "gasto" continua)
+  x.carteiras[0].metas = { cats: { brasil: 150 } }; x.carteiras[1].metas = { cats: { brasil: 999 } };
+  assert.deepEqual(R.ws.map(w => MV.metaDaCarteira(w.c, w.M, w.cats)('brasil')), [150, 0]);
+});
+
+test('dinheiro movido no backup: o antigo restaura igual, o novo guarda a opção, e valor estranho é recusado', () => {
+  let x = MV.migrate({ v: 3, months: {}, over: {}, plan: { titular: 'MARIA SILVA' }, summary: null, div: null });
+  x = MV.novaCarteira(x, { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
+  x.carteiras[1].months = { '2026-09': [['2026-09-07', 'PIX TRANSF MARIA S07/09', 'Others', -50000, null]] };
+  x.carteiras[1].over = { 'PIX TRANSF MARIA S07/09': 'brasil' };
+  // backup antigo: sem o campo; restaura igual e o modelo é o de "gasto"
+  const antigo = MV.lerSalvo(JSON.stringify(x), '');
+  assert.equal(antigo.carteiras[1].envios, undefined);
+  assert.deepEqual(MV.resumoBackup(antigo).carteiras.map(c => c.envios), ['gasto', 'gasto']);
+  assert.equal(MV.resumir(antigo).ws[1].M.by['2026-09'].gasto, 500);
+  // a opção muda por editarCarteira, ida e volta
+  let y = MV.editarCarteira(antigo, 'c2', { envios: 'movido' });
+  assert.equal(y.carteiras[1].envios, 'movido');
+  assert.equal(MV.editarCarteira(y, 'c2', { envios: 'gasto' }).carteiras[1].envios, undefined, '"Continua gasto" é reversível: volta ao padrão');
+  assert.throws(() => MV.editarCarteira(y, 'c2', { envios: 'talvez' }), /opção de envios desconhecida/);
+  // backup novo: a opção volta preservada, e o resumo do restaurar a mostra
+  const novo = MV.lerSalvo(JSON.stringify(y), '');
+  assert.equal(novo.carteiras[1].envios, 'movido');
+  assert.deepEqual(MV.resumoBackup(novo).carteiras.map(c => c.envios), ['gasto', 'movido']);
+  const g = MV.resumir(novo).ws[1].M.by['2026-09'];
+  assert.deepEqual([g.gasto, g.movido, g.saldo], [0, 500, -500]);
+  y.carteiras[1].envios = 'sim';
+  assert.throws(() => MV.lerSalvo(JSON.stringify(y), ''), /opção de envios em formato errado/);
+});

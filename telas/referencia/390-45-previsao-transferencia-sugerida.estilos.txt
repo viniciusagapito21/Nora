@@ -1,6 +1,6 @@
-body 1p3ci4m 1ln8j76 1ln8j76
-body>main.wrap 13bo5bf 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin uh0pqd 1yytz64 1yytz64
+body 3fvxza 1ln8j76 1ln8j76
+body>main.wrap 1yamcif 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 1xal40z 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top 1m7ax9p 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div nla6m4 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca cpev7d 1af5xs7 1af5xs7
@@ -524,12 +524,12 @@ body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>div.tri3>di
 body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>div.tri3>div>b.num 1qe9sy 1nr5dxo 1nr5dxo
 body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>div.tri3>div>span nnt4zm 2mxacy 2mxacy
 body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>p.s 1v4dk6t vnygsh vnygsh
-body>main.wrap>section#fin-app.view.fin>section.sec ot6kgu 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section.sec 1mj1aaa 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top 12ld5ik 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top>h2 6wuy74 o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top>span.hint 19n3q3o 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section.sec>div.tw 1vedefb 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table 19wflk0 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw 4amaij 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table 1b7qbps 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead 1hi4wqe 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr 1lxt553 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th 1xv55gl 1qh1isz 1qh1isz
@@ -538,7 +538,7 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th 554
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th.selc gjvk7h 7u301e 7u301e
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th w1et1t 7u301e 7u301e
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th.avg j7aq3r 1n1fvb2 1n1fvb2
-body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody 1kztilb 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody i6yr11 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr p1cjjv 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr>td 1c6tok3 b0gxfb b0gxfb
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr>td>span.rowsw ha9sr8 1kzctkx 1kzctkx
@@ -616,6 +616,13 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.su
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.sub>td.selc w941ap uh0x9y uh0x9y
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.sub>td 96l67 uh0x9y uh0x9y
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.sub>td.avg 1ckylld uh0x9y uh0x9y
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot t2p9j3 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 1wdy140 1rkf4pq 1rkf4pq
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 6suwka 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 6suwka 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td.selc wqq1as 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 1namr8a 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td.avg 141d6xe h0x91d h0x91d
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot t2p9j3 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 1wdy140 1rkf4pq 1rkf4pq
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 6suwka 1svwln9 1svwln9
@@ -940,6 +947,6 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>div.br.end>span
 body>div#toast.toast 14ixo05 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>input#fin-csv.vh ytcei 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh ytcei 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh nrxbl6 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh nrxbl6 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug

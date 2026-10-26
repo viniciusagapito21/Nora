@@ -1,6 +1,6 @@
-body 75ack7 1ln8j76 1ln8j76
-body>main.wrap fjs6wc 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 1airjxg 1yytz64 1yytz64
+body favvvl 1ln8j76 1ln8j76
+body>main.wrap 1wopa06 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin zih36g 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top hxtfdx 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div 1nihfk7 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca tm2cx9 13gxe7u 13gxe7u
@@ -524,12 +524,12 @@ body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>div.tri3>di
 body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>div.tri3>div>b.num ptzp90 1nr5dxo 1nr5dxo
 body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>div.tri3>div>span mi75i2 2mxacy 2mxacy
 body>main.wrap>section#fin-app.view.fin>div.two>section.sec>div.card>p.s jo10f1 vnygsh vnygsh
-body>main.wrap>section#fin-app.view.fin>section.sec 1kzjffc 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section.sec ixopxg 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top y0e8na 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top>h2 6wuy74 o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section.sec>div.sec-top>span.hint 19n3q3o 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section.sec>div.tw 1s6onb 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table 1o7lkn0 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw fnliy3 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table 10qzn48 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead 1fu3h70 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr m26xwp 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th 1m6eso5 1qh1isz 1qh1isz
@@ -538,7 +538,7 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th ht1
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th.selc 1ypa5ba 7u301e 7u301e
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th 1kqrp3x 7u301e 7u301e
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>thead>tr>th.avg p7iwmj 1n1fvb2 1n1fvb2
-body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody 11ncb4l 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody 1h6n45v 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr dwuzkl 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr>td 1gc8dwj b0gxfb b0gxfb
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr>td>span.rowsw ha9sr8 1kzctkx 1kzctkx
@@ -616,6 +616,13 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.su
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.sub>td.selc g3lfku uh0x9y uh0x9y
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.sub>td ri90fr uh0x9y uh0x9y
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot.sub>td.avg cac919 uh0x9y uh0x9y
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot 1qyxrg3 1yvr1sz 1yvr1sz
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 9k6jsk 1rkf4pq 1rkf4pq
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 3kb3vt 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 3kb3vt 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td.selc 16lkha3 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td qkswbo 1svwln9 1svwln9
+body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td.avg 17j77jo h0x91d h0x91d
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot 1qyxrg3 1yvr1sz 1yvr1sz
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 9k6jsk 1rkf4pq 1rkf4pq
 body>main.wrap>section#fin-app.view.fin>section.sec>div.tw>table>tbody>tr.tot>td 3kb3vt 1svwln9 1svwln9
@@ -940,6 +947,6 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>div.br.end>span
 body>div#toast.toast c8u0id 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>input#fin-csv.vh 12gnv9g 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 12gnv9g 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh 8ntvqi 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh 8ntvqi 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 1xksmq8 kiu4ug kiu4ug

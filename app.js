@@ -421,6 +421,7 @@
       checarTransf(w);
       checarImportacao(w.importacao, c.id);
       checarPixTitular(w.pixTitular, c.id);
+      if (w.envios != null && w.envios !== 'gasto' && w.envios !== 'movido') throw new Error('opção de envios em formato errado na carteira ' + c.id);
       return w;
     });
     /* transferência com uma carteira que não existe mais (backup antigo): sai, e a ponta volta ao que era */
@@ -490,6 +491,10 @@
       if (travada) throw new Error('o tipo de extrato não muda depois que há extratos salvos: crie outra carteira');
       c.banco = conferirBanco(d.banco);
     }
+    /* envios para outra conta sua: gasto (padrão, sem o campo) ou dinheiro movido; muda a qualquer hora */
+    if (d.envios === 'movido') c.envios = 'movido';
+    else if (d.envios === 'gasto') delete c.envios;
+    else if (d.envios != null) throw new Error('opção de envios desconhecida: ' + d.envios);
     return comPrincipal(x, x.carteiras.map(function (w) { return w.id === id ? c : w; }), x.ativa);
   }
   function excluirCarteira(x, id) {
@@ -574,7 +579,7 @@
       Object.keys(c.transf || {}).forEach(function (k) { if (c.transf[k].lado === 's') transf++; });
       (c.sugDispensadas || []).forEach(function (k) { disp[k] = 1; });
       return { id: c.id, nome: c.nome, moeda: c.moeda, meses: r.meses, mov: r.mov, de: ps.length ? ps[0].de : null, ate: ps.length ? ps[ps.length - 1].ate : null,
-        trechos: ps.length, colunas: Object.keys(c.importacao || {}).length };
+        trechos: ps.length, colunas: Object.keys(c.importacao || {}).length, envios: c.envios === 'movido' ? 'movido' : 'gasto' };
     });
     return { carteiras: cs, moedaPrincipal: x.config.moedaPrincipal, titular: x.config.titular || '',
       cambios: Object.keys(x.cambios || {}).sort().map(function (m) { return { moeda: m, rate: +x.cambios[m].rate, data: x.cambios[m].data || null }; }),
@@ -661,13 +666,18 @@
      Cada movimento ganha um id (data, descrição, valor e saldo, mais a ordem entre os idênticos: dois cafés iguais
      no mesmo dia são #1 e #2). transf: as transferências confirmadas da carteira, por id; a ponta com marca vira
      "Entre contas suas", qualquer que seja a escolha por descrição */
-  function buildModel(months, over, titular, pais, cats, saldos, transf) {
+  /* opcoes.envios === 'movido': "Envios para outra conta sua" desta carteira é dinheiro movido, não gasto (a
+     categoria fica, para mostrar). movido do mês = o que saiu líquido para outras contas suas: os "Entre contas
+     suas" e, nesse modo, os envios; assim entrou − gastou − guardou − movido é a variação do saldo da conta. */
+  function buildModel(months, over, titular, pais, cats, saldos, transf, opcoes) {
+    var movidos = !!(opcoes && opcoes.envios === 'movido');
     var rows = [], by = {}, txs = [], vistos = {};
     cats = cats || montarCats(null);
     Object.keys(months).sort().forEach(function (m) { months[m].forEach(function (t) {
       var k = txKey(t), r = classify(t, over, titular, pais, cats), tf;
       vistos[k] = (vistos[k] || 0) + 1; r.id = k + '#' + vistos[k];
       if (transf && (tf = transf[r.id])) { r.transf = tf; if (tf.marca) { r.kind = 'interno'; r.cat = null; } }
+      if (movidos && r.kind === 'gasto' && r.cat === 'brasil') r.kind = 'movido';
       txs.push(t); rows.push(r);
     }); });
     rows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
@@ -685,13 +695,14 @@
       }
     }
     rows.forEach(function (r) {
-      var g = by[r.m] || (by[r.m] = { m: r.m, renda: 0, outras: 0, flex: 0, inv: 0, interno: 0, spend: {}, n: 0 });
+      var g = by[r.m] || (by[r.m] = { m: r.m, renda: 0, outras: 0, flex: 0, inv: 0, interno: 0, mov: 0, spend: {}, n: 0 });
       g.n++;
       if (r.kind === 'renda') g.renda += r.a;
       else if (r.kind === 'outras') g.outras += r.a;
       else if (r.kind === 'flex') g.flex += r.a;
       else if (r.kind === 'invest') g.inv += r.a;
       else if (r.kind === 'interno') g.interno += r.a;
+      else if (r.kind === 'movido') g.mov += r.a;
       else g.spend[r.cat] = (g.spend[r.cat] || 0) - r.a;
     });
     var keys = Object.keys(by).sort();
@@ -699,7 +710,9 @@
       var g = by[m]; g.entrou = g.renda + g.outras; g.gasto = 0;
       Object.keys(g.spend).forEach(function (id) { g.gasto += g.spend[id]; });
       g.saved = -(g.flex + g.inv) || 0; /* sem nada guardado, 0 (e não −0) */
-      g.saldo = g.entrou - g.gasto - g.saved;
+      g.movido = -(g.interno + g.mov) || 0;
+      g.envios = (g.spend.brasil || 0) - g.mov; /* envios para outra conta sua, sejam gasto ou dinheiro movido */
+      g.saldo = g.entrou - g.gasto - g.saved - g.movido;
     });
     var lastDate = rows.length ? rows[rows.length - 1].date : '', partial = null;
     if (lastDate) {
@@ -1201,13 +1214,13 @@
   /* meta de gasto da carteira por categoria: a definida, senão a sugestão dos primeiros meses */
   function metaDaCarteira(c, M, cats) {
     var def = (c.metas && c.metas.cats) || {}, sug = sugerirMetas(M, cats);
-    return function (id) { var v = def[id]; return v != null && v !== '' && !isNaN(v) ? +v : (sug ? sug.cats[id] || 0 : 0); };
+    return function (id) { if (id === 'brasil' && c.envios === 'movido') return 0; var v = def[id]; return v != null && v !== '' && !isNaN(v) ? +v : (sug ? sug.cats[id] || 0 : 0); };
   }
   /* cada carteira com o modelo dela, o período importado ("dados até") e o saldo atual (só o da conta).
      faltaCambio: moedas de carteiras com extrato que não têm câmbio; sem elas, nenhum total sai. */
   function resumir(x) {
     var mp = x.config.moedaPrincipal, ws = x.carteiras.map(function (c) {
-      var cats = montarCats(juntarPlan(x.config, c)), M = buildModel(c.months, c.over, x.config.titular, c.pais, cats, { dia: c.saldosDia, ancora: c.ancora }, c.transf);
+      var cats = montarCats(juntarPlan(x.config, c)), M = buildModel(c.months, c.over, x.config.titular, c.pais, cats, { dia: c.saldosDia, ancora: c.ancora }, c.transf, { envios: c.envios });
       var ps = c.periodos || periodosMigrados(c), saldo = null;
       if (M.rows.length && !M.semSaldo) {
         var r = M.rows[M.rows.length - 1], ks = Object.keys(c.saldosDia || {}).sort(), u = ks[ks.length - 1];
@@ -1238,11 +1251,11 @@
     });
     var total = null;
     if (!R.faltaCambio.length) {
-      total = { entrou: 0, gasto: 0, saved: 0, saldo: 0, spend: {} };
+      total = { entrou: 0, gasto: 0, saved: 0, movido: 0, saldo: 0, spend: {} };
       por.forEach(function (p) {
         if (!p.g) return;
         var cv = function (v) { return paraPrincipal(v, p.w.moeda, x); };
-        ['entrou', 'gasto', 'saved', 'saldo'].forEach(function (k) { total[k] += cv(p.g[k]); });
+        ['entrou', 'gasto', 'saved', 'movido', 'saldo'].forEach(function (k) { total[k] += cv(p.g[k]); });
         Object.keys(p.g.spend).forEach(function (id) { total.spend[id] = (total.spend[id] || 0) + cv(p.g.spend[id]); });
       });
     }
@@ -1263,7 +1276,7 @@
       var q = { w: w, gasto: cv(P.gasto), proj: cv(P.proj), meta: cv(meta), dia: P.day, cedo: P.day < o.dia, pend: 0, nPend: 0 };
       var rs = sug ? saidasPendentes(sug, w.id, R.partial) : [];
       if (rs.length) {
-        var M2 = buildModel(w.c.months, w.c.over, x.config.titular, w.c.pais, w.cats, { dia: w.c.saldosDia, ancora: w.c.ancora }, comPendentes(w.c.transf, rs));
+        var M2 = buildModel(w.c.months, w.c.over, x.config.titular, w.c.pais, w.cats, { dia: w.c.saldosDia, ancora: w.c.ancora }, comPendentes(w.c.transf, rs), { envios: w.c.envios });
         q.pend = Math.max(0, q.proj - cv(preverMes(ate(M2), mf, w.cats).proj)); q.nPend = rs.length;
       }
       o.gasto += q.gasto; o.proj += q.proj; o.meta += q.meta; o.falFix += cv(P.falFix); o.pend += q.pend; o.nPend += q.nPend; o.por.push(q);
@@ -1295,7 +1308,7 @@
      próximas e, no empate, o de valor mais próximo. */
   var TRANSF_FOLGA = { mesma: { valor: 0.01, dias: 3 }, outra: { valor: 0.06, dias: 5 } };
   function chavePar(sc, sid, ec, eid) { return JSON.stringify([sc, sid, ec, eid]); }
-  function saidaCandidata(r) { return r.a < 0 && !r.transf && (r.kind === 'interno' || (r.kind === 'gasto' && (r.cat === 'brasil' || r.cat === 'outros'))); }
+  function saidaCandidata(r) { return r.a < 0 && !r.transf && (r.kind === 'interno' || r.kind === 'movido' || (r.kind === 'gasto' && (r.cat === 'brasil' || r.cat === 'outros'))); }
   function entradaCandidata(r) { return r.a > 0 && !r.transf && (r.kind === 'interno' || r.kind === 'renda' || r.kind === 'outras'); }
   function diasEntre(a, b) { return Math.round(Math.abs(Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / DIA_MS); }
   /* R = resumir(x). Devolve { pares: [{ chave, s: { w, r }, e: { w, r }, dias, dif, moedas, ja: 's' | 'e' | null }]
@@ -1439,7 +1452,9 @@
   /* meta definida pela pessoa; sem ela, a sugestão dos primeiros meses (SUG); sem extrato, zero */
   function metaDefinida(id) { var p = S.plan && S.plan.cats; return p && p[id] != null && p[id] !== '' && !isNaN(p[id]) ? +p[id] : null; }
   function pouparDefinido() { var v = S.plan && S.plan.poupar; return v != null && v !== '' && !isNaN(v) ? +v : null; }
-  function planCat(id) { var v = metaDefinida(id); return v != null ? v : (SUG ? SUG.cats[id] : 0); }
+  function enviosMovidos() { var c = cartAtual(); return !!(c && c.envios === 'movido'); }
+  /* em "dinheiro movido", envios para outra conta sua não são gasto: a meta deles não entra na meta do mês */
+  function planCat(id) { if (id === 'brasil' && enviosMovidos()) return 0; var v = metaDefinida(id); return v != null ? v : (SUG ? SUG.cats[id] : 0); }
   function planPoupar() { var v = pouparDefinido(); return v != null ? v : (SUG ? SUG.poupar : 0); }
   function catPor(id) { return CPOR[id] || CPOR.outros; }
   function catNome(c) { return CPOR[c.id] ? CPOR[c.id].nome : c.nome; }
@@ -1451,7 +1466,7 @@
   }
   function metasCampos(pre) {
     var h = '';
-    CATSV.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, catNome(c), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
+    CATSV.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, catNome(c) + (c.id === 'brasil' && enviosMovidos() ? ' (dinheiro movido nesta carteira: não conta como gasto)' : ''), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
     return h + metaCampo('fin-' + pre + '-poupar', 'Guardar por mês', pouparDefinido(), SUG ? SUG.poupar : null);
   }
   function lerMeta(id) { var v = $(id).value.trim(); return v === '' || isNaN(v) ? null : Math.max(0, +v); }
@@ -1467,13 +1482,13 @@
   function avgKeys() { return M.complete.length ? M.complete : M.keys; }
   function periodKeys() { return S.sel === 'all' ? avgKeys() : (M.by[S.sel] ? [S.sel] : []); }
   function periodStats() {
-    var ks = periodKeys(), n = ks.length || 1, o = { entrou: 0, gasto: 0, saved: 0, saldo: 0, spend: {}, n: ks.length };
+    var ks = periodKeys(), n = ks.length || 1, o = { entrou: 0, gasto: 0, saved: 0, movido: 0, saldo: 0, spend: {}, n: ks.length };
     ks.forEach(function (k) {
-      var g = M.by[k]; o.entrou += g.entrou; o.gasto += g.gasto; o.saved += g.saved; o.saldo += g.saldo;
+      var g = M.by[k]; o.entrou += g.entrou; o.gasto += g.gasto; o.saved += g.saved; o.movido += g.movido; o.saldo += g.saldo;
       CATSV.forEach(function (c) { o.spend[c.id] = (o.spend[c.id] || 0) + (g.spend[c.id] || 0); });
     });
     if (S.sel === 'all') {
-      o.entrou /= n; o.gasto /= n; o.saved /= n; o.saldo /= n;
+      o.entrou /= n; o.gasto /= n; o.saved /= n; o.movido /= n; o.saldo /= n;
       CATSV.forEach(function (c) { o.spend[c.id] /= n; });
     }
     return o;
@@ -1563,7 +1578,7 @@
     CATST = montarCats(S.plan); CATSV = CATST.filter(function (c) { return !c.oculta; }); CPOR = {};
     CATST.forEach(function (c) { CPOR[c.id] = c; });
     var cw = cartAtual();
-    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, cw ? { dia: cw.saldosDia, ancora: cw.ancora } : null, cw && cw.transf);
+    M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, cw ? { dia: cw.saldosDia, ancora: cw.ancora } : null, cw && cw.transf, cw && { envios: cw.envios });
     SUG = sugerirMetas(M, CATST);
     RECS = detectarRecorrentes(M);
     if (S.sel !== 'all' && !M.by[S.sel]) S.sel = M.complete.length ? M.complete[M.complete.length - 1] : (M.keys.length ? M.keys[M.keys.length - 1] : null);
@@ -1781,7 +1796,7 @@
     if (T) {
       var n = Q.por.filter(function (p) { return p.g; }).length, sub = n === 1 ? 'só ' + esc(Q.por.filter(function (p) { return p.g; })[0].w.nome) : 'soma de ' + n + ' carteiras';
       h += '<div class="kpis">' + [['Entrou', T.entrou, 0], ['Gastou', T.gasto, 0], ['Guardou', T.saved, 0], ['Saldo do mês', T.saldo, 1]].map(function (t) {
-        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[0] === 'Gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? 'entrou − gastou − guardou' : sub) + '</span></div>';
+        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[0] === 'Gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? (Math.abs(T.movido) >= 0.5 ? 'entrou − gastou − guardou − movido<br>' + fraseMovido(T.movido, function (v) { return ap + fP0(v); }) : 'entrou − gastou − guardou') : sub) + '</span></div>';
       }).join('') + '</div>' +
         '<details class="metas" id="fin-rpor"' + (S.rPor ? ' open' : '') + '><summary>Por carteira, cada uma na moeda dela</summary>' + tabelaPorCarteira(Q) + '</details>';
     } else h += '<p class="passo">Sem total enquanto falta câmbio. Cada carteira, na moeda dela:</p>' + tabelaPorCarteira(Q);
@@ -1800,6 +1815,8 @@
     var c = CATST.filter(function (x) { return x.id === 'brasil'; })[0], nome = c ? catNome(c) : 'Envios para outra conta sua';
     return nome === 'Envios para outra conta sua' ? 'envios para outra conta sua' : '"' + nome + '"';
   }
+  /* movido > 0: saiu mais para outras contas suas do que entrou delas (mesma convenção do "Guardou") */
+  function fraseMovido(v, fmt) { return v > 0 ? 'saíram ' + fmt(v) + ' para outras contas suas' : 'entraram ' + fmt(-v) + ' de outras contas suas'; }
   function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend">inclui ' + (media ? 'em média ' : '') + fmt(v) + ' de ' + esc(nomeEnvios()) + '</p>'; }
   function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">inclui ' + fmt(pend) + ' a confirmar</p>'; }
   function pendFrase(pend, n, fmt) {
@@ -1974,7 +1991,8 @@
         '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + GENERICO + '</small></label>' +
         '<label>Moeda da conta<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
         (trava ? '' : '<small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small>') + '</label>' +
-        '<label>País<select id="' + k + '-pais">' + opcoes(PAISES, c.pais) + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label></div>' +
+        '<label>País<select id="' + k + '-pais">' + opcoes(PAISES, c.pais) + '</select><small>Escolhe as regras que reconhecem lojas e serviços.</small></label>' +
+        '<label>' + esc(catNome(catPor('brasil'))) + '<select id="' + k + '-envios">' + opcoes([['gasto', 'Contam como gasto'], ['movido', 'Dinheiro movido, não gasto']], c.envios === 'movido' ? 'movido' : 'gasto') + '</select><small>Enviar dinheiro para pagar contas em outro país é gasto; se ele só mudou de conta, escolha "dinheiro movido". Muda quando quiser.</small></label></div>' +
         (trava ? '<p class="passo" id="' + k + '-trava">Extrato e moeda não mudam depois que há extratos salvos nesta carteira: os valores estão em ' + esc(nomeMoeda(c.moeda)) + ' e não seriam convertidos. Para outro banco ou outra moeda, crie outra carteira.</p>' : '') +
         '<p class="aviso" id="' + k + '-aviso"' + (temRegras(c.pais) ? ' hidden' : '') + '>' + avisoSuporte(c.pais) + '</p></div>';
     });
@@ -1999,7 +2017,7 @@
   }
   function lerCarteira(id) {
     var k = '#fin-w-' + id, mo = $(k + '-moeda'), bc = $(k + '-banco');
-    return { nome: $(k + '-nome').value, pais: $(k + '-pais').value, moeda: mo.disabled ? undefined : mo.value, banco: bc.disabled ? undefined : bc.value };
+    return { nome: $(k + '-nome').value, pais: $(k + '-pais').value, moeda: mo.disabled ? undefined : mo.value, banco: bc.disabled ? undefined : bc.value, envios: $(k + '-envios') ? $(k + '-envios').value : undefined };
   }
   /* ---------- importador genérico: prévia e perguntas ---------- */
   /* cada escolha na tela refaz a prévia; trocar codificação ou separador relê o arquivo e refaz as sugestões */
@@ -2376,6 +2394,8 @@
     if (B.transf || B.dispensadas) extra.push([B.transf ? B.transf + (B.transf === 1 ? ' transferência entre carteiras confirmada' : ' transferências entre carteiras confirmadas') : '',
       B.dispensadas ? B.dispensadas + (B.dispensadas === 1 ? ' sugestão dispensada' : ' sugestões dispensadas') : ''].filter(Boolean).join(' e ') + '.');
     var col = B.carteiras.filter(function (c) { return c.colunas; });
+    var mv = B.carteiras.filter(function (c) { return c.envios === 'movido'; });
+    if (mv.length) extra.push('Envios para outra conta sua contam como dinheiro movido (não gasto) em ' + esc(nomes(mv.map(function (c) { return c.nome; }))) + '.');
     if (col.length) extra.push('Colunas do importador lembradas para ' + esc(nomes(col.map(function (c) { return c.nome; }))) + '.');
     return '<section class="sec"><div class="sec-top"><h2>Restaurar backup</h2><span class="hint">' + esc(R.nome) + '</span></div><div class="card ggrid">' +
       '<p>No arquivo: <b>' + (B.carteiras.length === 1 ? 'uma carteira' : B.carteiras.length + ' carteiras') + '</b>, somas em ' + esc(nomeMoeda(mp)) + (B.titular ? ', titular ' + esc(B.titular) : '') + '.</p>' +
@@ -2426,7 +2446,7 @@
       ['Entrou', s.entrou, all ? (aE == null ? '' : 'só meses com renda') : (aE == null ? '' : dl(s.entrou, aE, true, 'da média') + '<br>média ' + f0(aE)), ''],
       ['Gastou', s.gasto, (all ? '' : (aG == null ? '' : dl(s.gasto, aG, false, 'da média') + '<br>')) + dl(s.gasto, pt, false, 'da meta') + ' de ' + f0(pt), ''],
       ['Guardou', s.saved, dl(s.saved, pp, true, 'da meta') + ' de ' + f0(pp) + '<br>reserva e investimentos', ''],
-      ['Saldo do mês', s.saldo, 'entrou − gastou − guardou', 'sg']
+      ['Saldo do mês', s.saldo, Math.abs(s.movido) >= 0.5 ? 'entrou − gastou − guardou − movido<br>' + fraseMovido(s.movido, f0) : 'entrou − gastou − guardou', 'sg']
     ];
     var h = '<section class="sec"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2><button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + (all ? 'Voltar ao mês' : 'Ver média de todos os meses') + '</button></div><div class="kpis">';
     tiles.forEach(function (t) {
@@ -2490,7 +2510,7 @@
   }
   function tagOf(r) {
     if (r.kind === 'gasto') { var c = catPor(r.cat); return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)); }
-    var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas suas' }[r.kind];
+    var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas suas', movido: 'Movido para outra conta sua' }[r.kind];
     return '<i class="sw" style="background:var(--muted)"></i>' + t;
   }
   /* filtro de várias escolhas: sem nada marcado mostra tudo; com marcas, mostra o que casa com qualquer uma */
@@ -2498,7 +2518,7 @@
     var f = S.f, i;
     if (!f.length) return true;
     for (i = 0; i < f.length; i++) {
-      if (f[i] === '_in' ? (r.kind === 'renda' || r.kind === 'outras') : f[i] === '_sav' ? (r.kind === 'flex' || r.kind === 'invest') : (r.kind === 'gasto' && r.cat === f[i])) return true;
+      if (f[i] === '_in' ? (r.kind === 'renda' || r.kind === 'outras') : f[i] === '_sav' ? (r.kind === 'flex' || r.kind === 'invest') : ((r.kind === 'gasto' || r.kind === 'movido') && r.cat === f[i])) return true;
     }
     return false;
   }
@@ -2548,6 +2568,7 @@
     if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line('dos quais ' + esc(nomeEnvios()), function (g) { return g.spend.brasil || 0; }, ' sub');
     h += line('Entrou', function (g) { return g.entrou; });
     h += line('Guardou', function (g) { return g.saved; });
+    if (ks.some(function (k) { return Math.abs(M.by[k].movido) >= 0.5; })) h += line('Movido para outras contas suas', function (g) { return g.movido; });
     h += line('Saldo do mês', function (g) { return g.saldo; });
     return h + '</tbody></table></div></section>';
   }
@@ -2707,7 +2728,7 @@
     var rows = M.rows;
     if (!rows.length) return '';
     var first = rows[0], last = rows[rows.length - 1], open = M.semSaldo ? null : first.bal - first.a, cur = M.semSaldo ? null : last.bal;
-    var T = { renda: 0, outras: 0, interno: 0, flex: 0, invest: 0, gasto: 0 }, cat = {};
+    var T = { renda: 0, outras: 0, interno: 0, movido: 0, flex: 0, invest: 0, gasto: 0 }, cat = {};
     rows.forEach(function (r) {
       if (r.kind === 'gasto') { T.gasto -= r.a; cat[r.cat] = (cat[r.cat] || 0) - r.a; } else T[r.kind] += r.a;
     });
@@ -2716,6 +2737,7 @@
       { l: 'Outras entradas', v: T.outras }
     ]);
     if (Math.abs(T.interno) >= .5) items.push({ l: 'Entre contas suas', v: T.interno });
+    if (Math.abs(T.movido) >= .5) items.push({ l: 'Movido para outras contas suas (líquido)', v: T.movido });
     items.push({ l: T.flex <= 0 ? 'Enviado ao Flexible Cash (líquido)' : 'Retirado do Flexible Cash (líquido)', v: T.flex });
     items.push({ l: 'Investimentos e cripto (líquido)', v: T.invest });
     items.push({ l: 'Gastos (já descontados os reembolsos)', v: -T.gasto, cats: true });
@@ -2872,7 +2894,7 @@
         if (c.banco !== 'revolut' || goalFalta) return;
         var v = 0;
         if (c.summary) v = g.src === 'flex' ? (c.summary.flex || 0) / 100 : ((c.summary.invest || 0) + (c.summary.cripto || 0)) / 100;
-        else { buildModel(c.months, c.over, S.plan && S.plan.titular, c.pais, CATST).rows.forEach(function (r) { if (r.kind === g.src) v -= r.a; }); v = Math.max(0, v); }
+        else { buildModel(c.months, c.over, S.plan && S.plan.titular, c.pais, CATST, null, null, { envios: c.envios }).rows.forEach(function (r) { if (r.kind === g.src) v -= r.a; }); v = Math.max(0, v); }
         var p = paraPrincipal(v, c.moeda, x);
         if (p == null) goalFalta = c.moeda; else t += p;
       });
@@ -2930,7 +2952,7 @@
     var P = preverMes(M, planCat, CATST), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
     var proj = P.proj, falFix = P.falFix, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
     var mx = Math.max(proj, meta, g.gasto, 1), cw = cartAtual(), rs = TR && cw ? saidasPendentes(TR.S, cw.id, cur) : [], pend = 0;
-    if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs)), planCat, CATST).proj);
+    if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs), { envios: cw.envios }), planCat, CATST).proj);
     var st = statusPrevisao(dif, pend, f0);
     return h + '<span class="hint">até dia ' + day + ' de ' + dim + ' · ' + left + ' dias pela frente</span></div><div class="card prv">' +
       '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">Previsão para ' + esc(MES[p[1] - 1]) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + f0(meta) + '</p></div></div>' +
@@ -2971,8 +2993,8 @@
   }
   function enviosBrasil() {
     var ks = M.keys.slice(-6), ano = (M.lastDate || '').slice(0, 4), totAno = 0, sAvg = 0, nAvg = 0;
-    M.keys.forEach(function (k) { var v = M.by[k].spend.brasil || 0; if (k.slice(0, 4) === ano) totAno += v; if (k !== M.partial) { sAvg += v; nAvg++; } });
-    var items = ks.map(function (k) { return { k: k, v: M.by[k].spend.brasil || 0, at: k === ks[ks.length - 1], parc: k === M.partial }; });
+    M.keys.forEach(function (k) { var v = M.by[k].envios || 0; if (k.slice(0, 4) === ano) totAno += v; if (k !== M.partial) { sAvg += v; nAvg++; } });
+    var items = ks.map(function (k) { return { k: k, v: M.by[k].envios || 0, at: k === ks[ks.length - 1], parc: k === M.partial }; });
     return '<section class="sec"><div class="sec-top"><h2>' + esc(catPor('brasil').nome) + '</h2><span class="hint">dinheiro que vai para outra conta sua</span></div><div class="card">' + vbars(items, f0) +
       '<div class="tri3"><div><b class="num">' + f0(nAvg ? sAvg / nAvg : 0) + '</b><span>média por mês</span></div><div><b class="num">' + f0(totAno) + '</b><span>em ' + esc(ano) + '</span></div><div><b class="num">' + f0(planCat('brasil')) + '</b><span>meta mensal</span></div></div>' +
       (M.partial ? '<p class="s">* mês em andamento</p>' : '') + '</div></section>';

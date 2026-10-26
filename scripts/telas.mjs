@@ -134,11 +134,18 @@ const PDF_SENHA = pdf('extrato-com-senha.pdf', pdfAMao([{ textos: [{ s: 'Extrato
 const PDF_DESCONHECIDO = pdf('fatura-cartao.pdf', pdfAMao([{ textos: [{ s: 'Fatura do cartão EXEMPLO', x: 40, y: 80 }, { s: 'Total a pagar', x: 40, y: 100 }, { s: '1.234,56', dir: 300, y: 100 }] }]));
 // com o extrato do Itaú já importado (lido pelo próprio leitor), sem nenhuma sugestão aplicada
 const IT = new Function(core + '; return { LEITORES, lerPdf, tabelaDoPdf };')();
-const itauLido = IT.LEITORES.itau.ler(IT.tabelaDoPdf(await IT.lerPdf(await carregarPdfjs(), new Uint8Array(ITAU_PDF.buffer))).linhas, 'BRL', {});
-const comItau = comMeses => {
+const itauPaginas = await IT.lerPdf(await carregarPdfjs(), new Uint8Array(ITAU_PDF.buffer));
+const itauLido = IT.LEITORES.itau.ler(IT.tabelaDoPdf(itauPaginas).linhas, 'BRL', {});
+// opcoes.movido: Pix para a titular marcados (sugestão aplicada) e envios como "dinheiro movido", com câmbio do real
+const comItau = (comMeses, opcoes = {}) => {
   let x = api.migrate(JSON.parse(JSON.stringify(comDados)));
   x = api.novaCarteira(x, { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
   x.config.titular = 'Maria Exemplo';
+  if (opcoes.movido) {
+    const L = IT.LEITORES.itau.ler(IT.tabelaDoPdf(itauPaginas).linhas, 'BRL', { titular: 'Maria Exemplo' }), c = x.carteiras[1];
+    c.over = {}; c.pixTitular = L.sugestoes.map(k => { const t = L.tx[k], key = t[1].toUpperCase(); c.over[t[3] > 0 ? '+' + key : key] = t[3] > 0 ? '_ignore' : 'brasil'; return t[3] > 0 ? '+' + key : key; });
+    c.envios = 'movido'; x.cambios = { BRL: { rate: 6.2, data: '2026-10-15' } };
+  }
   if (comMeses) {
     const c = x.carteiras[1];
     itauLido.tx.forEach(t => { (c.months[t[0].slice(0, 7)] = c.months[t[0].slice(0, 7)] || []).push(t); });
@@ -379,6 +386,10 @@ for (const w of [1280, 390]) {
   const abrirPix = async pg => { await pg.click('#fin-revd > summary'); await pg.waitForSelector('#fin-pixtit'); };
   t('60-revisar-pix-titular', { storage: comItau(true), prepara: aba('c2', async pg => { await abrirPix(pg); await pg.click('[data-pixtit-marcar="2026-08"]'); }) });
   t('61-pix-titular-aplicados', { storage: comItau(true), prepara: aba('c2', async pg => { await abrirPix(pg); await pg.check('[data-pixtit="PIX TRANSF MARIA E07/08"]'); await pg.check('[data-pixtit="+PIX TRANSF MARIA E18/08"]'); await pg.click('[data-pixtit-aplicar]'); await pg.waitForSelector('[data-pixtit-desfazer]'); }) });
+  // envios para outra conta sua como "dinheiro movido": a carteira, a opção em Configurações e o Resumo misto
+  t('62-carteira-dinheiro-movido', { storage: comItau(true, { movido: true }), prepara: aba('c2') });
+  t('63-configuracoes-envios-movido', { storage: comItau(true, { movido: true }), prepara: async pg => { await pg.click('[data-fin-setup]'); } });
+  t('64-resumo-gasto-e-movido', { storage: comItau(true, { movido: true }) });
   t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
