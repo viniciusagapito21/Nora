@@ -2846,7 +2846,7 @@
   function diasAte(iso) { return Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(todayIso() + 'T00:00:00Z')) / 86400000); }
   function vencTxt(iso) {
     var n = diasAte(iso);
-    return n === 0 ? 'vence hoje' : n === 1 ? 'vence amanhã' : n > 1 ? 'vence em ' + n + ' dias' : n === -1 ? 'venceu ontem' : 'venceu há ' + (-n) + ' dias';
+    return n === 0 ? tt('obs.venceHoje') : n === 1 ? tt('obs.venceAmanha') : n > 1 ? tt('obs.venceEm', { n: n }) : n === -1 ? tt('obs.venceuOntem') : tt('obs.venceuHa', { n: -n });
   }
   function parseNum(s) {
     s = String(s == null ? '' : s).replace(/[^\d,.\-]/g, '');
@@ -2876,48 +2876,48 @@
     var f0 = fP0, BASE = moedaP(), D = divState(), open = D.items.filter(function (i) { return i.status !== 'paga'; }).sort(function (a, b) { var x = a.venc || '9999', y = b.venc || '9999'; return x < y ? -1 : x > y ? 1 : 0; }), paid = D.items.filter(function (i) { return i.status === 'paga'; });
     var mg = D.margem, porMoeda = {}, te = 0, tr = 0, falta = [], fora = [];
     function taxa(cod) { if (cod === BASE) return 1; var c = D.cambios[cod]; return c && +c.rate > 0 ? +c.rate : 0; }
-    var h = '<section class="sec" id="fin-dividas"><div class="sec-top"><h2>Em observação</h2><span class="hint">pagamentos para fazer</span></div><div class="card dv">';
-    if (!open.length) h += '<p class="vazio dvv">Nenhum pagamento em observação.</p>';
+    var h = '<section class="sec" id="fin-dividas"><div class="sec-top"><h2>' + tth('obs.titulo') + '</h2><span class="hint">' + tth('obs.subtitulo') + '</span></div><div class="card dv">';
+    if (!open.length) h += '<p class="vazio dvv">' + tth('obs.vazio') + '</p>';
     open.forEach(function (it) {
       var cod = it.moeda || BASE, rt = taxa(cod), eur = rt ? it.valor / rt : null, partes = [];
       porMoeda[cod] = (porMoeda[cod] || 0) + it.valor;
       if (cod !== BASE && fora.indexOf(cod) < 0) fora.push(cod);
       if (eur == null) { if (falta.indexOf(cod) < 0) falta.push(cod); } else { te += eur; tr += cod === BASE ? eur : eur * (1 + mg / 100); }
       if (cod !== BASE) partes.push(fMoeda(it.valor, cod));
-      partes.push(it.venc ? '<span class="' + (diasAte(it.venc) <= 7 ? 'urg' : '') + '">' + esc(vencTxt(it.venc)) + ', ' + esc(dFull(it.venc)) + '</span>' : (it.criada ? 'anotada em ' + esc(dFull(it.criada)) : ''));
+      partes.push(it.venc ? '<span class="' + (diasAte(it.venc) <= 7 ? 'urg' : '') + '">' + tth('obs.vencimentoData', { quando: vencTxt(it.venc), data: dFull(it.venc) }) + '</span>' : (it.criada ? tth('obs.anotadaEm', { data: dFull(it.criada) }) : ''));
       h += '<div class="dvr"><div class="n">' + esc(it.nome) + '<small>' + partes.filter(Boolean).join(' · ') + '</small>' + (it.desc ? '<small>' + esc(it.desc) + '</small>' : '') + '</div>' +
-        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>pago em ' + esc(nomeMoeda(BASE)) + ', sem câmbio</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>reservar ' + f0(eur * (1 + mg / 100)) + ' com ' + nn.format(mg) + '% de margem</small>' : '<small>defina o câmbio de ' + esc(cod) + ' abaixo</small>') + '</div>' +
-        '<div class="act"><button type="button" class="btn sm" data-dpay="' + esc(it.id) + '" aria-label="Marcar ' + esc(it.nome) + ' como paga">Paguei</button><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
+        '<div class="v">' + (cod === BASE ? '<b class="num">' + f0(eur) + '</b><small>' + tth('obs.pagoEmMoeda', { moeda: nomeMoeda(BASE) }) + '</small>' : eur != null ? '<b class="num">≈ ' + f0(eur) + '</b><small>' + tth('obs.reservarComMargem', { valor: f0(eur * (1 + mg / 100)), margem: nn.format(mg) }) + '</small>' : '<small>' + tth('obs.definaCambio', { moeda: cod }) + '</small>') + '</div>' +
+        '<div class="act"><button type="button" class="btn sm" data-dpay="' + esc(it.id) + '" aria-label="' + tth('obs.marcarPaga', { nome: it.nome }) + '">' + tth('obs.paguei') + '</button><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="' + tth('comum.removerNome', { nome: it.nome }) + '">' + tth('comum.remover') + '</button></div></div>';
     });
-    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">Total<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? f0(porMoeda[c]) + ' em ' + esc(nomeMoeda(BASE)) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>reservar ' + f0(tr) + '</small>' : '') + '</div></div>';
+    if (open.length > 1) h += '<div class="dvr dvt"><div class="n">' + tth('comum.total') + '<small>' + Object.keys(porMoeda).map(function (c) { return c === BASE ? tth('obs.valorEmMoeda', { valor: f0(porMoeda[c]), moeda: nomeMoeda(BASE) }) : fMoeda(porMoeda[c], c); }).join(' · ') + '</small></div><div class="v">' + (!falta.length ? '<b class="num">' + (fora.length ? '≈ ' : '') + f0(te) + '</b><small>' + tth('obs.reservar', { valor: f0(tr) }) + '</small>' : '') + '</div></div>';
     /* o saldo da conta só se compara quando está na mesma moeda */
     if (open.length && !falta.length && moeda() === BASE && !emResumo()) {
-      var cur = M.rows.length && !M.semSaldo ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' (posição de ' + dFmt(sm.asOf) + ')' : '';
+      var cur = M.rows.length && !M.semSaldo ? M.rows[M.rows.length - 1].bal : null, sm = S.summary, flex = sm && sm.flex ? sm.flex / 100 : 0, pos = sm && sm.asOf ? ' ' + tt('obs.posicao', { data: dFmt(sm.asOf) }) : '';
       if (cur != null) {
         var msg;
-        if (cur >= tr) msg = 'O saldo da conta (' + f0(cur) + ') já cobre o valor reservado' + pos + '.';
-        else if (flex > 0 && Math.round(cur) + Math.round(flex) >= Math.round(tr)) msg = 'A conta tem ' + f0(cur) + ' e faltam ' + f0(Math.round(tr) - Math.round(cur)) + ' para cobrir o valor reservado. O Flexible Cash (' + f0(flex) + ') cobre a diferença' + pos + '.';
-        else if (flex > 0) msg = 'A conta (' + f0(cur) + ') e o Flexible Cash (' + f0(flex) + ') somam ' + f0(Math.round(cur) + Math.round(flex)) + '; ainda faltam ' + f0(Math.round(tr) - Math.round(cur) - Math.round(flex)) + ' para cobrir tudo' + pos + '.';
-        else msg = 'A conta tem ' + f0(cur) + '; faltam ' + f0(Math.round(tr) - Math.round(cur)) + ' para cobrir o valor reservado' + pos + '.';
+        if (cur >= tr) msg = tth('obs.saldoCobre', { saldo: f0(cur), pos: pos });
+        else if (flex > 0 && Math.round(cur) + Math.round(flex) >= Math.round(tr)) msg = tth('obs.flexCobre', { saldo: f0(cur), falta: f0(Math.round(tr) - Math.round(cur)), flex: f0(flex), pos: pos });
+        else if (flex > 0) msg = tth('obs.contaEFlexFaltam', { saldo: f0(cur), flex: f0(flex), soma: f0(Math.round(cur) + Math.round(flex)), falta: f0(Math.round(tr) - Math.round(cur) - Math.round(flex)), pos: pos });
+        else msg = tth('obs.faltam', { saldo: f0(cur), falta: f0(Math.round(tr) - Math.round(cur)), pos: pos });
         h += '<p class="dvn">' + msg + '</p>';
       }
     }
     /* câmbio só das moedas dos pagamentos em aberto; nada é buscado na internet */
     if (fora.length) {
-      h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (falta.length ? 'Definir câmbio (' + esc(falta.join(', ')) + ')' : resumoCambio(fora)) + '</summary>' +
+      h += '<details class="metas" id="fin-dcamb"' + (S.dCamb ? ' open' : '') + '><summary>' + (falta.length ? tth('obs.definirCambio', { moedas: falta.join(', ') }) : resumoCambio(fora)) + '</summary>' +
         '<form id="fin-fcamb"><div class="mgrid">' + camposCambio(fora, 'camb') +
-        '<label>Margem para taxa e câmbio (%)<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">Atualizar câmbio</button></form></details>';
+        '<label>' + tth('obs.margem') + '<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">' + tth('obs.atualizarCambio') + '</button></form></details>';
     }
-    h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>Adicionar pagamento</summary><form id="fin-fdiv"><div class="mgrid"><label>Nome<input id="fin-d-nome" type="text" placeholder="Ex.: banco ou escola" autocomplete="off"></label>' +
-      '<label>Valor<input id="fin-d-valor" type="text" inputmode="decimal" placeholder="3.700,00" autocomplete="off"></label>' +
-      '<label>Moeda<select id="fin-d-cur">' + opcoes(MOEDAS, BASE) + '<option value="outra">Outra…</option></select></label>' +
-      '<label id="fin-d-outra-l" hidden>Código da moeda<input id="fin-d-outra" type="text" maxlength="3" placeholder="Ex.: CHF" autocomplete="off" autocapitalize="characters"></label>' +
-      '<label>Vencimento (opcional)<input id="fin-d-venc" type="date"></label>' +
-      '<label>Descrição (opcional)<input id="fin-d-desc" type="text" placeholder="Ex.: Parcela 4/5" autocomplete="off"></label></div><button class="btn sm pri" type="submit">Adicionar</button></form></details>';
+    h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>' + tth('obs.adicionarPagamento') + '</summary><form id="fin-fdiv"><div class="mgrid"><label>' + tth('comum.nome') + '<input id="fin-d-nome" type="text" placeholder="' + tth('obs.exNome') + '" autocomplete="off"></label>' +
+      '<label>' + tth('comum.valor') + '<input id="fin-d-valor" type="text" inputmode="decimal" placeholder="3.700,00" autocomplete="off"></label>' +
+      '<label>' + tth('comum.moeda') + '<select id="fin-d-cur">' + opcoes(MOEDAS, BASE) + '<option value="outra">' + tth('obs.outraMoeda') + '</option></select></label>' +
+      '<label id="fin-d-outra-l" hidden>' + tth('obs.codigoMoeda') + '<input id="fin-d-outra" type="text" maxlength="3" placeholder="' + tth('obs.exCodigo') + '" autocomplete="off" autocapitalize="characters"></label>' +
+      '<label>' + tth('obs.vencimentoOpcional') + '<input id="fin-d-venc" type="date"></label>' +
+      '<label>' + tth('obs.descricaoOpcional') + '<input id="fin-d-desc" type="text" placeholder="' + tth('obs.exDescricao') + '" autocomplete="off"></label></div><button class="btn sm pri" type="submit">' + tth('comum.adicionar') + '</button></form></details>';
     if (paid.length) {
-      h += '<details class="metas" id="fin-dpaid"' + (S.dPaid ? ' open' : '') + '><summary>Pagas (' + paid.length + ')</summary>';
+      h += '<details class="metas" id="fin-dpaid"' + (S.dPaid ? ' open' : '') + '><summary>' + tth('obs.pagas', { n: paid.length }) + '</summary>';
       paid.forEach(function (it) {
-        h += '<div class="dvr paga"><div class="n">' + esc(it.nome) + '<small>' + ((it.moeda || BASE) === BASE ? f0(it.valor || 0) : fMoeda(it.valor, it.moeda)) + (it.pagaEm ? ' · paga em ' + esc(dFull(it.pagaEm)) : '') + '</small></div><div></div><div class="act"><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="Remover ' + esc(it.nome) + '">Remover</button></div></div>';
+        h += '<div class="dvr paga"><div class="n">' + esc(it.nome) + '<small>' + ((it.moeda || BASE) === BASE ? f0(it.valor || 0) : fMoeda(it.valor, it.moeda)) + (it.pagaEm ? ' · ' + tth('obs.pagaEm', { data: dFull(it.pagaEm) }) : '') + '</small></div><div></div><div class="act"><button type="button" class="btn sm" data-ddel="' + esc(it.id) + '" aria-label="' + tth('comum.removerNome', { nome: it.nome }) + '">' + tth('comum.remover') + '</button></div></div>';
       });
       h += '</details>';
     }

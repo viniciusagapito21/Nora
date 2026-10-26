@@ -14,6 +14,7 @@ const D = JSON.parse(JSON.stringify(vm.runInContext('NORA_DICIONARIOS', ctx)));
 // funções do app.js cujas áreas já foram extraídas: cresce a cada commit do passo d; no fim, o arquivo todo
 const AREAS_FEITAS = {
   'dicas do gráfico': ['tipHtml', 'showTip', 'placeTip', 'hideTip'],
+  'em observação': ['vencTxt', 'divState', 'divMut', 'dividas'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
