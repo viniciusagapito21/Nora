@@ -1876,7 +1876,12 @@ test('Itaú: tipos pelos nomes do extrato (rendimento, investimento, fatura, est
   assert.equal(cl(L.tx.find(t => t[1] === 'APLICACAO CDB EXEMPLO')).kind, 'invest');
   for (const d of ['RESGATE CDB', 'INT RESGATE']) { const t = L.tx.find(x => x[1].startsWith(d)); assert.equal(cl(t).kind, 'invest'); assert.equal(cl(t).autoE, '_invest', d + ': Resgate de investimento'); }
   for (const d of ['CARTAO EXEMPLOAZUL MC', 'FATURAEXEMPLO ITAU MC', 'INT EXEMPLO AZUL MC']) { const t = L.tx.find(x => x[1] === d); assert.equal(t[2], 'Fatura', d); assert.equal(cl(t).cat, 'outros'); }
-  assert.equal(L.tx.find(t => t[1] === 'INT ITAU CLICK')[2], 'Others', 'INT ITAU CLICK fica no caminho genérico');
+  // ITAU CLICK (fatura do cartão Itaú Click), com as palavras coladas como no extrato
+  const click = L.tx.find(t => t[1] === 'INT EXEMPLO ITAUCLICK');
+  assert.equal(click[2], 'Fatura'); assert.equal(cl(click).cat, 'outros', 'fatura: Pessoas, taxas e outros');
+  const tipoDe = d => I.LEITORES.itau.ler([['período de visualização: 01/08/2026 até 15/10/2026'], ['data', 'lançamentos', 'valor (R$)', 'saldo (R$)'], ['02/08/2026', d, '-10,00', ''], ['02/08/2026', 'SALDO DO DIA', '', '90,00']], 'BRL', {}).tx[0][2];
+  for (const d of ['INT ITAU CLICK EXEMPLO', 'PAG ITAUCLICK EXEMPLO', 'INT ITAÚ CLICK', 'itau click exemplo']) assert.equal(tipoDe(d), 'Fatura', d);
+  for (const d of ['CLICK EXEMPLO', 'INT ITAU EXEMPLO', 'ITAU CLIQUE EXEMPLO']) assert.equal(tipoDe(d), 'Others', d + ': não é ITAU CLICK');
   // estorno de débito automático: só com o DA do mesmo dia, empresa e valor; volta na mesma categoria
   const da = L.tx.find(t => t[0] === '2026-08-03' && t[1].startsWith('DA ')), est = L.tx.find(t => t[0] === '2026-08-03' && t[1].startsWith('EST '));
   assert.equal(est[2], 'Estorno'); assert.equal(cl(est).kind, 'gasto'); assert.equal(cl(est).cat, cl(da).cat, 'mesma categoria do débito');

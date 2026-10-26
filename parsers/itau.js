@@ -9,9 +9,10 @@
    - O tipo vem do começo da descrição, só com nomes vistos no extrato real:
      REND PAGO, COR DIVIDENDOS e COR JSCP: Rendimento (Outras entradas);
      APLICACAO CDB: Invest (saída, guardado); RESGATE CDB e INT RESGATE: Invest (entrada, resgate);
-     FATURA ou AZUL MC em qualquer parte (as palavras vêm coladas, como "FATURAAZUL"): Fatura;
+     FATURA, AZUL MC ou ITAU CLICK em qualquer parte (as palavras vêm coladas, como "FATURAAZUL"): Fatura
+     (INT ITAU CLICK é o pagamento da fatura do cartão Itaú Click, confirmado pelo autor);
      EST com um DA do mesmo dia, mesma empresa e mesmo valor: Estorno (devolução na categoria do débito).
-     O resto (PIX, TED, DA, INT ITAU CLICK, nomes desconhecidos) fica Others: caminho genérico.
+     O resto (PIX, TED, DA, nomes desconhecidos) fica Others: caminho genérico.
    - Pix para o titular: só SUGESTÃO, quando o nome cortado do Pix ("PIX TRANSF MARIA E07/08") tem 5 letras ou
      mais e é o começo do nome do titular configurado (sem acento, sem diferenciar maiúsculas, sem espaços). */
 var LEITOR_ITAU = function (ajuda) {
@@ -23,7 +24,7 @@ var LEITOR_ITAU = function (ajuda) {
     var d = n(desc);
     if (/^(REND PAGO|COR DIVIDENDOS|COR JSCP)\b/.test(d)) return 'Rendimento';
     if (/^(APLICACAO CDB|RESGATE CDB|INT RESGATE)\b/.test(d)) return 'Invest';
-    if (/FATURA|AZUL MC/.test(d)) return 'Fatura';
+    if (/FATURA|AZUL MC|ITAU ?CLICK/.test(d)) return 'Fatura';
     return 'Others';
   }
   function letras(s) { return n(s).replace(/[^A-Z]/g, ''); }
