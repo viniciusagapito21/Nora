@@ -1781,7 +1781,7 @@
     if (T) {
       var n = Q.por.filter(function (p) { return p.g; }).length, sub = n === 1 ? 'só ' + esc(Q.por.filter(function (p) { return p.g; })[0].w.nome) : 'soma de ' + n + ' carteiras';
       h += '<div class="kpis">' + [['Entrou', T.entrou, 0], ['Gastou', T.gasto, 0], ['Guardou', T.saved, 0], ['Saldo do mês', T.saldo, 1]].map(function (t) {
-        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span><span class="s">' + (t[2] ? 'entrou − gastou − guardou' : sub) + '</span></div>';
+        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[0] === 'Gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? 'entrou − gastou − guardou' : sub) + '</span></div>';
       }).join('') + '</div>' +
         '<details class="metas" id="fin-rpor"' + (S.rPor ? ' open' : '') + '><summary>Por carteira, cada uma na moeda dela</summary>' + tabelaPorCarteira(Q) + '</details>';
     } else h += '<p class="passo">Sem total enquanto falta câmbio. Cada carteira, na moeda dela:</p>' + tabelaPorCarteira(Q);
@@ -1795,11 +1795,19 @@
     if (dif < 0) return '<span class="d good">▼ deve fechar ' + fmt(-dif) + ' abaixo da meta</span>';
     return '<span class="d ' + (passaMesmo(dif, pend) ? 'bad' : 'ok') + '">▲ deve passar ' + fmt(dif) + ' da meta</span>';
   }
+  /* quanto do Gastou é "Envios para outra conta sua": só mostra, não muda nenhum cálculo */
+  function nomeEnvios() {
+    var c = CATST.filter(function (x) { return x.id === 'brasil'; })[0], nome = c ? catNome(c) : 'Envios para outra conta sua';
+    return nome === 'Envios para outra conta sua' ? 'envios para outra conta sua' : '"' + nome + '"';
+  }
+  function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend">inclui ' + (media ? 'em média ' : '') + fmt(v) + ' de ' + esc(nomeEnvios()) + '</p>'; }
   function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">inclui ' + fmt(pend) + ' a confirmar</p>'; }
   function pendFrase(pend, n, fmt) {
     return pend < 0.5 ? '' : ', mas inclui ' + fmt(pend) + (n === 1 ? ' de uma transferência sugerida ainda não confirmada' : ' de ' + n + ' transferências sugeridas ainda não confirmadas');
   }
   function pendBotao(pend) { return pend < 0.5 ? '' : '<p class="pendb"><button class="btn sm" type="button" data-irtransf>Ver transferências sugeridas</button></p>'; }
+  /* envios para outra conta sua no mês em andamento, somando as carteiras, na moeda principal */
+  function envResumo(R) { var Q = mesResumo(R, S.dados, R.partial); return Q.total && Q.total.spend ? Q.total.spend.brasil || 0 : 0; }
   function previsaoResumoTela(R) {
     var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>Previsão ' + (R.partial ? 'de ' + esc(MES[+R.partial.slice(5) - 1]) : 'do mês') + '</h2>';
     if (!R.partial) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(R.meses[R.meses.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
@@ -1809,7 +1817,7 @@
     var dif = P.proj - P.meta, mx = Math.max(P.proj, P.meta, P.gasto, 1), fp = function (v) { return ap + fP0(v); }, st = statusPrevisao(dif, P.pend, fp), over = passaMesmo(dif, P.pend);
     var cedo = P.por.filter(function (q) { return q.cedo; });
     return h + '<span class="hint">até ' + esc(dFull(R.ref)) + ' · a soma das previsões de cada carteira</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
+      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
       '<div class="ptrack" role="img" aria-label="Gasto ' + fP0(P.gasto) + ', previsão ' + fP0(P.proj) + ', meta ' + fP0(P.meta) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
       '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return esc(q.w.nome) + ': previsão ' + a + fP0(q.proj) + ', meta ' + a + fP0(q.meta); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
@@ -2423,7 +2431,7 @@
     var h = '<section class="sec"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2><button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + (all ? 'Voltar ao mês' : 'Ver média de todos os meses') + '</button></div><div class="kpis">';
     tiles.forEach(function (t) {
       var v = t[3] ? sgn(t[1]) : f0(t[1]);
-      h += '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span><span class="s">' + t[2] + '</span></div>';
+      h += '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span>' + (t[0] === 'Gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
     });
     return h + '</div></section>';
   }
@@ -2537,6 +2545,7 @@
       return r + '<td class="avg">' + nn.format(a / n) + '</td></tr>';
     }
     h += line('Gastou', function (g) { return g.gasto; });
+    if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line('dos quais ' + esc(nomeEnvios()), function (g) { return g.spend.brasil || 0; }, ' sub');
     h += line('Entrou', function (g) { return g.entrou; });
     h += line('Guardou', function (g) { return g.saved; });
     h += line('Saldo do mês', function (g) { return g.saldo; });
@@ -2924,7 +2933,7 @@
     if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs)), planCat, CATST).proj);
     var st = statusPrevisao(dif, pend, f0);
     return h + '<span class="hint">até dia ' + day + ' de ' + dim + ' · ' + left + ' dias pela frente</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + f0(g.gasto) + '</p></div><div><p class="l mono">Previsão para ' + esc(MES[p[1] - 1]) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + f0(meta) + '</p></div></div>' +
+      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">Previsão para ' + esc(MES[p[1] - 1]) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + f0(meta) + '</p></div></div>' +
       '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
       '<p class="s">' + st + pendFrase(pend, rs.length, f0) + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +

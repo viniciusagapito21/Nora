@@ -46,7 +46,7 @@ const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 // regras e leitores de banco vêm antes do app.js, na ordem do index.html
 const core = [...readFileSync(join(RAIZ, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js')
   .map(f => readFileSync(join(RAIZ, f), 'utf8')).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const api = new Function(core + '; return { parseCSV, extractTx, extractSummary, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
+const api = new Function(core + '; return { buildModel, resumir, mesResumo, parseCSV, extractTx, extractSummary, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
 const months = {};
 api.extractTx(api.parseCSV(readFileSync(join(RAIZ, 'exemplo/extrato-exemplo.csv'), 'utf8')))
   .forEach(t => { (months[t[0].slice(0, 7)] = months[t[0].slice(0, 7)] || []).push(t); });
@@ -591,6 +591,30 @@ for (const s of TELAS) {
   if (!ok) problemas.push('Pix para o titular: aplicar ou desfazer não deu o esperado');
   console.log(`Pix para o titular, marcar: ${marcarOk ? '"Marcar todos de agosto de 2026" marca as 2 caixas de agosto, "Marcar todos" as 4, e nada é gravado' : 'FALHOU'}`);
   console.log(`Pix para o titular pela tela: ${ok ? '4 sugeridos, todos desmarcados; aplicar 2 grava 1 envio e 1 entre contas, sobram 2 na lista; desfazer volta ao automático' : 'FALHOU'}`);
+  await ctx.close();
+}
+
+// ---------- nota "inclui X de envios para outra conta sua": só mostra; o Gastou continua o do modelo ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage(), digitos = s => Number(String(s).replace(/[^\d]/g, ''));
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('nota de envios: ' + e.message));
+  await pg.goto(URL_PAGINA);
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, D);
+  await pg.reload(); await pg.waitForTimeout(150);
+  const g = api.buildModel(comDados.months, {}, plan.titular, plan.pais).by['2026-09'];
+  const cartao = await pg.evaluate(() => { const k = [...document.querySelectorAll('.kpi')].find(x => x.querySelector('.l').textContent === 'Gastou'); return { v: k.querySelector('.v').textContent, nota: (k.querySelector('.pend') || {}).textContent || '' }; });
+  const linha = await pg.evaluate(() => { const r = [...document.querySelectorAll('tr.tot.sub')][0]; return r ? r.textContent : ''; });
+  const okCarteira = digitos(cartao.v) === Math.round(g.gasto) && cartao.nota.startsWith('inclui') && digitos(cartao.nota) === Math.round(g.spend.brasil) && /^dos quais envios para outra conta sua/.test(linha);
+  // no Resumo (Revolut + Banco Exemplo, transferências do exemplo): a nota é a soma das carteiras, na moeda principal
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, TRANSFERENCIAS);
+  await pg.reload(); await pg.waitForTimeout(150);
+  const x = JSON.parse(TRANSFERENCIAS['cortex-financas.v4']), R = api.resumir(x), Q = api.mesResumo(R, x, R.meses.filter(m => m !== R.partial).slice(-1)[0]);
+  const resumo = await pg.evaluate(() => { const k = [...document.querySelectorAll('#fin-rmes .kpi')].find(x => x.querySelector('.l').textContent === 'Gastou'); return { v: k.querySelector('.v').textContent, nota: (k.querySelector('.pend') || {}).textContent || '' }; });
+  const okResumo = digitos(resumo.v) === Math.round(Q.total.gasto) && digitos(resumo.nota) === Math.round(Q.total.spend.brasil);
+  if (!okCarteira || !okResumo) problemas.push(`nota de envios: carteira ${okCarteira ? 'ok' : 'FALHOU'}, Resumo ${okResumo ? 'ok' : 'FALHOU'} (${cartao.v} / ${cartao.nota} / ${resumo.v} / ${resumo.nota})`);
+  console.log(`nota de envios: ${okCarteira && okResumo ? `carteira "${cartao.v}" ${cartao.nota.replace(/\s+/g, ' ')}; mês a mês com a linha "dos quais"; Resumo "${resumo.v}" ${resumo.nota.replace(/\s+/g, ' ')} — os valores do Gastou são os do modelo` : 'FALHOU'}`);
   await ctx.close();
 }
 

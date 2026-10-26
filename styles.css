@@ -291,6 +291,9 @@ details[open] > summary::after { transform: rotate(225deg); margin-bottom: -3px;
 .fin .prv-n .l { font-size: 13px; font-weight: 600; color: var(--muted); }
 .fin .prv-n .v { font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .fin .prv-n .pend { margin-top: 2px; font-size: var(--fs-sm); color: var(--soft); }
+/* "inclui X de envios para outra conta sua" no cartão Gastou, e a linha "dos quais" no mês a mês */
+.fin .kpi .pend { margin: -2px 0 0; font-size: var(--fs-sm); color: var(--soft); line-height: 1.4; }
+.fin tr.tot.sub td { font-weight: 400; color: var(--soft); border-top: 0; }
 .fin .prv .pendb { margin-top: 8px; }
 .fin .prv .s, .fin .card > .s { font-size: var(--fs-sm); color: var(--soft); line-height: 1.5; }
 .fin .prv .legend { margin-top: 0; }
