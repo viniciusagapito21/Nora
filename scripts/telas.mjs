@@ -151,6 +151,12 @@ const comItau = (comMeses, opcoes = {}) => {
     itauLido.tx.forEach(t => { (c.months[t[0].slice(0, 7)] = c.months[t[0].slice(0, 7)] || []).push(t); });
     c.saldosDia = itauLido.saldosDia; c.periodos = [{ de: itauLido.periodo.de, ate: itauLido.periodo.ate }];
   }
+  // opcoes.aviso: os Pix para a titular marcados, ainda como gasto, e mais 3 envios grandes para ela (passa de 50%)
+  if (opcoes.aviso) {
+    const L = IT.LEITORES.itau.ler(IT.tabelaDoPdf(itauPaginas).linhas, 'BRL', { titular: 'Maria Exemplo' }), c = x.carteiras[1];
+    c.over = {}; L.sugestoes.forEach(k => { const t = L.tx[k], key = t[1].toUpperCase(); c.over[t[3] > 0 ? '+' + key : key] = t[3] > 0 ? '_ignore' : 'brasil'; });
+    [['2026-08-20', 'PIX TRANSF MARIA E20/08'], ['2026-09-20', 'PIX TRANSF MARIA E20/09'], ['2026-10-09', 'PIX TRANSF MARIA E09/10']].forEach(([d, desc]) => { c.months[d.slice(0, 7)].push([d, desc, 'Others', -800000, null]); c.over[desc] = 'brasil'; });
+  }
   return { 'cortex-financas.v4': JSON.stringify(x) };
 };
 const COM_SENHA = { name: 'extrato-banco-exemplo.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from(comSenha(carregarXLSX())) };
@@ -390,6 +396,8 @@ for (const w of [1280, 390]) {
   t('62-carteira-dinheiro-movido', { storage: comItau(true, { movido: true }), prepara: aba('c2') });
   t('63-configuracoes-envios-movido', { storage: comItau(true, { movido: true }), prepara: async pg => { await pg.click('[data-fin-setup]'); } });
   t('64-resumo-gasto-e-movido', { storage: comItau(true, { movido: true }) });
+  // aviso dos envios: carteira com envios para a titular passando de 50% do Gastou
+  t('65-aviso-envios', { storage: comItau(true, { aviso: true }), viewport: true, prepara: aba('c2') });
   t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
@@ -626,6 +634,31 @@ for (const s of TELAS) {
   const okResumo = digitos(resumo.v) === Math.round(Q.total.gasto) && digitos(resumo.nota) === Math.round(Q.total.spend.brasil);
   if (!okCarteira || !okResumo) problemas.push(`nota de envios: carteira ${okCarteira ? 'ok' : 'FALHOU'}, Resumo ${okResumo ? 'ok' : 'FALHOU'} (${cartao.v} / ${cartao.nota} / ${resumo.v} / ${resumo.nota})`);
   console.log(`nota de envios: ${okCarteira && okResumo ? `carteira "${cartao.v}" ${cartao.nota.replace(/\s+/g, ' ')}; mês a mês com a linha "dos quais"; Resumo "${resumo.v}" ${resumo.nota.replace(/\s+/g, ' ')} — os valores do Gastou são os do modelo` : 'FALHOU'}`);
+  await ctx.close();
+}
+
+// ---------- aviso dos envios: aparece uma vez, a resposta fica lembrada, e Configurações continua mandando ----------
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'pt-BR', timezoneId: 'Europe/Dublin' });
+  const pg = await ctx.newPage(), r = [];
+  await pg.clock.setFixedTime(AGORA);
+  pg.on('pageerror', e => erros.push('aviso dos envios: ' + e.message));
+  const abrir = async () => { await pg.goto(URL_PAGINA); await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comItau(true, { aviso: true })); await pg.reload(); await pg.waitForTimeout(150); await pg.click('[data-carteira="c2"]'); };
+  const tem = () => pg.evaluate(() => !!document.getElementById('fin-avenvios'));
+  const cart = () => pg.evaluate(() => { const c = JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[1]; return { envios: c.envios || 'gasto', decidido: !!c.enviosDecidido }; });
+  const gastou = () => pg.evaluate(() => [...document.querySelectorAll('.kpi')].find(k => k.querySelector('.l').textContent === 'Gastou').querySelector('.v').textContent);
+  // "Continua gasto": some, fica lembrado depois de recarregar, nada muda nos números
+  await abrir(); r.push(await tem()); const g0 = await gastou();
+  await pg.click('[data-envios="gasto"]'); r.push(!(await tem())); r.push(JSON.stringify(await cart()) === JSON.stringify({ envios: 'gasto', decidido: true }));
+  await pg.reload(); await pg.click('[data-carteira="c2"]'); r.push(!(await tem())); r.push((await gastou()) === g0);
+  // "Contar como movido": some, a opção vira movido e o Gastou cai; voltar para gasto em Configurações não traz o aviso
+  await abrir(); await pg.click('[data-envios="movido"]'); r.push(!(await tem())); r.push(JSON.stringify(await cart()) === JSON.stringify({ envios: 'movido', decidido: true })); const g1 = await gastou();
+  r.push(Number(g1.replace(/\D/g, '')) < Number(g0.replace(/\D/g, '')));
+  await pg.click('[data-fin-setup]'); await pg.selectOption('#fin-w-c2-envios', 'gasto'); await pg.click('#fin-fsetup button[type=submit]'); await pg.waitForTimeout(300);
+  await pg.click('[data-carteira="c2"]').catch(() => {}); r.push(JSON.stringify(await cart()) === JSON.stringify({ envios: 'gasto', decidido: true })); r.push(!(await tem()));
+  const ok = r.every(Boolean);
+  if (!ok) problemas.push('aviso dos envios: ' + JSON.stringify(r));
+  console.log(`aviso dos envios: ${ok ? `aparece; "Continua gasto" some e fica lembrado (Gastou ${g0} igual); "Contar como movido" some e o Gastou cai para ${g1}; voltar para gasto em Configurações não traz o aviso de volta` : 'FALHOU ' + JSON.stringify(r)}`);
   await ctx.close();
 }
 

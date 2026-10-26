@@ -422,6 +422,7 @@
       checarImportacao(w.importacao, c.id);
       checarPixTitular(w.pixTitular, c.id);
       if (w.envios != null && w.envios !== 'gasto' && w.envios !== 'movido') throw new Error('opção de envios em formato errado na carteira ' + c.id);
+      if (w.enviosDecidido != null && typeof w.enviosDecidido !== 'boolean') throw new Error('resposta do aviso de envios em formato errado na carteira ' + c.id);
       return w;
     });
     /* transferência com uma carteira que não existe mais (backup antigo): sai, e a ponta volta ao que era */
@@ -492,9 +493,11 @@
       c.banco = conferirBanco(d.banco);
     }
     /* envios para outra conta sua: gasto (padrão, sem o campo) ou dinheiro movido; muda a qualquer hora */
+    if (d.envios != null && d.envios !== 'gasto' && d.envios !== 'movido') throw new Error('opção de envios desconhecida: ' + d.envios);
+    /* mudar a opção em Configurações também responde o aviso dos envios (ele não volta) */
+    if (d.envios && d.envios !== (c0.envios === 'movido' ? 'movido' : 'gasto')) c.enviosDecidido = true;
     if (d.envios === 'movido') c.envios = 'movido';
     else if (d.envios === 'gasto') delete c.envios;
-    else if (d.envios != null) throw new Error('opção de envios desconhecida: ' + d.envios);
     return comPrincipal(x, x.carteiras.map(function (w) { return w.id === id ? c : w; }), x.ativa);
   }
   function excluirCarteira(x, id) {
@@ -584,6 +587,15 @@
     return { carteiras: cs, moedaPrincipal: x.config.moedaPrincipal, titular: x.config.titular || '',
       cambios: Object.keys(x.cambios || {}).sort().map(function (m) { return { moeda: m, rate: +x.cambios[m].rate, data: x.cambios[m].data || null }; }),
       transf: transf, dispensadas: Object.keys(disp).length };
+  }
+  /* aviso dos envios: no período todo da carteira (não mês a mês), quando os envios para outra conta sua que
+     contam como gasto passam de 50% do Gastou, com pelo menos 3 envios. Só a conta: quem decide é a pessoa. */
+  var AVISO_ENVIOS = { minimo: 3, fracao: 0.5 };
+  function avisoEnvios(model) {
+    var n = 0, soma = 0, gasto = 0;
+    model.rows.forEach(function (r) { if (r.kind === 'gasto' && r.cat === 'brasil' && r.a < 0) { n++; soma -= r.a; } });
+    model.keys.forEach(function (k) { gasto += model.by[k].gasto; });
+    return n >= AVISO_ENVIOS.minimo && gasto > 0 && soma > AVISO_ENVIOS.fracao * gasto ? { n: n, soma: soma, gasto: gasto, fracao: soma / gasto } : null;
   }
   /* contas fixas e assinaturas: o mesmo nome (sem os números) cobrado uma vez por mês, com valor parecido,
      perto do mesmo dia do mês (3 dias de folga), em pelo menos 2 dos últimos 3 meses.
@@ -2971,6 +2983,15 @@
     return '<div class="aviso pergunta"><p>Todo dia ' + o.dia + ' sai ' + f2(o.v) + ' para <b>' + esc(o.last.desc) + '</b>, hoje em ' + esc(catPor(o.last.cat).nome) + '. <b>Isso é aluguel?</b></p>' +
       '<div class="grupo"><button class="btn sm pri" type="button" data-aluguel="sim">Sim, é aluguel</button><button class="btn sm" type="button" data-aluguel="nao">Não é</button></div></div>';
   }
+  /* o aviso dos envios, uma vez por carteira: some depois de qualquer resposta (aqui ou em Configurações) */
+  function perguntaEnvios() {
+    var cw = cartAtual(), A = cw && !cw.envios && !cw.enviosDecidido ? avisoEnvios(M) : null;
+    if (!A) return '';
+    return '<div class="aviso pergunta" id="fin-avenvios"><p>No período todo, <b>' + f0(A.soma) + '</b> dos ' + f0(A.gasto) + ' do Gastou (' + Math.round(A.fracao * 100) + '%) são ' + esc(nomeEnvios()) + ' (' + A.n + ' envios). ' +
+      'Se o dinheiro só mudou de conta, conte como dinheiro movido: sai do Gastou e das metas, e o Saldo do mês continua batendo com o extrato. <b>Esses envios são gasto?</b></p>' +
+      '<div class="grupo"><button class="btn sm pri" type="button" data-envios="movido">Contar como movido nesta carteira</button><button class="btn sm" type="button" data-envios="gasto">Continua gasto</button></div>' +
+      '<p class="passo">Dá para mudar depois em Configurações, na carteira.</p></div>';
+  }
   function recorrentes() {
     var nk = Math.min(3, M.keys.length), list = RECS, tot = 0;
     if (nk < 2) return '';
@@ -3042,7 +3063,7 @@
     }
     if (!M.keys.length) { root.innerHTML = header() + abas() + emptyState(); return; }
     var uma = !variasCarteiras();
-    root.innerHTML = header() + abas() + perguntaAluguel() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
+    root.innerHTML = header() + abas() + perguntaAluguel() + perguntaEnvios() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
       '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + (bancoAtual() === 'revolut' ? ' em CSV' : bancoAtual() === 'itau' ? ' em PDF' : ' em CSV ou planilha') + ' e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
@@ -3077,7 +3098,7 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-pixtit-marcar],[data-pixtit-aplicar],[data-pixtit-desfazer],[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
+    var t = e.target.closest && e.target.closest('[data-envios],[data-pixtit-marcar],[data-pixtit-aplicar],[data-pixtit-desfazer],[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
     if (t.hasAttribute('data-fin-add')) {
       if (emResumo()) { S.escolher = {}; render(); var ec = $('#fin-escolher input:checked'); if (ec) ec.focus(); window.scrollTo(0, 0); return; }
@@ -3173,6 +3194,12 @@
         usarDados(x1); localSave(); S.excluir = null; S.sel = null; recompute(); render();
         toast('Carteira ' + ex.nome + ' excluída.' + (semCambio ? ' A carteira principal mudou de moeda: informe o câmbio de novo em Em observação.' : ''));
       } else { S.excluir = null; render(); }
+      return;
+    }
+    if (t.hasAttribute('data-envios')) {
+      var mov = t.getAttribute('data-envios') === 'movido';
+      mudarCarteira(function (c) { c.enviosDecidido = true; if (mov) c.envios = 'movido'; return c; });
+      toast((mov ? 'Envios para outra conta sua contam como dinheiro movido nesta carteira.' : 'Envios para outra conta sua continuam contando como gasto.') + ' Dá para mudar em Configurações.');
       return;
     }
     if (t.hasAttribute('data-aluguel')) {

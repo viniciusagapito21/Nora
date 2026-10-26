@@ -2032,3 +2032,41 @@ test('dinheiro movido no backup: o antigo restaura igual, o novo guarda a opçã
   y.carteiras[1].envios = 'sim';
   assert.throws(() => MV.lerSalvo(JSON.stringify(y), ''), /opção de envios em formato errado/);
 });
+
+// ---------- aviso dos envios (50% do Gastou no período todo, com pelo menos 3 envios) ----------
+test('aviso dos envios: período todo, pelo menos 3 envios, mais de 50% do Gastou; nunca no modo movido', () => {
+  const AV = carregarNucleo(['avisoEnvios', 'buildModel', 'extractTx', 'parseCSV', 'novaCarteira', 'editarCarteira', 'migrate', 'lerSalvo']);
+  const mes = (m, envios, outros) => [...envios.map((v, i) => [`${m}-0${i + 1}`, `PIX TRANSF MARIA S0${i + 1}`, 'Others', -v * 100, null]), ...outros.map((v, i) => [`${m}-2${i}`, 'Supermercado X', 'Others', -v * 100, null])];
+  const over = ms => { const o = {}; Object.values(ms).flat().forEach(t => { if (/^PIX TRANSF MARIA/.test(t[1])) o[t[1].toUpperCase()] = 'brasil'; }); return o; };
+  const aviso = (ms, opc) => AV.avisoEnvios(AV.buildModel(ms, over(ms), 'MARIA SILVA', 'BR', null, null, null, opc));
+  // 3 envios, 600 de 900 do Gastou: aviso
+  let ms = { '2026-08': mes('2026-08', [200, 200], [150]), '2026-09': mes('2026-09', [200], [150]) };
+  assert.deepEqual(aviso(ms), { n: 3, soma: 600, gasto: 900, fracao: 600 / 900 });
+  assert.equal(aviso(ms, { envios: 'movido' }), null, 'no modo movido os envios já não são gasto: sem aviso');
+  // só 2 envios, mesmo sendo quase tudo: sem aviso
+  assert.equal(aviso({ '2026-08': mes('2026-08', [500, 500], [10]) }), null);
+  // exatamente 50%: sem aviso (é "mais de")
+  assert.equal(aviso({ '2026-08': mes('2026-08', [100, 100, 100], [300]) }), null);
+  // um mês acima de 50%, mas o período todo não: sem aviso (não é mês a mês)
+  ms = { '2026-08': mes('2026-08', [300, 300, 300], [100]), '2026-09': mes('2026-09', [], [1000]), '2026-10': mes('2026-10', [], [1000]) };
+  assert.ok(AV.buildModel(ms, over(ms), 'MARIA SILVA', 'BR').by['2026-08'].spend.brasil > 450);
+  assert.equal(aviso(ms), null);
+  // o Revolut de exemplo: envios mensais de 150 num Gastou de ~1.000 (15%): sem aviso
+  const rv = {}; AV.extractTx(AV.parseCSV(csv), 'EUR').forEach(t => { (rv[t[0].slice(0, 7)] = rv[t[0].slice(0, 7)] || []).push(t); });
+  assert.equal(AV.avisoEnvios(AV.buildModel(rv, {}, 'MARIA SILVA', 'IE')), null);
+});
+
+test('aviso dos envios: a resposta fica lembrada, mudar em Configurações também responde, e o backup valida', () => {
+  const AV = carregarNucleo(['novaCarteira', 'editarCarteira', 'migrate', 'lerSalvo']);
+  let x = AV.novaCarteira(AV.migrate({ v: 3, months: {}, over: {}, plan: { titular: 'MARIA SILVA' }, summary: null, div: null }), { nome: 'Itaú', moeda: 'BRL', pais: 'BR', banco: 'itau' });
+  // salvar Configurações sem mudar a opção não conta como resposta (o aviso ainda pode aparecer)
+  assert.equal(AV.editarCarteira(x, 'c2', { envios: 'gasto' }).carteiras[1].enviosDecidido, undefined);
+  // mudar a opção conta como resposta, nos dois sentidos
+  const y = AV.editarCarteira(x, 'c2', { envios: 'movido' });
+  assert.deepEqual([y.carteiras[1].envios, y.carteiras[1].enviosDecidido], ['movido', true]);
+  const z = AV.editarCarteira(y, 'c2', { envios: 'gasto' });
+  assert.deepEqual([z.carteiras[1].envios, z.carteiras[1].enviosDecidido], [undefined, true], '"Continua gasto" reversível, e o aviso não volta');
+  assert.equal(AV.lerSalvo(JSON.stringify(z), '').carteiras[1].enviosDecidido, true, 'a resposta passa pelo backup');
+  z.carteiras[1].enviosDecidido = 'sim';
+  assert.throws(() => AV.lerSalvo(JSON.stringify(z), ''), /resposta do aviso de envios em formato errado/);
+});
