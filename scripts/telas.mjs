@@ -12,6 +12,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import { createServer } from 'node:http';
+import { escolherPorta } from './porta.mjs';
 import { xlsxAMao, paraCelulas, comSenha, carregarXLSX, extratoBtgExemplo, pdfAMao, carregarPdfjs } from '../tests/planilhas.mjs';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, existsSync, cpSync, statSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
@@ -32,7 +33,9 @@ const servidor = createServer((req, res) => {
   res.writeHead(200, { 'content-type': TIPOS[extname(f)] || 'application/octet-stream' });
   res.end(readFileSync(f));
 });
-await new Promise(r => servidor.listen(0, '127.0.0.1', r));
+// porta livre qualquer; ou exatamente a de PORTA_TELAS (PORTA_TELAS=4100 npm run telas)
+const portaTelas = await escolherPorta({ nome: 'PORTA_TELAS', inicio: 0, host: '127.0.0.1' }).catch(e => { console.error(e.message); process.exit(1); });
+await new Promise(r => servidor.listen(portaTelas, '127.0.0.1', r));
 const URL_PAGINA = `http://127.0.0.1:${servidor.address().port}/index.html`, ORIGEM = new URL(URL_PAGINA).origin;
 // CSP: toda violação vira problema; e cada tela só pode pedir arquivos da própria pasta (nada de fetch, XHR,
 // WebSocket, EventSource, beacon), nem de outra origem
