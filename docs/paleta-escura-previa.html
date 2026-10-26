@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="escuro">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nora — Prévia da paleta escura</title>
+<meta name="theme-color" content="#0E2025">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<main class="wrap">
+  <section class="view fin" aria-label="Prévia da paleta escura">
+    <header class="view-top">
+      <div>
+        <span class="eyebrow">Identidade Nora · Modo escuro</span>
+        <h1>Paleta escura validada</h1>
+        <p class="nota-pe">Ativada por <code>&lt;html data-tema="escuro"&gt;</code>, só em variáveis CSS. Todos os pares cumprem WCAG AA (4,5:1 para texto e 3:1 para elementos gráficos e categorias).</p>
+      </div>
+      <div class="grupo" role="group" aria-label="Amostra de botões">
+        <button type="button" class="btn pri">Adicionar extrato · 11,04:1</button>
+        <button type="button" class="btn" aria-pressed="true">Outubro · 10,47:1</button>
+        <button type="button" class="btn">Configurações · 13,22:1</button>
+        <button type="button" class="btn" disabled>Sem leitor · 5,82:1</button>
+      </div>
+    </header>
+
+    <nav class="abas" aria-label="Amostra de carteiras">
+      <button type="button" aria-current="true">Resumo <small>EUR · 11,04:1</small></button>
+      <button type="button">Conta exemplo <small>EUR · 13,22:1</small></button>
+      <button type="button">Banco exemplo <small>BRL · 13,22:1</small></button>
+    </nav>
+
+    <!-- 1. Superfícies e seleção -->
+    <section class="sec" aria-labelledby="t-sup">
+      <div class="sec-top">
+        <h2 id="t-sup">Superfícies, bordas e seleção</h2>
+        <span class="hint">4 planos escuros da família Deep Fjord + destaque menta escuro</span>
+      </div>
+      <div class="kpis">
+        <div class="kpi" style="background:var(--bg);border-color:var(--line)">
+          <span class="l">--bg · --panel</span>
+          <span class="v">#0E2025</span>
+          <span class="s">Fundo da página. Texto <code>--fg</code> em 15,39:1; <code>--soft</code> em 12,28:1; <code>--muted</code> em 8,19:1.</span>
+        </div>
+        <div class="kpi" style="background:var(--field);border-color:var(--field-line)">
+          <span class="l">--field · borda --field-line</span>
+          <span class="v">#10252B</span>
+          <span class="s">Campos de entrada. Texto <code>--fg</code> em 14,58:1; <code>--placeholder</code> em 7,76:1; borda <code>#6C939C</code> em 4,32:1 sobre cartão.</span>
+        </div>
+        <div class="kpi" style="background:var(--surface);border-color:var(--line)">
+          <span class="l">--surface</span>
+          <span class="v">#152D34</span>
+          <span class="s">Cartões e tabelas. Texto <code>--fg</code> em 13,22:1; <code>--soft</code> em 10,55:1; <code>--muted</code> em 7,04:1.</span>
+        </div>
+        <div class="kpi" style="background:var(--raised);border-color:var(--line-strong)">
+          <span class="l">--raised</span>
+          <span class="v">#1D3B44</span>
+          <span class="s">Avisos, dicas, trilhas e menus. Texto <code>--fg</code> em 10,94:1; <code>--soft</code> em 8,73:1; <code>--muted</code> em 5,82:1.</span>
+        </div>
+      </div>
+      <div class="card" style="background:var(--accent-soft);border-color:var(--accent)">
+        <p style="color:var(--fg)"><strong>Seleção de texto e botão pressionado (<code>--accent-soft #19403C</code> + <code>--fg #F7F5EF</code>): 10,47:1.</strong> Selecione este trecho com o mouse ou teclado para conferir a regra <code>:root[data-tema="escuro"] ::selection</code>, e passe o foco no <a href="#t-cat">atalho para as categorias</a> (sublinhado <code>--accent</code> em 6,64:1 sobre cartão).</p>
+      </div>
+    </section>
+
+    <!-- 2. Matriz de contraste texto sobre superfícies -->
+    <section class="sec" aria-labelledby="t-txt">
+      <div class="sec-top">
+        <h2 id="t-txt">Textos e estados sobre cada superfície</h2>
+        <span class="hint">Mínimo WCAG AA: 4,5:1 para texto comum · todos os pares passam com folga (≥ 5,11:1)</span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Token de texto / estado</th>
+              <th>Hex</th>
+              <th>Sobre --bg (#0E2025)</th>
+              <th>Sobre --field (#10252B)</th>
+              <th>Sobre --surface (#152D34)</th>
+              <th>Sobre --raised (#1D3B44)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span style="color:var(--fg);font-weight:600">--fg · --body (Warm Paper)</span></td>
+              <td>#F7F5EF</td>
+              <td>15,39:1</td>
+              <td>14,58:1</td>
+              <td>13,22:1</td>
+              <td>10,94:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--soft);font-weight:600">--soft (texto de apoio)</span></td>
+              <td>#CFE0DE</td>
+              <td>12,28:1</td>
+              <td>11,63:1</td>
+              <td>10,55:1</td>
+              <td>8,73:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--muted);font-weight:600">--muted · --dim · --placeholder</span></td>
+              <td>#A4B9BD</td>
+              <td>8,19:1</td>
+              <td>7,76:1</td>
+              <td>7,04:1</td>
+              <td>5,82:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--accent);font-weight:600">--accent · --accent-strong · --green</span></td>
+              <td>#54C2AA</td>
+              <td>7,73:1</td>
+              <td>7,32:1</td>
+              <td>6,64:1</td>
+              <td>5,49:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--accent-ink);font-weight:600">--accent-ink · --accent-hover</span></td>
+              <td>#70D1BC</td>
+              <td>9,21:1</td>
+              <td>8,73:1</td>
+              <td>7,92:1</td>
+              <td>6,55:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--pos);font-weight:600">--pos (variação positiva / entrada)</span></td>
+              <td>#56CFA8</td>
+              <td>8,70:1</td>
+              <td>8,24:1</td>
+              <td>7,47:1</td>
+              <td>6,18:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--danger);font-weight:600">--danger · --neg (erro / saída)</span></td>
+              <td>#F78B88</td>
+              <td>7,19:1</td>
+              <td>6,81:1</td>
+              <td>6,18:1</td>
+              <td>5,11:1</td>
+            </tr>
+            <tr>
+              <td><span style="color:var(--amber);font-weight:600">--amber · --warn (Apricot / alerta)</span></td>
+              <td>#E7A278</td>
+              <td>7,86:1</td>
+              <td>7,44:1</td>
+              <td>6,75:1</td>
+              <td>5,59:1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3. Estados, avisos, controles e color-mix -->
+    <section class="sec" aria-labelledby="t-est">
+      <div class="sec-top">
+        <h2 id="t-est">Estados, controles e barras do painel</h2>
+        <span class="hint">Dados inventados · os 5 usos de color-mix seguem intactos</span>
+      </div>
+      <div class="kpis">
+        <div class="kpi">
+          <span class="l">Saldo em conta</span>
+          <span class="v">€ 2.450</span>
+          <span class="s">Texto <code>--fg</code> em 13,22:1 · rótulo <code>--muted</code> em 7,04:1</span>
+        </div>
+        <div class="kpi">
+          <span class="l">Entrou</span>
+          <span class="v">€ 1.800</span>
+          <span class="s"><span class="d good">+12% no mês (--pos · 7,47:1)</span></span>
+        </div>
+        <div class="kpi">
+          <span class="l">Gastou</span>
+          <span class="v">€ 1.020</span>
+          <span class="pend">inclui € 150 de envios (--soft · 10,55:1)</span>
+          <span class="s"><span class="d bad">+6% acima da meta (--neg · 6,18:1)</span></span>
+        </div>
+        <div class="kpi">
+          <span class="l">Guardou</span>
+          <span class="v">€ 320</span>
+          <span class="s"><span class="d ok">na média (--muted · 7,04:1)</span></span>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="sec">
+          <div class="card ggrid">
+            <h3>Avisos, alertas e botões de ação</h3>
+            <div class="aviso">Aviso informativo sobre <code>--raised</code>: texto <code>--soft</code> com razão <strong>8,73:1</strong> e borda <code>--line</code>.</div>
+            <div class="aviso pergunta">
+              <p>Pergunta sobre <code>--raised</code>: texto <code>--fg</code> com razão <strong>10,94:1</strong>.</p>
+              <button type="button" class="btn sm">Confirmar</button>
+            </div>
+            <div class="aviso erro">Alerta de erro sobre <code>--raised</code>: texto e borda <code>--neg (#F78B88)</code> com razão <strong>5,11:1</strong>.</div>
+            <p class="s">Taxa de câmbio antiga: <span class="velho">informada há 42 dias (--amber #E7A278 · 6,75:1 sobre cartão)</span>.</p>
+            <div class="grupo">
+              <button type="button" class="btn fbtn" aria-expanded="false">Filtrar categorias <span class="fn">3</span></button>
+              <button type="button" class="pill perigo">Apagar meus dados · 6,18:1</button>
+            </div>
+            <p class="nota-pe">Selo contador <code>.fn</code>: <code>--on-accent (#0B1C20)</code> sobre <code>--accent-strong (#54C2AA)</code> com razão <strong>8,05:1</strong>.</p>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="card ggrid">
+            <h3>Campos, previsão e mapa de calor (color-mix)</h3>
+            <div class="mgrid">
+              <label>Nome do titular (--soft · 10,55:1)
+                <input type="text" value="MARIA EXEMPLO" readonly aria-label="Nome do titular">
+              </label>
+              <label>Meta mensal (placeholder · 7,76:1)
+                <input type="text" placeholder="Seguir sugestão (€ 250)" readonly aria-label="Meta mensal">
+              </label>
+            </div>
+            <div class="radios">
+              <label class="chk"><input type="checkbox" checked> Conta fixa marcada (<code>--accent-strong</code> · 6,64:1)</label>
+            </div>
+            <p class="s">Previsão no ritmo atual (<code>color-mix</code> 35% <code>--accent</code> + <code>--raised</code>) e estouro (45% <code>--neg</code> + <code>--raised</code>):</p>
+            <div class="ptrack" role="img" aria-label="Barra de previsão dentro da meta">
+              <i class="pj" style="width:78%"></i>
+              <i class="sp" style="width:48%"></i>
+              <b style="left:82%"></b>
+            </div>
+            <div class="ptrack" role="img" aria-label="Barra de previsão acima da meta">
+              <i class="pj over" style="width:92%"></i>
+              <i class="sp" style="width:60%"></i>
+              <b style="left:75%"></b>
+            </div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr><th>Mapa de calor (td.h)</th><th>--i: 0.25</th><th>--i: 0.60</th><th>--i: 1.00</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Mercado exemplo</td>
+                    <td class="h" style="--i:0.25">€ 90</td>
+                    <td class="h" style="--i:0.6">€ 210</td>
+                    <td class="h" style="--i:1">€ 340</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Categorias (--c1 a --c8 e --other) -->
+    <section class="sec" aria-labelledby="t-cat">
+      <div class="sec-top">
+        <h2 id="t-cat">Categorias de gasto (--c1 a --c8 e --other)</h2>
+        <span class="hint">Contraste gráfico ≥ 3:1 sobre --surface (#152D34) e --raised (#1D3B44) · distinguíveis em protanopia e deuteranopia</span>
+      </div>
+      <div class="detail">
+        <div>
+          <div class="card">
+            <h3>Barras em cartão (--surface) com trilha (--raised)</h3>
+            <div class="cat">
+              <i class="sw" style="background:var(--c1)"></i>
+              <span class="nm">1 · Aluguel e contas (<code>--c1 #5FE7C9</code>)</span>
+              <span class="val">€ 650</span>
+              <span class="track"><i style="width:86%;background:var(--c1)"></i><b style="left:86%"></b></span>
+              <span class="st">9,45:1 sobre --surface · 7,81:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--c2)"></i>
+              <span class="nm">2 · Envios para outra conta sua (<code>--c2 #B374A4</code>)</span>
+              <span class="val">€ 150</span>
+              <span class="track"><i style="width:62%;background:var(--c2)"></i><b style="left:75%"></b></span>
+              <span class="st">4,08:1 sobre --surface · 3,38:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--c3)"></i>
+              <span class="nm">3 · Mercado (<code>--c3 #B8DE88</code>)</span>
+              <span class="val">€ 108</span>
+              <span class="track"><i style="width:72%;background:var(--c3)"></i><b style="left:80%"></b></span>
+              <span class="st">9,50:1 sobre --surface · 7,86:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--c4)"></i>
+              <span class="nm">4 · Compras (<code>--c4 #8798E0</code>)</span>
+              <span class="val">€ 84</span>
+              <span class="track"><i style="width:54%;background:var(--c4)"></i></span>
+              <span class="st">5,22:1 sobre --surface · 4,31:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:repeating-linear-gradient(135deg,var(--c4) 0 3px,color-mix(in srgb,var(--c4) 40%,var(--surface)) 3px 6px)"></i>
+              <span class="nm">4h · Compras grandes (hachura <code>--c4</code> + <code>color-mix</code>)</span>
+              <span class="val">€ 140</span>
+              <span class="track"><i style="width:68%;background:repeating-linear-gradient(135deg,var(--c4) 0 3px,color-mix(in srgb,var(--c4) 40%,var(--surface)) 3px 6px)"></i></span>
+              <span class="st">Mesma família de Compras, diferenciada por padrão listrado</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h3>Continuação das categorias e "Outros"</h3>
+            <div class="cat">
+              <i class="sw" style="background:var(--c5)"></i>
+              <span class="nm">5 · Transporte (<code>--c5 #BE7146</code>)</span>
+              <span class="val">€ 52</span>
+              <span class="track"><i style="width:46%;background:var(--c5)"></i></span>
+              <span class="st">3,87:1 sobre --surface · 3,20:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--c6)"></i>
+              <span class="nm">6 · Comer fora e lazer (<code>--c6 #EF9EA1</code>)</span>
+              <span class="val">€ 64</span>
+              <span class="track"><i style="width:58%;background:var(--c6)"></i></span>
+              <span class="st">6,92:1 sobre --surface · 5,72:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--c7)"></i>
+              <span class="nm">7 · Assinaturas e celular (<code>--c7 #CBA238</code>)</span>
+              <span class="val">€ 40</span>
+              <span class="track"><i style="width:50%;background:var(--c7)"></i><b style="left:50%"></b></span>
+              <span class="st">6,02:1 sobre --surface · 4,98:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--c8)"></i>
+              <span class="nm">8 · Saúde (<code>--c8 #71D6FD</code>)</span>
+              <span class="val">€ 28</span>
+              <span class="track"><i style="width:38%;background:var(--c8)"></i></span>
+              <span class="st">8,74:1 sobre --surface · 7,23:1 sobre --raised</span>
+            </div>
+            <div class="cat">
+              <i class="sw" style="background:var(--other)"></i>
+              <span class="nm">0 · Pessoas, taxas e outros (<code>--other #89847A</code>)</span>
+              <span class="val">€ 35</span>
+              <span class="track"><i style="width:42%;background:var(--other)"></i></span>
+              <span class="st">3,88:1 sobre --surface · 3,21:1 sobre --raised</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>
+</body>
+</html>

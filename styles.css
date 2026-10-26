@@ -683,3 +683,29 @@ html, body { overflow-x: clip; }
 /* casca mínima da página (estava num <style> no index.html; a CSP não aceita bloco de estilo inline) */
 body { margin: 0; min-height: 100vh; }
 [hidden] { display: none !important; }
+
+/* ====================== Nora: tema escuro (ativado em data-tema="escuro") ====================== */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  /* constantes da marca: iguais ao claro (--deep-fjord #17343B,
+     --nora-teal #2F8F7B, --pale-mint #DCEFE8, --warm-paper #F7F5EF,
+     --apricot #E7A278) */
+  --bg: #0E2025; --panel: var(--bg);
+  --surface: #152D34; --raised: #1D3B44; --field: #10252B;
+  --line: #264750; --line-strong: #325862; --line2: var(--line-strong);
+  --grid: var(--line); --line-hover: #638D97; --field-line: #6C939C;
+  --fg: var(--warm-paper); --body: var(--warm-paper);
+  --soft: #CFE0DE; --muted: #A4B9BD; --dim: #A4B9BD; --placeholder: #A4B9BD;
+  --accent: #54C2AA; --accent-hover: #70D1BC; --accent-ink: #70D1BC;
+  --accent-strong: #54C2AA; --on-accent: #0B1C20; --accent-soft: #19403C;
+  --cta: var(--pale-mint); --cta-hover: #C4E3D8; --on-cta: var(--deep-fjord);
+  --green: var(--accent); --pos: #56CFA8;
+  --danger: #F78B88; --neg: var(--danger);
+  --amber: var(--apricot); --warn: var(--amber);
+  --elev: 0 1px 2px rgba(3, 10, 12, 0.32), 0 6px 16px -6px rgba(3, 10, 12, 0.45);
+  --shadow: 0 18px 42px -14px rgba(3, 10, 12, 0.68);
+  --c1: #5FE7C9; --c2: #B374A4; --c3: #B8DE88; --c4: #8798E0;
+  --c5: #BE7146; --c6: #EF9EA1; --c7: #CBA238; --c8: #71D6FD;
+  --other: #89847A;
+}
+:root[data-tema="escuro"] ::selection { background: var(--accent-soft); color: var(--fg); }
