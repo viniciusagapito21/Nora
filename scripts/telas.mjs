@@ -47,7 +47,7 @@ const pedidoPermitido = r => ((r.url().startsWith(ORIGEM + '/') || r.url().start
 // ---------- os dados: só o extrato de exemplo e pagamentos inventados ----------
 const appJs = readFileSync(join(RAIZ, 'app.js'), 'utf8');
 // regras e leitores de banco vêm antes do app.js, na ordem do index.html
-const core = [...readFileSync(join(RAIZ, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js')
+const core = [...readFileSync(join(RAIZ, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js' && f !== 'prefs.js')
   .map(f => readFileSync(join(RAIZ, f), 'utf8')).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
 const api = new Function(core + '; return { buildModel, resumir, mesResumo, parseCSV, extractTx, extractSummary, migrate, novaCarteira, escolherCarteira, prepararImportacao, interpretarCSV, trocarMoedaPrincipal, juntarPeriodos, resumir, sugerirTransferencias, confirmarTransferencia, dispensarSugestao, lembrarMapa };')();
 const months = {};
@@ -463,7 +463,9 @@ for (const s of TELAS) {
     return o;
   };
   await pg.goto(URL_PAGINA);
-  await pg.evaluate(st => { localStorage.clear(); localStorage.setItem('cortex-financas.v4', st); }, BACKUP);
+  // nora.prefs (idioma e tema) não vai para o backup e sobrevive a "Apagar tudo"; o tema auto não muda nenhuma foto
+  const PREFS = JSON.stringify({ idioma: null, tema: 'auto' });
+  await pg.evaluate(([st, pr]) => { localStorage.clear(); localStorage.setItem('cortex-financas.v4', st); localStorage.setItem('nora.prefs', pr); }, [BACKUP, PREFS]);
   await pg.reload(); await pg.waitForTimeout(150);
   const antes = await fotos(), salvoAntes = await pg.evaluate(() => localStorage.getItem('cortex-financas.v4'));
   await pg.click('[data-fin-setup]');
@@ -471,6 +473,9 @@ for (const s of TELAS) {
   const baixado = readFileSync(await dl.path(), 'utf8');
   await pg.click('[data-apagar=pedir]'); await pg.click('[data-apagar=confirmar]');
   const vazio = await pg.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('cortex-financas')).length);
+  const prefsDepois = await pg.evaluate(() => localStorage.getItem('nora.prefs'));
+  if (prefsDepois !== PREFS) problemas.push('ida e volta: "Apagar tudo" apagou ou mudou as preferências (nora.prefs)');
+  if (/nora\.prefs|"tema"|"idioma"/.test(baixado)) problemas.push('ida e volta: as preferências foram para o backup');
   await pg.setInputFiles('#fin-json', arquivo(baixado)); await pg.click('[data-restaurar=confirmar]');
   await pg.reload(); await pg.waitForTimeout(150);
   const depois = await fotos(), salvoDepois = await pg.evaluate(() => localStorage.getItem('cortex-financas.v4'));

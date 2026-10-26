@@ -1432,6 +1432,8 @@
   }
   /* quantas transferências confirmadas a carteira tem (para avisar ao excluir) */
   function contarTransferencias(c) { return Object.keys((c && c.transf) || {}).length; }
+  /* o que "Apagar meus dados" apaga: só as chaves do painel (cortex-financas.*); nora.prefs (idioma e tema) fica */
+  function chavesParaApagar(chaves) { return chaves.filter(function (k) { return !!k && k.indexOf('cortex-financas.') === 0; }); }
   /*CORE-END*/
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -1587,8 +1589,8 @@
   function apagarTudo() {
     try {
       var ks = [];
-      for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('cortex-financas.') === 0) ks.push(k); }
-      ks.forEach(function (k) { localStorage.removeItem(k); });
+      for (var i = 0; i < localStorage.length; i++) ks.push(localStorage.key(i));
+      chavesParaApagar(ks).forEach(function (k) { localStorage.removeItem(k); });
     } catch (e) { }
     S.dados = null; S.months = {}; S.over = {}; S.plan = null; S.summary = null; S.div = null; S.bloqueado = null; S.setupOpen = false;
   }

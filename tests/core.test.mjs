@@ -10,7 +10,7 @@ import { carregarNucleo, carregarXLSX, xlsxAMao, zip, gravarComBiblioteca, paraC
 
 const appJs = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 // regras (rules/) e leitores (parsers/) vêm antes do app.js, na ordem do index.html: a lista sai da própria página
-const scriptsAntes = [...readFileSync(new URL('../index.html', import.meta.url), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js');
+const scriptsAntes = [...readFileSync(new URL('../index.html', import.meta.url), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js' && f !== 'prefs.js');
 const regras = scriptsAntes.map(f => readFileSync(new URL('../' + f, import.meta.url), 'utf8')).join('\n');
 const core = regras + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
 const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.url), 'utf8');
@@ -851,7 +851,7 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
 test('a página carrega as regras de cada país e os leitores de banco antes do app.js, do próprio projeto', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(ordem, ['rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
+  assert.deepEqual(ordem, ['prefs.js', 'rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
