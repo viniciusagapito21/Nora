@@ -50,11 +50,12 @@ test('t() devolve o texto do idioma efetivo e troca as variáveis (APLICAR_LANG 
   assert.deepEqual(faltas(pt), []);
 });
 
-test('plural por Intl.PluralRules com vars.n: "{n} mês/meses" em 0, 1 e 2', () => {
+test('plural com vars.n: "{n} mês/meses" em 0, 1 e 2 (pt-BR: só 1 é singular)', () => {
   const pt = abrir({ languages: ['pt-BR'], aplicarLang: true }), en = abrir({ languages: ['en-GB'], aplicarLang: true });
   const meses = (c, n) => c.t('importar.meses', { n });
-  // resultado conferido (regras do CLDR no Intl do Node): em pt-BR o 0 fica no singular, em en-GB no plural
-  assert.deepEqual([0, 1, 2].map(n => meses(pt, n)), ['0 mês', '1 mês', '2 meses']);
+  // pt-BR: só 1 é singular, como o painel sempre fez ("0 meses"; o Intl diria "0 mês"); en-GB pelo Intl
+  assert.deepEqual([0, 1, 2].map(n => meses(pt, n)), ['0 meses', '1 mês', '2 meses']);
+  assert.deepEqual([0, 1, 2, 1.5, -1].map(n => meses(pt, n)), ['0 meses', '1 mês', '2 meses', '1.5 meses', '-1 meses']);
   assert.deepEqual([0, 1, 2].map(n => meses(en, n)), ['0 months', '1 month', '2 months']);
   assert.equal(pt.t('importar.adicionou', { n: 56, meses: meses(pt, 4) }), 'Adicionei 56 movimentações em 4 meses');
   assert.equal(en.t('importar.adicionou', { n: 1, meses: meses(en, 1) }), 'Added 1 transaction across 1 month');
@@ -117,4 +118,30 @@ test('index.html: dicionários e i18n.js depois do prefs.js e antes do app.js, s
   assert.ok(i('prefs.js') < i('i18n/pt-BR.js') && i('i18n/pt-BR.js') < i('i18n/en-GB.js') && i('i18n/en-GB.js') < i('i18n.js') && i('i18n.js') < i('app.js'));
   assert.equal((html.match(/<script\b/g) || []).length, ordem.length, 'todo <script> tem src');
   assert.doesNotMatch(html, /<script src="[^"]+">[^<]/);
+});
+
+test('th(): texto do dicionário e variáveis escapados; só cru() passa a marcação montada pelo código', () => {
+  const dicionarios = { 'pt-BR': { 'x.frase': 'Falta o câmbio de {moeda} para {nome}', 'x.aspas': "d'água \"x\"" }, 'en-GB': {} };
+  const { NORA_I18N: I } = abrir({ dicionarios });
+  assert.equal(I.th('x.frase', { moeda: 'BRL', nome: 'Conta <b>' }), 'Falta o câmbio de BRL para Conta &lt;b&gt;');
+  assert.equal(I.th('x.frase', { moeda: I.cru('<b>BRL</b>'), nome: '{moeda} & "x"' }), 'Falta o câmbio de <b>BRL</b> para {moeda} &amp; &quot;x&quot;');
+  assert.equal(I.th('x.aspas'), 'd&#39;água &quot;x&quot;');
+  assert.equal(I.th('nao.existe'), 'nao.existe');
+  // um objeto qualquer não passa cru: só o que cru() devolve
+  assert.equal(I.th('x.frase', { moeda: { marca: {}, html: '<i>' }, nome: 'a' }), 'Falta o câmbio de [object Object] para a');
+  // mesmo esc do app.js
+  const appJs = ler('app.js');
+  const escApp = appJs.match(/function esc\(s\) \{[^\n]*\}/)[0], escI18n = ler('i18n.js').match(/function esc\(s\) \{[^\n]*\}/)[0];
+  assert.equal(escI18n, escApp);
+});
+
+test('aplicarTextosFixos: troca o texto e o aria-label marcados, e só eles', () => {
+  const dicionarios = { 'pt-BR': { 'casca.carregando': 'Carregando…', 'casca.financas': 'Finanças' }, 'en-GB': { 'casca.carregando': 'Loading…', 'casca.financas': 'Finances' } };
+  const el = (atrs, texto) => ({ textContent: texto, atrs: { ...atrs }, getAttribute(k) { return k in this.atrs ? this.atrs[k] : null; }, setAttribute(k, v) { this.atrs[k] = v; } });
+  for (const [aplicarLang, txt, aria] of [[false, 'Carregando…', 'Finanças'], [true, 'Loading…', 'Finances']]) {
+    const { NORA_I18N: I } = abrir({ languages: ['en-GB'], dicionarios, aplicarLang });
+    const p = el({ 'data-i18n': 'casca.carregando' }, 'Carregando…'), sec = el({ 'data-i18n-aria-label': 'casca.financas', 'aria-label': 'Finanças' }, 'conteúdo');
+    I.aplicarTextosFixos({ querySelectorAll: sel => (assert.equal(sel, '[data-i18n], [data-i18n-aria-label]'), [p, sec]) });
+    assert.equal(p.textContent, txt); assert.equal(sec.atrs['aria-label'], aria); assert.equal(sec.textContent, 'conteúdo');
+  }
 });

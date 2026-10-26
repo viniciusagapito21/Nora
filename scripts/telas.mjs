@@ -433,6 +433,9 @@ for (const s of TELAS) {
   await pg.screenshot({ path: join(ATUAL, arq + '.png'), fullPage: !s.viewport, animations: 'disabled' });
   writeFileSync(join(ATUAL, arq + '.estilos.txt'), await pg.evaluate(estilosDaPagina));
   (await pg.evaluate(() => window.__violacoes)).forEach(v => problemas.push(`${arq}: violação da CSP: ${v}`));
+  // toda chave pedida existe no dicionário (NORA_I18N.faltando vazio)
+  (await pg.evaluate(() => (window.NORA_I18N ? NORA_I18N.faltando.map(f => f.idioma + ':' + f.chave) : ['NORA_I18N não carregou'])))
+    .forEach(f => problemas.push(`${arq}: chave sem tradução ${f}`));
   const c = await pg.evaluate(conferir);
   if (c.fora > 0) problemas.push(`${arq}: passa ${c.fora}px da borda da tela (${c.ex})`);
   c.contraste.forEach(x => problemas.push(`${arq}: contraste ${x}`));

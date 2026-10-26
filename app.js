@@ -1466,6 +1466,13 @@
   function chavesParaApagar(chaves) { return chaves.filter(function (k) { return !!k && k.indexOf('cortex-financas.') === 0; }); }
   /*CORE-END*/
 
+  /* textos da tela (passo d da Fase 3): tt(chave, vars) para texto puro (toast, textContent, atributo com esc());
+     tth(chave, vars) para dentro de HTML: escapa o texto do dicionário e cada variável, menos a embrulhada em
+     cru('<b>' + esc(x) + '</b>'). Texto da pessoa só entra como variável. A função global t não serve aqui: muitas funções deste
+     arquivo têm o parâmetro t (o movimento), que esconde a função global. */
+  var tt = NORA_I18N.t, tth = NORA_I18N.th, cru = NORA_I18N.cru;
+  NORA_I18N.aplicarTextosFixos(document);
+
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, importar: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };

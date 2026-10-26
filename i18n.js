@@ -25,23 +25,48 @@ var NORA_I18N = (function () {
     for (var i = 0; i < faltando.length; i++) if (faltando[i].idioma === idi && faltando[i].chave === chave) return;
     faltando.push({ idioma: idi, chave: chave });
   }
+  /* plural: em pt-BR só 1 é singular ("0 movimentações", "0 meses", como o painel sempre fez; o Intl diria
+     "0 movimentação"); nos outros idiomas, Intl.PluralRules */
+  var PLURAL = { 'pt-BR': function (n) { return n === 1 ? 'one' : 'other'; } };
   function forma(v, vars, idi) {
     if (typeof v === 'string') return v;
-    var n = vars && vars.n, cat = typeof n === 'number' ? new Intl.PluralRules(idi).select(n) : 'other';
+    var n = vars && vars.n, cat = typeof n !== 'number' ? 'other' : PLURAL[idi] ? PLURAL[idi](n) : new Intl.PluralRules(idi).select(n);
     return typeof v[cat] === 'string' ? v[cat] : v.other;
   }
   /* uma passada só: o que entra por vars não é lido de novo */
-  function preencher(s, vars) {
-    return s.replace(/\{(\w+)\}/g, function (m, k) { return vars && tem.call(vars, k) ? String(vars[k]) : m; });
+  function preencher(s, vars, comoVar) {
+    return s.replace(/\{(\w+)\}/g, function (m, k) { return vars && tem.call(vars, k) ? comoVar(vars[k]) : m; });
   }
-  function t(chave, vars) {
+  /* o texto da chave, já com a forma do plural (antes de trocar as variáveis) */
+  function molde(chave, vars) {
     var idi = idioma, v = buscar(idi, chave);
     if (v === undefined) {
       anotar(idi, chave);
       if (idi !== BASE) { idi = BASE; v = buscar(BASE, chave); if (v === undefined) anotar(BASE, chave); }
     }
-    return v === undefined ? chave : preencher(forma(v, vars, idi), vars);
+    return v === undefined ? chave : forma(v, vars, idi);
   }
-  return { t: t, faltando: faltando, idioma: function () { return idioma; }, idiomaPreferido: function () { return preferido; }, BASE: BASE };
+  function t(chave, vars) { return preencher(molde(chave, vars), vars, String); }
+
+  /* texto para dentro de HTML: o do dicionário escapado (o mesmo esc do app.js) e cada variável escapada também;
+     só não escapa a variável embrulhada em cru('<b>' + esc(x) + '</b>'), a marcação montada pelo próprio código */
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var CRU = {};
+  function cru(s) { return { marca: CRU, html: String(s) }; }
+  function th(chave, vars) {
+    return preencher(esc(molde(chave, vars)), vars, function (v) { return v && v.marca === CRU ? v.html : esc(v); });
+  }
+  /* textos fixos do index.html: data-i18n="chave" troca o texto, data-i18n-aria-label="chave" o aria-label.
+     O português fica no HTML (sem JS, ou antes de carregar, nada muda); raiz = a página inteira */
+  function aplicarTextosFixos(raiz) {
+    var l = raiz.querySelectorAll('[data-i18n], [data-i18n-aria-label]');
+    for (var i = 0; i < l.length; i++) {
+      var el = l[i], k = el.getAttribute('data-i18n'), a = el.getAttribute('data-i18n-aria-label');
+      if (k) el.textContent = t(k);
+      if (a) el.setAttribute('aria-label', t(a));
+    }
+  }
+  return { t: t, th: th, cru: cru, esc: esc, aplicarTextosFixos: aplicarTextosFixos, faltando: faltando,
+    idioma: function () { return idioma; }, idiomaPreferido: function () { return preferido; }, BASE: BASE };
 })();
 function t(chave, vars) { return NORA_I18N.t(chave, vars); }
