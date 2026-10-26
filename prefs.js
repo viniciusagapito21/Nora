@@ -25,7 +25,7 @@ var NORA_PREFS = (function () {
   function idiomaEfetivo(p) { return p.idioma || idiomaAuto(); }
   /* o lang ainda não é aplicado: enquanto não existe dicionário inglês (passo f), a página é toda em português e
      lang="en-GB" faria leitores de tela lerem português com voz inglesa; o <html> fica com o lang="pt-BR" do index.html.
-     O passo f liga APLICAR_LANG junto com o dicionário. */
+     O passo f liga APLICAR_LANG junto com o dicionário; o t() do i18n.js segue a mesma constante (desligada: pt-BR). */
   var APLICAR_LANG = false;
   function aplicar(p, html) {
     if (APLICAR_LANG) html.lang = idiomaEfetivo(p);
@@ -33,5 +33,5 @@ var NORA_PREFS = (function () {
   }
 
   if (typeof document !== 'undefined' && document.documentElement) aplicar(ler(), document.documentElement);
-  return { CHAVE: CHAVE, limpar: limpar, ler: ler, idiomaAuto: idiomaAuto, idiomaEfetivo: idiomaEfetivo, aplicar: aplicar };
+  return { CHAVE: CHAVE, limpar: limpar, ler: ler, idiomaAuto: idiomaAuto, idiomaEfetivo: idiomaEfetivo, aplicar: aplicar, APLICAR_LANG: APLICAR_LANG };
 })();

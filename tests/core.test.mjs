@@ -851,7 +851,7 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
 test('a página carrega as regras de cada país e os leitores de banco antes do app.js, do próprio projeto', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(ordem, ['prefs.js', 'rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
+  assert.deepEqual(ordem, ['prefs.js', 'i18n/pt-BR.js', 'i18n/en-GB.js', 'i18n.js', 'rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {

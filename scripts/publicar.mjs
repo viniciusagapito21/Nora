@@ -38,7 +38,7 @@ for (const entrada of readdirSync(parsers, { withFileTypes: true })) {
   cpSync(join(parsers, entrada.name), join(saida, 'parsers', entrada.name), { recursive: true });
 }
 
-for (const opcional of ['prefs.js', 'i18n']) {
+for (const opcional of ['prefs.js', 'i18n.js', 'i18n']) {
   const origem = join(raiz, '..', opcional);
   if (existsSync(origem)) cpSync(origem, join(saida, opcional), { recursive: true });
 }
