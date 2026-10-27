@@ -21,6 +21,9 @@ const AREAS_FEITAS = {
   // (eventos) = o código de topo depois das funções (cliques, envios de formulário), como o analisador o chama
   'mensagens': ['(eventos)', 'localSave', 'enqueue'],
   'painel': ['kpis', 'niceStep', 'chart', 'catPanel', 'tagOf', 'filterMatch', 'movPanel', 'table', 'dl', 'fraseMovido', 'notaEnvios'],
+  'metas, previsão e poupança': ['metaDefinida', 'pouparDefinido', 'enviosMovidos', 'planCat', 'planPoupar', 'catPor', 'catNome', 'planTotal', 'metaCampo', 'metasCampos', 'lerMeta', 'lerMetas',
+    'metasPoupanca', 'nomeMeta', 'pct', 'listaE', 'goalCfg', 'goalHas', 'refMonth', 'mesesAte', 'mesAno', 'addMonth', 'metasPoup', 'previsao', 'aluguelSugerido', 'perguntaAluguel', 'perguntaEnvios',
+    'recorrentes', 'vbars', 'enviosBrasil', 'taxaPoup', 'statusPrevisao', 'pendNum', 'pendFrase', 'pendBotao'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -47,6 +50,8 @@ test('o analisador separa texto de tela de código', () => {
   assert.deepEqual(v(' movimentações em '), ['movimentações em']);
   assert.deepEqual(v('fin-k-'), []); assert.deepEqual(v('#fin-tip'), []); assert.deepEqual(v('abas.resumo'), []);
   assert.deepEqual(v('cortex-financas.v4'), []); assert.deepEqual(v('0 3px,color-mix(in srgb'), []);
+  assert.deepEqual(v('-nome" type="text" autocomplete="off" maxlength="40" value="'), []);
+  assert.deepEqual(v('-x <b>Nome</b>'), ['Nome']);
 });
 
 test('áreas já extraídas: nenhum texto visível fora do dicionário', () => {

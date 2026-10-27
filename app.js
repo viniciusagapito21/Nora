@@ -1533,12 +1533,12 @@
   /* campos de metas (usados em "Editar metas" e na configuração); pre separa os ids dos dois formulários */
   /* campo em branco = seguir a sugestão (ou ficar sem meta, sem extrato) */
   function metaCampo(id, rotulo, v, sug) {
-    return '<label>' + esc(rotulo) + '<input id="' + id + '" type="number" min="0" step="5" inputmode="decimal" value="' + (v != null ? v : '') + '" placeholder="' + (sug != null ? 'sugestão: ' + sug : 'sem meta') + '"></label>';
+    return '<label>' + esc(rotulo) + '<input id="' + id + '" type="number" min="0" step="5" inputmode="decimal" value="' + (v != null ? v : '') + '" placeholder="' + (sug != null ? tth('metas.sugestao', { valor: sug }) : tth('painel.semMeta')) + '"></label>';
   }
   function metasCampos(pre) {
     var h = '';
-    CATSV.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, catNome(c) + (c.id === 'brasil' && enviosMovidos() ? ' (dinheiro movido nesta carteira: não conta como gasto)' : ''), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
-    return h + metaCampo('fin-' + pre + '-poupar', 'Guardar por mês', pouparDefinido(), SUG ? SUG.poupar : null);
+    CATSV.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, (c.id === 'brasil' && enviosMovidos() ? tt('metas.rotuloMovido', { nome: catNome(c) }) : catNome(c)), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
+    return h + metaCampo('fin-' + pre + '-poupar', tt('metas.guardarPorMes'), pouparDefinido(), SUG ? SUG.poupar : null);
   }
   function lerMeta(id) { var v = $(id).value.trim(); return v === '' || isNaN(v) ? null : Math.max(0, +v); }
   function lerMetas(pre) {
@@ -1880,9 +1880,9 @@
   }
   /* o aviso de transferência a confirmar aparece no número da previsão e na linha de status */
   function statusPrevisao(dif, pend, fmt) {
-    if (Math.abs(dif) < 0.5) return '<span class="d ok">deve fechar na meta</span>';
-    if (dif < 0) return '<span class="d good">▼ deve fechar ' + fmt(-dif) + ' abaixo da meta</span>';
-    return '<span class="d ' + (passaMesmo(dif, pend) ? 'bad' : 'ok') + '">▲ deve passar ' + fmt(dif) + ' da meta</span>';
+    if (Math.abs(dif) < 0.5) return '<span class="d ok">' + tth('previsao.fechaNaMeta') + '</span>';
+    if (dif < 0) return '<span class="d good">' + tth('previsao.fechaAbaixo', { valor: fmt(-dif) }) + '</span>';
+    return '<span class="d ' + (passaMesmo(dif, pend) ? 'bad' : 'ok') + '">' + tth('previsao.passa', { valor: fmt(dif) }) + '</span>';
   }
   /* quanto do Gastou é "Envios para outra conta sua": só mostra, não muda nenhum cálculo */
   function nomeEnvios() {
@@ -1892,11 +1892,11 @@
   /* movido > 0: saiu mais para outras contas suas do que entrou delas (mesma convenção do "Guardou") */
   function fraseMovido(v, fmt) { return v > 0 ? tth('painel.saiuMovido', { valor: fmt(v) }) : tth('painel.entrouMovido', { valor: fmt(-v) }); }
   function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend">' + tth(media ? 'painel.incluiMedia' : 'painel.inclui', { valor: fmt(v), nome: nomeEnvios() }) + '</p>'; }
-  function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">inclui ' + fmt(pend) + ' a confirmar</p>'; }
+  function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">' + tth('previsao.incluiConfirmar', { valor: fmt(pend) }) + '</p>'; }
   function pendFrase(pend, n, fmt) {
-    return pend < 0.5 ? '' : ', mas inclui ' + fmt(pend) + (n === 1 ? ' de uma transferência sugerida ainda não confirmada' : ' de ' + n + ' transferências sugeridas ainda não confirmadas');
+    return pend < 0.5 ? '' : ', ' + tth('previsao.pendFrase', { valor: fmt(pend), n: n });
   }
-  function pendBotao(pend) { return pend < 0.5 ? '' : '<p class="pendb"><button class="btn sm" type="button" data-irtransf>Ver transferências sugeridas</button></p>'; }
+  function pendBotao(pend) { return pend < 0.5 ? '' : '<p class="pendb"><button class="btn sm" type="button" data-irtransf>' + tth('previsao.verTransf') + '</button></p>'; }
   /* envios para outra conta sua no mês em andamento, somando as carteiras, na moeda principal */
   function envResumo(R) { var Q = mesResumo(R, S.dados, R.partial); return Q.total && Q.total.spend ? Q.total.spend.brasil || 0 : 0; }
   function previsaoResumoTela(R) {
@@ -1910,7 +1910,7 @@
     return h + '<span class="hint">até ' + esc(dFull(R.ref)) + ' · a soma das previsões de cada carteira</span></div><div class="card prv">' +
       '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
       '<div class="ptrack" role="img" aria-label="Gasto ' + fP0(P.gasto) + ', previsão ' + fP0(P.proj) + ', meta ' + fP0(P.meta) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
-      '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
+      '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
       '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return esc(q.w.nome) + ': previsão ' + a + fP0(q.proj) + ', meta ' + a + fP0(q.meta); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
       (cedo.length ? '<p class="aviso">' + cedo.map(function (q) { return '<b>' + esc(q.w.nome) + '</b> tem dados só até ' + esc(dFull(q.w.ate || q.w.M.lastDate)); }).join('; ') + ': a previsão ' + (cedo.length === 1 ? 'dela' : 'delas') + ' segue o ritmo até ali.</p>' : '') +
       (P.fora.length ? '<p class="aviso">' + esc(nomes(P.fora.map(function (w) { return w.nome; }))) + (P.fora.length === 1 ? ' não tem' : ' não têm') + ' movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ': fora da previsão.</p>' : '') + '</div></section>';
@@ -2969,6 +2969,8 @@
   /* nome da meta na tela: o de fábrica traduzido, o da pessoa como está */
   function nomeMeta(g) { return nomeExibido('meta', g.id, g.nome, NORA_I18N.t); }
   function pct(v) { return nn.format(v) + '%'; }
+  /* "a, b e c": o último item ligado pelo "e" do idioma */
+  function listaE(l) { return l.length < 2 ? l.join('') : tt('comum.listaE', { inicio: l.slice(0, -1).join(', '), fim: l[l.length - 1] }); }
   function goalCfg(id) { var g = S.plan && S.plan.goals; return (g && g[id]) || {}; }
   /* valor atual da meta; null quando falta o câmbio de uma carteira Revolut (fica em goalFalta) */
   var goalFalta = null;
@@ -3007,79 +3009,78 @@
     return y + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd;
   }
   function metasPoup() {
-    var f0 = fP0, h = '<section class="sec" id="fin-goals"><div class="sec-top"><h2>Metas de poupança</h2><span class="hint">as de Flexible Cash e investimentos saem do extrato; as outras você atualiza</span></div><div class="gl4">';
+    var f0 = fP0, h = '<section class="sec" id="fin-goals"><div class="sec-top"><h2>' + tth('metas.titulo') + '</h2><span class="hint">' + tth('metas.dica') + '</span></div><div class="gl4">';
     metasPoupanca().forEach(function (g) {
       var c = goalCfg(g.id), alvo = +c.alvo || 0, tem = goalHas(g), semCambio = tem == null ? goalFalta : null, ml = mesesAte(c.prazo), st;
       if (semCambio) tem = 0;
       var falta = Math.max(0, alvo - tem), pc = alvo ? Math.min(100, tem / alvo * 100) : 0;
-      if (semCambio) st = 'Defina o câmbio de ' + esc(semCambio) + ' em Configurações para somar esta meta.';
-      else if (!alvo) st = 'Defina o valor em Editar metas de poupança.';
-      else if (falta < 0.5) st = '<span class="d good">Meta batida</span>';
-      else st = 'Faltam ' + f0(falta) + (ml ? '<br>' + f0(falta / ml) + ' por mês até ' + esc(mesAno(c.prazo)) : '<br>sem prazo definido');
-      h += '<div class="kpi goal"><span class="l">' + esc(nomeMeta(g)) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>de ' + f0(alvo) + '</small>' : '') + '</span>' +
-        '<span class="gbar" role="img" aria-label="' + (alvo ? nn.format(pc) + '% da meta' : 'sem meta') + '"><i style="width:' + pc.toFixed(1) + '%"></i></span>' +
-        '<span class="s">' + st + (g.src ? '<br><span class="src">valor atual: ' + deOrigemMeta(g.src) + '</span>' : '') + '</span></div>';
+      if (semCambio) st = tth('metas.definaCambio', { moeda: semCambio });
+      else if (!alvo) st = tth('metas.definaValor');
+      else if (falta < 0.5) st = '<span class="d good">' + tth('metas.batida') + '</span>';
+      else st = tth('metas.faltam', { valor: f0(falta) }) + '<br>' + (ml ? tth('metas.porMesAte', { valor: f0(falta / ml), prazo: mesAno(c.prazo) }) : tth('metas.semPrazo'));
+      h += '<div class="kpi goal"><span class="l">' + esc(nomeMeta(g)) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>' + tth('painel.deValor', { valor: f0(alvo) }) + '</small>' : '') + '</span>' +
+        '<span class="gbar" role="img" aria-label="' + (alvo ? tth('metas.pctDaMeta', { pct: nn.format(pc) }) : tth('metas.semMeta')) + '"><i style="width:' + pc.toFixed(1) + '%"></i></span>' +
+        '<span class="s">' + st + (g.src ? '<br><span class="src">' + tth('metas.valorAtual', { origem: cru(deOrigemMeta(g.src)) }) + '</span>' : '') + '</span></div>';
     });
-    h += '</div><details class="metas" id="fin-gedit"' + (S.gOpen ? ' open' : '') + '><summary>Editar metas de poupança</summary><form id="fin-fgoals"><div class="ggrid">';
+    h += '</div><details class="metas" id="fin-gedit"' + (S.gOpen ? ' open' : '') + '><summary>' + tth('metas.editar') + '</summary><form id="fin-fgoals"><div class="ggrid">';
     var lista = metasPoupanca();
     lista.forEach(function (g) {
       var c = goalCfg(g.id), k = 'fin-g-' + g.id;
       h += '<fieldset><legend>' + esc(nomeMeta(g)) + '</legend><div class="mgrid">' +
-        '<label>Nome<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(nomeMeta(g)) + '"></label>' +
-        '<label>De onde vem o valor<select id="' + k + '-src">' + opcoes(origensMeta(), g.src || '') + '</select></label>' +
-        '<label>Meta (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
-        '<label>Prazo<input id="' + k + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
-        '<label>Já guardado (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"><small>Só vale quando o valor é digitado por você.</small></label>' +
-        '<label class="chk"><input id="' + k + '-excluir" type="checkbox">Excluir esta meta</label></div></fieldset>';
+        '<label>' + tth('comum.nome') + '<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(nomeMeta(g)) + '"></label>' +
+        '<label>' + tth('metas.origem') + '<select id="' + k + '-src">' + opcoes(origensMeta(), g.src || '') + '</select></label>' +
+        '<label>' + tth('metas.metaSimbolo', { simbolo: simbolo(moedaP()) }) + '<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
+        '<label>' + tth('metas.prazo') + '<input id="' + k + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
+        '<label>' + tth('metas.jaGuardado', { simbolo: simbolo(moedaP()) }) + '<input id="' + k + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"><small>' + tth('metas.soDigitado') + '</small></label>' +
+        '<label class="chk"><input id="' + k + '-excluir" type="checkbox">' + tth('metas.excluir') + '</label></div></fieldset>';
     });
-    if (lista.length < MAX_METAS_POUP) h += '<fieldset><legend>Nova meta</legend><div class="mgrid"><label>Nome<input id="fin-g-nova" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Carro"><small>Até ' + MAX_METAS_POUP + ' metas.</small></label></div></fieldset>';
-    return h + '</div><button class="btn sm pri" type="submit">Salvar metas de poupança</button></form></details></section>';
+    if (lista.length < MAX_METAS_POUP) h += '<fieldset><legend>' + tth('metas.nova') + '</legend><div class="mgrid"><label>' + tth('comum.nome') + '<input id="fin-g-nova" type="text" autocomplete="off" maxlength="40" placeholder="' + tth('metas.exNome') + '"><small>' + tth('metas.ate', { n: MAX_METAS_POUP }) + '</small></label></div></fieldset>';
+    return h + '</div><button class="btn sm pri" type="submit">' + tth('metas.salvar') + '</button></form></details></section>';
   }
   function previsao() {
-    var cur = M.partial, h = '<section class="sec"><div class="sec-top"><h2>Previsão do mês</h2>';
-    if (!cur) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(M.keys[M.keys.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
+    var cur = M.partial, h = '<section class="sec"><div class="sec-top"><h2>' + tth('previsao.titulo') + '</h2>';
+    if (!cur) return h + '</div><div class="card"><p class="passo">' + tth('previsao.semMesAtual', { mes: mLabel(M.keys[M.keys.length - 1]) }) + '</p></div></section>';
     var P = preverMes(M, planCat, CATST), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
     var proj = P.proj, falFix = P.falFix, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
     var mx = Math.max(proj, meta, g.gasto, 1), cw = cartAtual(), rs = TR && cw ? saidasPendentes(TR.S, cw.id, cur) : [], pend = 0;
     if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs), { envios: cw.envios }), planCat, CATST).proj);
     var st = statusPrevisao(dif, pend, f0);
-    return h + '<span class="hint">até dia ' + day + ' de ' + dim + ' · ' + left + ' dias pela frente</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">Previsão para ' + esc(MES[p[1] - 1]) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + f0(meta) + '</p></div></div>' +
-      '<div class="ptrack" role="img" aria-label="Gasto ' + f0(g.gasto) + ', previsão ' + f0(proj) + ', meta ' + f0(meta) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
-      '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>gasto até agora</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>previsão no ritmo atual</span><span><i class="sw line"></i>meta</span></div>' +
-      '<p class="s">' + st + pendFrase(pend, rs.length, f0) + '. ' + (porDia > 0 ? 'Para fechar na meta, dá para gastar até <b>' + f0(porDia) + ' por dia</b> nos gastos do dia a dia' + (falFix > 0.5 ? ', já separando ' + f0(falFix) + ' de contas fixas que ainda vão cair' : '') + '.' : 'A meta do mês já foi usada' + (falFix > 0.5 ? ', e ainda faltam ' + f0(falFix) + ' de contas fixas' : '') + '.') +
-      ' ' + CATSV.filter(function (c) { return c.fixa; }).map(function (c) { return c.nome; }).concat(['as contas fixas detectadas abaixo']).join(', ').replace(/, ([^,]*)$/, ' e $1') + ' entram pelo valor de sempre; o resto segue o ritmo dos ' + day + ' primeiros dias.</p>' + pendBotao(pend) +
-      (P.semBase.length ? '<p class="aviso">' + P.semBase.map(function (id) { return '<b>' + esc(catPor(id).nome) + '</b>'; }).join(', ') + (P.semBase.length === 1 ? ' está' : ' estão') +
-        ' como conta fixa, mas sem meta e sem cobrança recorrente: a previsão conta só o que já saiu este mês. Defina a meta em Editar metas.</p>' : '') + '</div></section>';
+    return h + '<span class="hint">' + tth('previsao.dica', { dia: day, dim: dim, n: left }) + '</span></div><div class="card prv">' +
+      '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: MES[p[1] - 1] }) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + f0(meta) + '</p></div></div>' +
+      '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', { gasto: f0(g.gasto), proj: f0(proj), meta: f0(meta) }) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+      '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
+      '<p class="s">' + st + pendFrase(pend, rs.length, f0) + '. ' + (porDia > 0 ? tth(falFix > 0.5 ? 'previsao.cabeDiaFixas' : 'previsao.cabeDia', { destaque: cru('<b>' + tth('previsao.porDiaValor', { valor: f0(porDia) }) + '</b>'), fixas: f0(falFix) }) :
+        tth(falFix > 0.5 ? 'previsao.metaUsadaFixas' : 'previsao.metaUsada', { fixas: f0(falFix) })) +
+      ' ' + tth('previsao.entramValor', { lista: listaE(CATSV.filter(function (c) { return c.fixa; }).map(function (c) { return c.nome; }).concat([tt('previsao.contasDetectadas')])), dia: day }) + '</p>' + pendBotao(pend) +
+      (P.semBase.length ? '<p class="aviso">' + tth('previsao.semBase', { n: P.semBase.length, lista: cru(P.semBase.map(function (id) { return '<b>' + esc(catPor(id).nome) + '</b>'; }).join(', ')) }) + '</p>' : '') + '</div></section>';
   }
   /* a pessoa nova não sabe que o aluguel por transferência cai em "outros": pergunta uma vez */
   function aluguelSugerido() { return CPOR.aluguel && !CPOR.aluguel.oculta ? sugerirAluguel(RECS, S.plan && S.plan.naoAluguel) : null; }
   function perguntaAluguel() {
     var o = aluguelSugerido();
     if (!o) return '';
-    return '<div class="aviso pergunta"><p>Todo dia ' + o.dia + ' sai ' + f2(o.v) + ' para <b>' + esc(o.last.desc) + '</b>, hoje em ' + esc(catPor(o.last.cat).nome) + '. <b>Isso é aluguel?</b></p>' +
-      '<div class="grupo"><button class="btn sm pri" type="button" data-aluguel="sim">Sim, é aluguel</button><button class="btn sm" type="button" data-aluguel="nao">Não é</button></div></div>';
+    return '<div class="aviso pergunta"><p>' + tth('plano.aluguelPergunta', { dia: o.dia, valor: f2(o.v), desc: cru('<b>' + esc(o.last.desc) + '</b>'), categoria: catPor(o.last.cat).nome, pergunta: cru('<b>' + tth('plano.ehAluguel') + '</b>') }) + '</p>' +
+      '<div class="grupo"><button class="btn sm pri" type="button" data-aluguel="sim">' + tth('plano.simAluguel') + '</button><button class="btn sm" type="button" data-aluguel="nao">' + tth('plano.naoE') + '</button></div></div>';
   }
   /* o aviso dos envios, uma vez por carteira: some depois de qualquer resposta (aqui ou em Configurações) */
   function perguntaEnvios() {
     var cw = cartAtual(), A = cw && !cw.envios && !cw.enviosDecidido ? avisoEnvios(M) : null;
     if (!A) return '';
-    return '<div class="aviso pergunta" id="fin-avenvios"><p>No período todo, <b>' + f0(A.soma) + '</b> dos ' + f0(A.gasto) + ' do Gastou (' + Math.round(A.fracao * 100) + '%) são ' + esc(nomeEnvios()) + ' (' + A.n + ' envios). ' +
-      'Se o dinheiro só mudou de conta, conte como dinheiro movido: sai do Gastou e das metas, e o Saldo do mês continua batendo com o extrato. <b>Esses envios são gasto?</b></p>' +
-      '<div class="grupo"><button class="btn sm pri" type="button" data-envios="movido">Contar como movido nesta carteira</button><button class="btn sm" type="button" data-envios="gasto">Continua gasto</button></div>' +
-      '<p class="passo">Dá para mudar depois em Configurações, na carteira.</p></div>';
+    return '<div class="aviso pergunta" id="fin-avenvios"><p>' + tth('plano.enviosPergunta', { soma: cru('<b>' + esc(f0(A.soma)) + '</b>'), gasto: f0(A.gasto), pct: Math.round(A.fracao * 100), nome: nomeEnvios(), n: A.n, pergunta: cru('<b>' + tth('plano.enviosSaoGasto') + '</b>') }) + '</p>' +
+      '<div class="grupo"><button class="btn sm pri" type="button" data-envios="movido">' + tth('plano.contarMovido') + '</button><button class="btn sm" type="button" data-envios="gasto">' + tth('plano.continuaGasto') + '</button></div>' +
+      '<p class="passo">' + tth('plano.mudarDepois') + '</p></div>';
   }
   function recorrentes() {
     var nk = Math.min(3, M.keys.length), list = RECS, tot = 0;
     if (nk < 2) return '';
     list.forEach(function (o) { tot += o.v; });
-    var h = '<section class="sec"><div class="sec-top"><h2>Contas fixas e assinaturas</h2><span class="hint">cobranças que se repetem nos últimos meses, com valor parecido</span></div><div class="card">';
-    if (!list.length) return h + '<p class="vazio">Ainda não dá para ver repetições. Com dois ou três meses de extrato elas aparecem aqui.</p></div></section>';
+    var h = '<section class="sec"><div class="sec-top"><h2>' + tth('plano.recorrentesTitulo') + '</h2><span class="hint">' + tth('plano.recorrentesDica') + '</span></div><div class="card">';
+    if (!list.length) return h + '<p class="vazio">' + tth('plano.recorrentesVazio') + '</p></div></section>';
     list.forEach(function (o, i) {
       var c = catPor(o.last.cat);
-      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + Object.keys(o.m).length + ' dos últimos ' + nk + ' meses</small></span><span class="rd">dia ' + o.dia + (o.atrasada ? '<small class="atraso">esperada dia ' + o.dia + ', ainda não apareceu</small>' : '<small>próxima ' + esc(dFmt(addMonth(o.last.date))) + '</small>') + '</span><b class="num">' + f2(o.v) + '</b></div>';
+      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + tth('plano.dosUltimos', { n: Object.keys(o.m).length, total: nk }) + '</small></span><span class="rd">' + tth('plano.dia', { dia: o.dia }) + (o.atrasada ? '<small class="atraso">' + tth('plano.atrasada', { dia: o.dia }) + '</small>' : '<small>' + tth('plano.proxima', { data: dFmt(addMonth(o.last.date)) }) + '</small>') + '</span><b class="num">' + f2(o.v) + '</b></div>';
     });
-    return h + '<div class="rec tot"><span></span><span class="rn">Total fixo por mês</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
+    return h + '<div class="rec tot"><span></span><span class="rn">' + tth('plano.totalFixo') + '</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
   }
   function vbars(items, fmt) {
     var mx = 0;
@@ -3093,9 +3094,9 @@
     var ks = M.keys.slice(-6), ano = (M.lastDate || '').slice(0, 4), totAno = 0, sAvg = 0, nAvg = 0;
     M.keys.forEach(function (k) { var v = M.by[k].envios || 0; if (k.slice(0, 4) === ano) totAno += v; if (k !== M.partial) { sAvg += v; nAvg++; } });
     var items = ks.map(function (k) { return { k: k, v: M.by[k].envios || 0, at: k === ks[ks.length - 1], parc: k === M.partial }; });
-    return '<section class="sec"><div class="sec-top"><h2>' + esc(catPor('brasil').nome) + '</h2><span class="hint">dinheiro que vai para outra conta sua</span></div><div class="card">' + vbars(items, f0) +
-      '<div class="tri3"><div><b class="num">' + f0(nAvg ? sAvg / nAvg : 0) + '</b><span>média por mês</span></div><div><b class="num">' + f0(totAno) + '</b><span>em ' + esc(ano) + '</span></div><div><b class="num">' + f0(planCat('brasil')) + '</b><span>meta mensal</span></div></div>' +
-      (M.partial ? '<p class="s">* mês em andamento</p>' : '') + '</div></section>';
+    return '<section class="sec"><div class="sec-top"><h2>' + esc(catPor('brasil').nome) + '</h2><span class="hint">' + tth('plano.enviosDica') + '</span></div><div class="card">' + vbars(items, f0) +
+      '<div class="tri3"><div><b class="num">' + f0(nAvg ? sAvg / nAvg : 0) + '</b><span>' + tth('plano.mediaPorMes') + '</span></div><div><b class="num">' + f0(totAno) + '</b><span>' + tth('plano.emAno', { ano: ano }) + '</span></div><div><b class="num">' + f0(planCat('brasil')) + '</b><span>' + tth('plano.metaMensal') + '</span></div></div>' +
+      (M.partial ? '<p class="s">' + tth('plano.mesEmAndamento') + '</p>' : '') + '</div></section>';
   }
   function taxaPoup() {
     var ks = M.keys.slice(-6), rate = function (k) { var g = M.by[k]; return g.entrou > 0 ? g.saved / g.entrou * 100 : null; };
@@ -3103,14 +3104,14 @@
     var l3 = comp.slice(-3), p3 = comp.slice(-6, -3), tr = '';
     if (l3.length && p3.length) {
       var a1 = l3.reduce(function (a, b) { return a + b; }, 0) / l3.length, a0 = p3.reduce(function (a, b) { return a + b; }, 0) / p3.length, d = a1 - a0;
-      tr = Math.abs(d) < 1 ? '<span class="d ok">estável</span>' : d > 0 ? '<span class="d good">▲ ' + nn.format(d) + ' pontos</span>' : '<span class="d bad">▼ ' + nn.format(-d) + ' pontos</span>';
+      tr = Math.abs(d) < 1 ? '<span class="d ok">' + tth('plano.estavel') + '</span>' : d > 0 ? '<span class="d good">' + tth('plano.subiuPontos', { n: nn.format(d) }) + '</span>' : '<span class="d bad">' + tth('plano.caiuPontos', { n: nn.format(-d) }) + '</span>';
     }
     var items = ks.map(function (k) { return { k: k, v: rate(k), at: k === ks[ks.length - 1], parc: k === M.partial }; });
     var alvo = 0, nE = 0; M.complete.forEach(function (k) { if (M.by[k].entrou > 0) { alvo += M.by[k].entrou; nE++; } });
     alvo = nE ? planPoupar() / (alvo / nE) * 100 : null;
-    return '<section class="sec"><div class="sec-top"><h2>Taxa de poupança</h2><span class="hint">quanto do que entrou foi guardado</span></div><div class="card">' + vbars(items, pct) +
-      '<div class="tri3"><div><b class="num">' + (avg == null ? '–' : pct(avg)) + '</b><span>média dos meses completos</span></div><div><b>' + (tr || '–') + '</b><span>últimos 3 meses contra os 3 anteriores</span></div><div><b class="num">' + (alvo == null ? '–' : pct(alvo)) + '</b><span>o que a meta de guardar ' + f0(planPoupar()) + ' representa</span></div></div>' +
-      (M.partial ? '<p class="s">* mês em andamento</p>' : '') + '</div></section>';
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('plano.taxaTitulo') + '</h2><span class="hint">' + tth('plano.taxaDica') + '</span></div><div class="card">' + vbars(items, pct) +
+      '<div class="tri3"><div><b class="num">' + (avg == null ? '–' : pct(avg)) + '</b><span>' + tth('plano.mediaCompletos') + '</span></div><div><b>' + (tr || '–') + '</b><span>' + tth('plano.ultimos3') + '</span></div><div><b class="num">' + (alvo == null ? '–' : pct(alvo)) + '</b><span>' + tth('plano.metaGuardar', { valor: f0(planPoupar()) }) + '</span></div></div>' +
+      (M.partial ? '<p class="s">' + tth('plano.mesEmAndamento') + '</p>' : '') + '</div></section>';
   }
   document.addEventListener('toggle', function (e) {
     if (e.target && e.target.id === 'fin-gedit') S.gOpen = e.target.open;

@@ -6,7 +6,7 @@
 const ATRIB = /\b(aria-label|title|placeholder|alt)="([^"]*)"/g;
 const LETRA = /[A-Za-zÀ-ÿ]{2,}/;
 const ACENTO = /[À-ÿ]/;
-const CODIGO = /^[a-z0-9_]+([-.:#/][a-z0-9_]+)*$/;
+const CODIGO = /^-?[a-z0-9_]+([-.:#/][a-z0-9_]+)*$/;  // inclui o fim de um id montado, como '-nome"'
 
 export function pedacosVisiveis(lit) {
   const out = [];

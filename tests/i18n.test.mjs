@@ -107,7 +107,10 @@ test('os dois dicionários: mesmas chaves, mesmas formas de plural, mesmos {plac
     const todas = [...Object.values(fp), ...Object.values(fe)];
     for (const s of todas) { assert.equal(typeof s, 'string', k); assert.ok(s.trim() !== '', `${k}: valor vazio`); }
     const ref = marcas(Object.values(fp).join(' '));
-    for (const s of todas) assert.deepEqual(marcas(s), ref, `${k}: placeholders diferentes em "${s}"`);
+    // num plural, a forma pode escrever o número por extenso ("uma transferência") e omitir {n}; o "other" sempre tem {n}
+    const semN = l => l.filter(m => m !== '{n}');
+    if (typeof pt[k] !== 'string' && ref.includes('{n}')) for (const o of [fp.other, fe.other]) assert.ok(marcas(o).includes('{n}'), `${k}: o "other" precisa de {n}`);
+    for (const s of todas) assert.deepEqual(typeof pt[k] === 'string' ? marcas(s) : semN(marcas(s)), typeof pt[k] === 'string' ? ref : semN(ref), `${k}: placeholders diferentes em "${s}"`);
   }
 });
 
