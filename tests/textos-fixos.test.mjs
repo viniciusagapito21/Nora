@@ -17,6 +17,7 @@ const AREAS_FEITAS = {
   'em observação': ['vencTxt', 'divState', 'divMut', 'dividas'],
   'casca e abas': ['header', 'avisoEspaco', 'abas', 'notaResumo', 'emResumo', 'emptyState', 'render', 'start', 'cartao', 'variasCarteiras', 'origem', 'cartAtual', 'bancoAtual', 'nomeBanco', 'rotularArquivos', 'genericoTxt'],
   'saldo e caixa': ['dayN', 'balSeries', 'avgBal', 'cashSummary', 'perguntaSaldo', 'mudarCarteira', 'cashBridge', 'drawBal', 'origensMeta', 'deOrigemMeta'],
+  'revisão de categorias e Pix': ['merchants', 'entradas', 'nomeEntrada', 'optionsEntrada', 'effNome', 'optionsFor', 'revList', 'pixTitularBloco', 'salvarPixTitular', 'review'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {

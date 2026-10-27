@@ -2676,41 +2676,42 @@
     });
     return Object.keys(mp).map(function (k) { var x = mp[k]; if (Object.keys(x.effs).length > 1) x.eff = ''; return x; }).sort(function (a, b) { return b.total - a.total; });
   }
-  var NOME_ENTRADA = { _renda: 'Renda', _outras: 'Outras entradas', _ignore: 'Entre contas suas', _invest: 'Resgate de investimento' };
+  /* nome de cada tipo de entrada; função, não constante, para acompanhar o idioma */
+  function nomeEntrada(e) { return tt({ _renda: 'revisar.entradaRenda', _outras: 'comum.outrasEntradas', _ignore: 'comum.entreContas', _invest: 'revisar.resgateInvest' }[e]); }
   function optionsEntrada(sel, volta) {
-    var o = sel === '' ? '<option value="" selected disabled>Em mais de um tipo</option>' : '';
-    if (volta) o += '<option value="_auto">Voltar ao automático</option>';
-    [['_renda', 'Renda'], ['_outras', 'Outras entradas'], ['_ignore', 'Entre contas suas'], ['_invest', 'Resgate de investimento']].forEach(function (x) {
-      o += '<option value="' + x[0] + '"' + (sel === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
+    var o = sel === '' ? '<option value="" selected disabled>' + tth('revisar.maisDeUmTipo') + '</option>' : '';
+    if (volta) o += '<option value="_auto">' + tth('revisar.voltarAuto') + '</option>';
+    ['_renda', '_outras', '_ignore', '_invest'].forEach(function (x) {
+      o += '<option value="' + x + '"' + (sel === x ? ' selected' : '') + '>' + esc(nomeEntrada(x)) + '</option>';
     });
     return o;
   }
-  function effNome(e) { return e === '_invest' ? 'Investimento' : e === '_ignore' ? 'Entre contas suas' : (CPOR[e] ? CPOR[e].nome : e); }
+  function effNome(e) { return e === '_invest' ? tt('revisar.investimento') : e === '_ignore' ? tt('comum.entreContas') : (CPOR[e] ? CPOR[e].nome : e); }
   function optionsFor(sel, volta) {
-    var o = sel === '' ? '<option value="" selected disabled>Em mais de uma categoria</option>' : '';
-    if (volta) o += '<option value="_auto">Voltar ao automático</option>';
+    var o = sel === '' ? '<option value="" selected disabled>' + tth('revisar.maisDeUmaCategoria') + '</option>' : '';
+    if (volta) o += '<option value="_auto">' + tth('revisar.voltarAuto') + '</option>';
     CATSV.forEach(function (c) { o += '<option value="' + c.id + '"' + (sel === c.id ? ' selected' : '') + '>' + esc(catNome(c)) + '</option>'; });
-    o += '<option value="_invest"' + (sel === '_invest' ? ' selected' : '') + '>Investimento (não é gasto)</option>';
-    o += '<option value="_ignore"' + (sel === '_ignore' ? ' selected' : '') + '>Entre contas suas</option>';
+    o += '<option value="_invest"' + (sel === '_invest' ? ' selected' : '') + '>' + tth('revisar.investimentoNaoGasto') + '</option>';
+    o += '<option value="_ignore"' + (sel === '_ignore' ? ' selected' : '') + '>' + tth('comum.entreContas') + '</option>';
     return o;
   }
   function revList() {
     var q = S.q.trim().toUpperCase(), all = merchants().filter(function (x) { return !q || x.key.indexOf(q) >= 0; }), h = '';
     var ent = entradas().filter(function (x) { return !q || x.key.indexOf(q) >= 0; });
-    if (!all.length && !ent.length) return '<p class="vazio">Nada encontrado.</p>';
-    if (all.length) h += '<h3 class="rvt">Saídas</h3>';
+    if (!all.length && !ent.length) return '<p class="vazio">' + tth('revisar.nadaEncontrado') + '</p>';
+    if (all.length) h += '<h3 class="rvt">' + tth('revisar.saidas') + '</h3>';
     all.slice(0, 40).forEach(function (x) {
-      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + x.n + (x.n === 1 ? ' movimento · ' : ' movimentos · ') + f2(x.total) + (S.over[x.key] ? ' · categoria sua' : '') + (x.eff === '' ? ' · hoje dividido: ' + Object.keys(x.effs).map(function (e) { return effNome(e) + ' (' + x.effs[e] + ')'; }).join(', ') + '. Escolha uma para todos.' : '') + '</small></div>' +
-        '<select data-ov="' + esc(x.key) + '" aria-label="Categoria de ' + esc(x.desc) + '">' + optionsFor(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
+      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + tth('revisar.movimentos', { n: x.n, valor: f2(x.total) }) + (S.over[x.key] ? ' · ' + tth('revisar.categoriaSua') : '') + (x.eff === '' ? ' · ' + tth('revisar.divididoCategoria', { lista: Object.keys(x.effs).map(function (e) { return tt('revisar.itemContagem', { nome: effNome(e), n: x.effs[e] }); }).join(', ') }) : '') + '</small></div>' +
+        '<select data-ov="' + esc(x.key) + '" aria-label="' + tth('revisar.categoriaDe', { desc: x.desc }) + '">' + optionsFor(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
     });
-    if (all.length > 40) h += '<p class="passo" style="padding-top:12px">Mostrando 40 de ' + all.length + '. Use a busca para achar os outros.</p>';
-    if (ent.length) h += '<h3 class="rvt">Entradas</h3>';
+    if (all.length > 40) h += '<p class="passo" style="padding-top:12px">' + tth('revisar.mostrandoSaidas', { mostrando: 40, total: all.length }) + '</p>';
+    if (ent.length) h += '<h3 class="rvt">' + tth('revisar.entradas') + '</h3>';
     ent.slice(0, 40).forEach(function (x) {
-      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + x.n + (x.n === 1 ? ' movimento · +' : ' movimentos · +') + f2(x.total) + (S.over[x.key] ? ' · escolha sua' : '') +
-        (x.eff === '' ? ' · hoje dividido: ' + Object.keys(x.effs).map(function (e) { return NOME_ENTRADA[e] + ' (' + x.effs[e] + ')'; }).join(', ') + '. Escolha um para todos.' : '') + '</small></div>' +
-        '<select data-ov="' + esc(x.key) + '" aria-label="Tipo de entrada de ' + esc(x.desc) + '">' + optionsEntrada(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
+      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + tth('revisar.movimentosEntrada', { n: x.n, valor: f2(x.total) }) + (S.over[x.key] ? ' · ' + tth('revisar.escolhaSua') : '') +
+        (x.eff === '' ? ' · ' + tth('revisar.divididoTipo', { lista: Object.keys(x.effs).map(function (e) { return tt('revisar.itemContagem', { nome: nomeEntrada(e), n: x.effs[e] }); }).join(', ') }) : '') + '</small></div>' +
+        '<select data-ov="' + esc(x.key) + '" aria-label="' + tth('revisar.tipoEntradaDe', { desc: x.desc }) + '">' + optionsEntrada(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
     });
-    if (ent.length > 40) h += '<p class="passo" style="padding-top:12px">Mostrando 40 de ' + ent.length + ' entradas. Use a busca para achar as outras.</p>';
+    if (ent.length > 40) h += '<p class="passo" style="padding-top:12px">' + tth('revisar.mostrandoEntradas', { mostrando: 40, total: ent.length }) + '</p>';
     return h;
   }
   /* Pix para o titular, em carteira do Itaú com titular configurado: caixas desmarcadas, "Aplicar aos marcados",
@@ -2720,20 +2721,20 @@
     if (!cw || cw.banco !== 'itau' || !tit) return { n: 0, h: '' };
     var P = pixParaTitular(S.months, S.over, tit, cw.pixTitular);
     if (!P.pendentes.length && !P.aplicados.length) return { n: 0, h: '' };
-    var mes = {}, h = '<div class="card ggrid" id="fin-pixtit" tabindex="-1"><h3 class="rvt">Pix que parecem ser para você</h3>';
+    var mes = {}, h = '<div class="card ggrid" id="fin-pixtit" tabindex="-1"><h3 class="rvt">' + tth('revisar.pixTitulo') + '</h3>';
     P.pendentes.forEach(function (x) { var m = mes[x.data.slice(0, 7)] = mes[x.data.slice(0, 7)] || { s: 0, vs: 0, e: 0, ve: 0 }; if (x.valor < 0) { m.s++; m.vs -= x.valor; } else { m.e++; m.ve += x.valor; } });
     if (P.pendentes.length) {
-      h += '<p class="passo">O nome no Pix começa como o seu (' + esc(tit) + '). Marque os que são entre contas suas: as entradas ficam "Entre contas suas" e as saídas, "Envios para outra conta sua". Nada muda sem você marcar.</p>' +
-        '<p class="passo">' + Object.keys(mes).sort().map(function (m) { var x = mes[m]; return esc(mLabel(m)) + ': ' + (x.s ? x.s + (x.s === 1 ? ' saída' : ' saídas') + ' (' + esc(f2(x.vs / 100)) + ')' : '') + (x.s && x.e ? ', ' : '') + (x.e ? x.e + (x.e === 1 ? ' entrada' : ' entradas') + ' (' + esc(f2(x.ve / 100)) + ')' : ''); }).join(' · ') + '</p>' +
+      h += '<p class="passo">' + tth('revisar.pixExplica', { titular: tit }) + '</p>' +
+        '<p class="passo">' + Object.keys(mes).sort().map(function (m) { var x = mes[m]; return tth('revisar.pixMes', { mes: mLabel(m), resumo: [x.s ? tt('revisar.pixSaidas', { n: x.s, valor: f2(x.vs / 100) }) : '', x.e ? tt('revisar.pixEntradas', { n: x.e, valor: f2(x.ve / 100) }) : ''].filter(Boolean).join(', ') }); }).join(' · ') + '</p>' +
         /* "Marcar todos" e "Marcar todos de <mês>" só marcam as caixas: quem confirma é o "Aplicar aos marcados" */
-        '<div class="grupo"><button class="btn sm" type="button" data-pixtit-marcar="">Marcar todos</button>' + Object.keys(mes).sort().map(function (m) {
-          return '<button class="btn sm" type="button" data-pixtit-marcar="' + m + '">Marcar todos de ' + esc(mLabel(m)) + '</button>';
+        '<div class="grupo"><button class="btn sm" type="button" data-pixtit-marcar="">' + tth('revisar.marcarTodos') + '</button>' + Object.keys(mes).sort().map(function (m) {
+          return '<button class="btn sm" type="button" data-pixtit-marcar="' + m + '">' + tth('revisar.marcarTodosMes', { mes: mLabel(m) }) + '</button>';
         }).join('') + '</div>' +
         '<div class="radios">' + P.pendentes.map(function (x) {
           return '<label class="chk"><input type="checkbox" data-pixtit="' + esc(x.chave) + '" data-mes="' + x.data.slice(0, 7) + '"><span>' + esc(dFull(x.data)) + ' · ' + esc(x.desc) + ' · ' + (x.valor > 0 ? '+' : '−') + esc(f2(Math.abs(x.valor) / 100)) + '</span></label>';
-        }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-pixtit-aplicar>Aplicar aos marcados</button></div>';
+        }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-pixtit-aplicar>' + tth('revisar.aplicarMarcados') + '</button></div>';
     }
-    if (P.aplicados.length) h += '<p class="passo">' + P.aplicados.length + (P.aplicados.length === 1 ? ' Pix marcado' : ' Pix marcados') + ' por esta sugestão.</p><div class="grupo"><button class="btn" type="button" data-pixtit-desfazer>Desfazer</button></div>';
+    if (P.aplicados.length) h += '<p class="passo">' + tth('revisar.pixAplicados', { n: P.aplicados.length }) + '</p><div class="grupo"><button class="btn" type="button" data-pixtit-desfazer>' + tth('comum.desfazer') + '</button></div>';
     return { n: P.pendentes.length, h: h + '</div>' };
   }
   /* grava over e a lista do que a sugestão marcou, na carteira ativa */
@@ -2746,10 +2747,9 @@
   function review() {
     var nc = merchants().length, ne = entradas().length, cw = cartAtual(), np = TR ? TR.S.pares.filter(function (p) { return p.s.w.id === cw.id || p.e.w.id === cw.id; }).length : 0;
     var pt = pixTitularBloco(cw);
-    return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>Revisar categorias</h2><span class="hint">' + nc + ' comerciantes e ' + ne + (ne === 1 ? ' entrada' : ' entradas') +
-      (np ? ' · ' + np + (np === 1 ? ' transferência sugerida' : ' transferências sugeridas') : '') + (pt.n ? ' · ' + pt.n + (pt.n === 1 ? ' Pix parece' : ' Pix parecem') + ' ser para você' : '') + '. Abra para trocar a categoria de algum.</span></summary><div class="rv-c">' + transfBloco(cw.id) + pt.h + '<p class="passo">Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. ' +
-      'O que for dinheiro seu indo ou vindo de outra conta sua, marque como "Entre contas suas": não conta como gasto nem como entrada.</p>' +
-      '<div class="fbusca"><label class="vh" for="fin-q">Buscar comerciante ou entrada</label><input id="fin-q" type="search" placeholder="Buscar comerciante ou entrada" value="' + esc(S.q) + '" autocomplete="off"></div><div class="card" id="fin-revlist">' + revList() + '</div></div></details></section>';
+    return '<section class="sec rev"><details class="revd" id="fin-revd"' + (S.revOpen ? ' open' : '') + '><summary><h2>' + tth('revisar.titulo') + '</h2><span class="hint">' + tth('revisar.resumoLista', { comerciantes: tt('revisar.nComerciantes', { n: nc }), entradas: tt('revisar.nEntradas', { n: ne }),
+      extras: (np ? ' · ' + tt('revisar.nTransfSugeridas', { n: np }) : '') + (pt.n ? ' · ' + tt('revisar.nPixParecem', { n: pt.n }) : '') }) + '</span></summary><div class="rv-c">' + transfBloco(cw.id) + pt.h + '<p class="passo">' + tth('revisar.explica') + '</p>' +
+      '<div class="fbusca"><label class="vh" for="fin-q">' + tth('revisar.buscar') + '</label><input id="fin-q" type="search" placeholder="' + tth('revisar.buscar') + '" value="' + esc(S.q) + '" autocomplete="off"></div><div class="card" id="fin-revlist">' + revList() + '</div></div></details></section>';
   }
   function dayN(d) { var q = d.split('-'); return Date.UTC(+q[0], +q[1] - 1, +q[2]) / 864e5; }
   /* dinheiro total no fim de cada dia = conta + o que está guardado (Flexible Cash, investimentos e cripto).

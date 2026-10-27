@@ -169,7 +169,62 @@ const SALDO = [
   ['tth', 'metas.deOrigemInvest', undefined, 'investimentos e cripto'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO }))
+// área: revisão de categorias e Pix
+const REVISAR = [
+  ['tth', 'revisar.titulo', undefined, 'Revisar categorias'],
+  ['tt', 'revisar.entradaRenda', undefined, 'Renda'],
+  ['tt', 'revisar.resgateInvest', undefined, 'Resgate de investimento'],
+  ['tt', 'revisar.investimento', undefined, 'Investimento'],
+  ['tth', 'revisar.investimentoNaoGasto', undefined, 'Investimento (não é gasto)'],
+  ['tth', 'revisar.maisDeUmTipo', undefined, 'Em mais de um tipo'],
+  ['tth', 'revisar.maisDeUmaCategoria', undefined, 'Em mais de uma categoria'],
+  ['tth', 'revisar.voltarAuto', undefined, 'Voltar ao automático'],
+  ['tth', 'revisar.nadaEncontrado', undefined, 'Nada encontrado.'],
+  ['tth', 'revisar.saidas', undefined, 'Saídas'],
+  ['tth', 'revisar.entradas', undefined, 'Entradas'],
+  ['tth', 'revisar.movimentos', { n: 1, valor: '€ 12,50' }, '1 movimento · € 12,50'],
+  ['tth', 'revisar.movimentos', { n: 3, valor: '€ 37,50' }, '3 movimentos · € 37,50'],
+  ['tth', 'revisar.movimentosEntrada', { n: 1, valor: '€ 2.000,00' }, '1 movimento · +€ 2.000,00'],
+  ['tth', 'revisar.movimentosEntrada', { n: 2, valor: '€ 4.000,00' }, '2 movimentos · +€ 4.000,00'],
+  ['tth', 'revisar.categoriaSua', undefined, 'categoria sua'],
+  ['tth', 'revisar.escolhaSua', undefined, 'escolha sua'],
+  ['tth', 'revisar.divididoCategoria', { lista: 'Mercado (2), Compras (1)' }, 'hoje dividido: Mercado (2), Compras (1). Escolha uma para todos.'],
+  ['tth', 'revisar.divididoTipo', { lista: 'Renda (1), Entre contas suas (1)' }, 'hoje dividido: Renda (1), Entre contas suas (1). Escolha um para todos.'],
+  ['tt', 'revisar.itemContagem', { nome: 'Mercado', n: 2 }, 'Mercado (2)'],
+  ['tth', 'revisar.divididoCategoria', { lista: 'Casa & <jardim> (1)' }, 'hoje dividido: Casa &amp; &lt;jardim&gt; (1). Escolha uma para todos.'],
+  ['tth', 'revisar.categoriaDe', { desc: 'TESCO "STORE"' }, 'Categoria de TESCO &quot;STORE&quot;'],
+  ['tth', 'revisar.tipoEntradaDe', { desc: 'SALARIO' }, 'Tipo de entrada de SALARIO'],
+  ['tth', 'revisar.mostrandoSaidas', { mostrando: 40, total: 57 }, 'Mostrando 40 de 57. Use a busca para achar os outros.'],
+  ['tth', 'revisar.mostrandoEntradas', { mostrando: 40, total: 41 }, 'Mostrando 40 de 41 entradas. Use a busca para achar as outras.'],
+  ['tth', 'revisar.pixTitulo', undefined, 'Pix que parecem ser para você'],
+  ['tth', 'revisar.pixExplica', { titular: 'MARIA SILVA' }, 'O nome no Pix começa como o seu (MARIA SILVA). Marque os que são entre contas suas: as entradas ficam &quot;Entre contas suas&quot; e as saídas, &quot;Envios para outra conta sua&quot;. Nada muda sem você marcar.'],
+  ['tth', 'revisar.pixMes', { mes: 'agosto de 2026', resumo: '1 saída (R$ 500,00), 2 entradas (R$ 300,00)' }, 'agosto de 2026: 1 saída (R$ 500,00), 2 entradas (R$ 300,00)'],
+  ['tt', 'revisar.pixSaidas', { n: 1, valor: 'R$ 500,00' }, '1 saída (R$ 500,00)'],
+  ['tt', 'revisar.pixSaidas', { n: 2, valor: 'R$ 900,00' }, '2 saídas (R$ 900,00)'],
+  ['tt', 'revisar.pixEntradas', { n: 1, valor: 'R$ 100,00' }, '1 entrada (R$ 100,00)'],
+  ['tt', 'revisar.pixEntradas', { n: 2, valor: 'R$ 300,00' }, '2 entradas (R$ 300,00)'],
+  ['tth', 'revisar.marcarTodos', undefined, 'Marcar todos'],
+  ['tth', 'revisar.marcarTodosMes', { mes: 'agosto de 2026' }, 'Marcar todos de agosto de 2026'],
+  ['tth', 'revisar.aplicarMarcados', undefined, 'Aplicar aos marcados'],
+  ['tth', 'revisar.pixAplicados', { n: 1 }, '1 Pix marcado por esta sugestão.'],
+  ['tth', 'revisar.pixAplicados', { n: 2 }, '2 Pix marcados por esta sugestão.'],
+  ['tth', 'comum.desfazer', undefined, 'Desfazer'],
+  ['tt', 'revisar.nComerciantes', { n: 1 }, '1 comerciantes'],
+  ['tt', 'revisar.nComerciantes', { n: 12 }, '12 comerciantes'],
+  ['tt', 'revisar.nEntradas', { n: 1 }, '1 entrada'],
+  ['tt', 'revisar.nEntradas', { n: 0 }, '0 entradas'],
+  ['tt', 'revisar.nTransfSugeridas', { n: 1 }, '1 transferência sugerida'],
+  ['tt', 'revisar.nTransfSugeridas', { n: 3 }, '3 transferências sugeridas'],
+  ['tt', 'revisar.nPixParecem', { n: 1 }, '1 Pix parece ser para você'],
+  ['tt', 'revisar.nPixParecem', { n: 4 }, '4 Pix parecem ser para você'],
+  ['tth', 'revisar.resumoLista', { comerciantes: '12 comerciantes', entradas: '3 entradas', extras: '' }, '12 comerciantes e 3 entradas. Abra para trocar a categoria de algum.'],
+  ['tth', 'revisar.resumoLista', { comerciantes: '12 comerciantes', entradas: '1 entrada', extras: ' · 2 transferências sugeridas · 4 Pix parecem ser para você' },
+    '12 comerciantes e 1 entrada · 2 transferências sugeridas · 4 Pix parecem ser para você. Abra para trocar a categoria de algum.'],
+  ['tth', 'revisar.explica', undefined, 'Os comerciantes novos entram numa categoria pelo nome. Se um estiver no lugar errado, troque aqui e o painel inteiro se refaz, inclusive os meses antigos e os próximos extratos. O que for dinheiro seu indo ou vindo de outra conta sua, marque como &quot;Entre contas suas&quot;: não conta como gasto nem como entrada.'],
+  ['tth', 'revisar.buscar', undefined, 'Buscar comerciante ou entrada'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
