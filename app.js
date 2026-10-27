@@ -2269,20 +2269,26 @@
     });
     return leitorPlanilhas;
   }
-  var NOME_FMT_DATA = { dmy: 'dia/mês/ano', mdy: 'mês/dia/ano', ymd: 'ano-mês-dia', texto: 'com o mês por extenso' };
-  var NOME_FMT_NUM = { virgula: '1.234,56', ponto: '1,234.56' };
-  function nomeColuna(I, i) { var c = String(I.rows[I.mapa.cab][i] || '').trim(); return c || 'coluna ' + (i + 1); }
+  function nomeFmtData(f) { return { dmy: tt('importar.fmtDmy'), mdy: tt('importar.fmtMdy'), ymd: tt('importar.fmtYmd'), texto: tt('importar.fmtTexto') }[f]; }
+  /* o nome do formato do número é a própria notação, igual em todo idioma */
+  function nomeFmtNum(f) { return { virgula: '1.234,56', ponto: '1,234.56' }[f]; }
+  /* os separadores do núcleo (SEPARADORES), com o nome no idioma da tela, pelo próprio caractere */
+  function separadoresTela() {
+    var nome = { ';': tt('importar.sepPontoVirgula'), ',': tt('importar.sepVirgula'), '\t': tt('importar.sepTab'), '|': tt('importar.sepBarra') };
+    return SEPARADORES.map(function (o) { return [o[0], nome[o[0]] || o[1]]; });
+  }
+  function nomeColuna(I, i) { var c = String(I.rows[I.mapa.cab][i] || '').trim(); return c || tt('importar.colunaN', { n: i + 1 }); }
   function opColunas(I, sel, vazio) {
-    return '<option value="-1"' + (sel < 0 ? ' selected' : '') + '>' + vazio + '</option>' + I.rows[I.mapa.cab].map(function (c, i) {
+    return '<option value="-1"' + (sel < 0 ? ' selected' : '') + '>' + esc(vazio) + '</option>' + I.rows[I.mapa.cab].map(function (c, i) {
       return '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + esc(nomeColuna(I, i)) + '</option>';
     }).join('');
   }
   /* papel do saldo: nenhum, uma coluna, ou linhas próprias com uma descrição (ex.: "Saldo Diário") */
   function opSaldo(I) {
-    var m = I.mapa, rot = m.saldoLinhas || detectarLinhasSaldo(I.rows, m), o = '<option value="-1"' + (m.saldo < 0 && !m.saldoLinhas ? ' selected' : '') + '>Sem saldo</option>';
-    if (rot) o += '<option value="l"' + (m.saldoLinhas ? ' selected' : '') + '>Linhas "' + esc(rot) + '"</option>';
+    var m = I.mapa, rot = m.saldoLinhas || detectarLinhasSaldo(I.rows, m), o = '<option value="-1"' + (m.saldo < 0 && !m.saldoLinhas ? ' selected' : '') + '>' + tth('importar.semSaldo') + '</option>';
+    if (rot) o += '<option value="l"' + (m.saldoLinhas ? ' selected' : '') + '>' + tth('importar.linhasRotulo', { rotulo: rot }) + '</option>';
     return o + I.rows[m.cab].map(function (c, i) {
-      return '<option value="c' + i + '"' + (i === m.saldo ? ' selected' : '') + '>Coluna ' + esc(nomeColuna(I, i)) + '</option>';
+      return '<option value="c' + i + '"' + (i === m.saldo ? ' selected' : '') + '>' + tth('importar.colunaNome', { coluna: nomeColuna(I, i) }) + '</option>';
     }).join('');
   }
   function radios(nome, ops, sel) {
@@ -2313,37 +2319,38 @@
   function telaImportar() {
     var I = S.importar, m = I.mapa, c = cartAtual(), h = '';
     var cabs = [], ix = 0;
-    I.rows.slice(0, 40).forEach(function (r, i) { if (r.some(function (x) { return String(x).trim(); }) && ix++ < 25) cabs.push([String(i), 'Linha ' + (i + 1) + ': ' + celulas(r).slice(0, 60)]); });
+    I.rows.slice(0, 40).forEach(function (r, i) { if (r.some(function (x) { return String(x).trim(); }) && ix++ < 25) cabs.push([String(i), tt('importar.linhaCab', { n: i + 1, celulas: celulas(r).slice(0, 60) })]); });
     if (I.leitor) h += avisoLeitor(I);
-    else h += (I.lembrado ? '<p class="aviso">Reconheci o formato deste arquivo e usei as colunas da última importação. Confira a prévia.</p>'
-      : '<p class="passo">Diga quais colunas são a data, a descrição e o valor. O que o painel detectou já vem marcado: confira.</p>') +
-      '<fieldset><legend>Arquivo</legend><div class="mgrid">' + (I.tipo
-        ? (I.abas.length > 1 ? '<label>Aba<select id="fin-i-aba" data-imp-campo="aba">' + opcoes(I.abas.map(function (a, i) { return [String(i), a]; }), String(I.aba)) + '</select><small>A planilha tem ' + I.abas.length + ' abas com dados.</small></label>' : '')
-        : '<label>Codificação<select id="fin-i-cod" data-imp-campo="cod">' + opcoes([['utf-8', 'UTF-8'], ['latin1', 'Latin-1 (Windows)']], I.cod) + '</select><small>Se aparecerem letras trocadas (ex.: "HistÃ³rico"), troque aqui.</small></label>' +
-          '<label>Separador<select id="fin-i-sep" data-imp-campo="sep">' + opcoes(SEPARADORES, I.sep) + '</select></label>') +
-      '<label>Linha do cabeçalho<select id="fin-i-cab" data-imp-campo="cab"><option value="-1"' + (m.cab < 0 ? ' selected' : '') + '>Escolha a linha com os nomes das colunas</option>' + opcoes(cabs, String(m.cab)) + '</select></label></div></fieldset>';
+    else h += (I.lembrado ? '<p class="aviso">' + tth('importar.lembrado') + '</p>'
+      : '<p class="passo">' + tth('importar.digaColunas') + '</p>') +
+      '<fieldset><legend>' + tth('importar.arquivo') + '</legend><div class="mgrid">' + (I.tipo
+        ? (I.abas.length > 1 ? '<label>' + tth('importar.aba') + '<select id="fin-i-aba" data-imp-campo="aba">' + opcoes(I.abas.map(function (a, i) { return [String(i), a]; }), String(I.aba)) + '</select><small>' + tth('importar.nAbas', { n: I.abas.length }) + '</small></label>' : '')
+        : '<label>' + tth('importar.codificacao') + '<select id="fin-i-cod" data-imp-campo="cod">' + opcoes([['utf-8', 'UTF-8'], ['latin1', 'Latin-1 (Windows)']], I.cod) + '</select><small>' + tth('importar.letrasTrocadas') + '</small></label>' +
+          '<label>' + tth('importar.separador') + '<select id="fin-i-sep" data-imp-campo="sep">' + opcoes(separadoresTela(), I.sep) + '</select></label>') +
+      '<label>' + tth('importar.linhaCabecalho') + '<select id="fin-i-cab" data-imp-campo="cab"><option value="-1"' + (m.cab < 0 ? ' selected' : '') + '>' + tth('importar.escolhaLinha') + '</option>' + opcoes(cabs, String(m.cab)) + '</select></label></div></fieldset>';
     var q = m.cab < 0 ? [{ id: 'cab' }] : perguntasImportacao(I.rows, m);
     if (m.cab >= 0 && !I.leitor) {
       var v = m.valor;
-      h += '<fieldset><legend>Colunas</legend><div class="mgrid">' +
-        '<label>Data<select id="fin-i-data" data-imp-campo="data">' + opColunas(I, m.data, 'Escolha') + '</select></label>' +
-        '<label>Descrição<select id="fin-i-desc" data-imp-campo="desc">' + opColunas(I, m.desc, 'Escolha') + '</select></label>' +
-        '<label>Valor em<select id="fin-i-modo" data-imp-campo="modo">' + opcoes([['uma', 'Uma coluna'], ['duas', 'Duas colunas: saídas e entradas']], v.modo) + '</select></label>' +
+      var escolha = tt('importar.escolha');
+      h += '<fieldset><legend>' + tth('importar.colunas') + '</legend><div class="mgrid">' +
+        '<label>' + tth('importar.colData') + '<select id="fin-i-data" data-imp-campo="data">' + opColunas(I, m.data, escolha) + '</select></label>' +
+        '<label>' + tth('importar.colDescricao') + '<select id="fin-i-desc" data-imp-campo="desc">' + opColunas(I, m.desc, escolha) + '</select></label>' +
+        '<label>' + tth('importar.valorEm') + '<select id="fin-i-modo" data-imp-campo="modo">' + opcoes([['uma', tt('importar.umaColuna')], ['duas', tt('importar.duasColunas')]], v.modo) + '</select></label>' +
         (v.modo === 'duas'
-          ? '<label>Saídas (débitos)<select id="fin-i-saida" data-imp-campo="saida">' + opColunas(I, v.saida, 'Escolha') + '</select></label>' +
-            '<label>Entradas (créditos)<select id="fin-i-entrada" data-imp-campo="entrada">' + opColunas(I, v.entrada, 'Escolha') + '</select></label>'
-          : '<label>Valor<select id="fin-i-col" data-imp-campo="col">' + opColunas(I, v.col, 'Escolha') + '</select></label>') +
-        '<label>Saldo (fim do dia)<select id="fin-i-saldo" data-imp-campo="saldo">' + opSaldo(I) + '</select><small>Opcional. O saldo nunca entra como movimento: vale para o fim do dia.</small></label>' +
+          ? '<label>' + tth('importar.saidasDebitos') + '<select id="fin-i-saida" data-imp-campo="saida">' + opColunas(I, v.saida, escolha) + '</select></label>' +
+            '<label>' + tth('importar.entradasCreditos') + '<select id="fin-i-entrada" data-imp-campo="entrada">' + opColunas(I, v.entrada, escolha) + '</select></label>'
+          : '<label>' + tth('comum.valor') + '<select id="fin-i-col" data-imp-campo="col">' + opColunas(I, v.col, escolha) + '</select></label>') +
+        '<label>' + tth('importar.saldoFimDia') + '<select id="fin-i-saldo" data-imp-campo="saldo">' + opSaldo(I) + '</select><small>' + tth('importar.saldoOpcional') + '</small></label>' +
         '</div></fieldset>';
       var perg = '';
       q.forEach(function (x) {
         if (x.id === 'fmtData' && x.erro) perg += '<p class="aviso erro">' + tth('importar.semFormatoData', { coluna: nomeColuna(I, m.data) }) + '</p>';
         else if (x.id === 'fmtData') perg += '<fieldset><legend>' + tth('importar.fmtDataTitulo') + '</legend><p class="passo">' + tth('importar.fmtDataPergunta', { exemplo: cru('<b>' + esc(x.exemplo) + '</b>') }) + '</p>' +
-          radios('fmtData', x.opcoes.map(function (f) { return [f, NOME_FMT_DATA[f] + ': ' + esc(dFull(lerData(x.exemplo, f)))]; }), m.fmtData) + '</fieldset>';
+          radios('fmtData', x.opcoes.map(function (f) { return [f, esc(nomeFmtData(f)) + ': ' + esc(dFull(lerData(x.exemplo, f)))]; }), m.fmtData) + '</fieldset>';
         else if (x.id === 'saldoValor') perg += '<p class="aviso erro">' + tth('importar.saldoIgualValor') + '</p>';
         else if (x.id === 'fmtNum' && x.erro) perg += '<p class="aviso erro">' + tth('importar.naoNumero') + '</p>';
         else if (x.id === 'fmtNum') perg += '<fieldset><legend>' + tth('importar.fmtNumTitulo') + '</legend><p class="passo">' + tth('importar.fmtNumPergunta', { exemplo: cru('<b>' + esc(x.exemplo) + '</b>') }) + '</p>' +
-          radios('fmtNum', x.opcoes.map(function (f) { return [f, NOME_FMT_NUM[f] + ': ' + esc(x.exemplo) + ' = ' + esc(f2(lerNumero(x.exemplo, f) / 100))]; }), m.fmtNum) + '</fieldset>';
+          radios('fmtNum', x.opcoes.map(function (f) { return [f, esc(nomeFmtNum(f)) + ': ' + esc(x.exemplo) + ' = ' + esc(f2(lerNumero(x.exemplo, f) / 100))]; }), m.fmtNum) + '</fieldset>';
         else if (x.id === 'sinal') perg += '<fieldset><legend>' + tth('importar.saidas') + '</legend><p class="passo">' + tth('importar.sinalPergunta', { coluna: nomeColuna(I, v.col), positivos: tt('importar.nPositivos', { n: x.pos }), negativos: tt('importar.nNegativos', { n: x.neg }) }) + '</p>' +
           radios('sinal', [['negativas', tth('importar.sinalNegativas', { exemplo: '−50,00' })], ['positivas', tth('importar.sinalPositivas', { exemplo: '50,00' })]], v.saidas) + '</fieldset>';
       });
@@ -2357,7 +2364,7 @@
       Object.keys(porMes).forEach(function (k) { var j = juntarMovimentos(S.months[k] || [], porMes[k]); novos += j.novos; rep += j.repetidos; });
       I.previa = { r: r, novos: novos, ancora: ancoraDigitada(I), saldoNovo: saldoNovo(r) };
       h += '<fieldset><legend>' + tth('importar.previa') + '</legend>' + (r.tx.length
-        ? '<p class="passo">Lido como: datas ' + NOME_FMT_DATA[m.fmtData] + (m.fmtNum ? ', números ' + NOME_FMT_NUM[m.fmtNum] : '') + ', valores em ' + esc(nomeMoeda()) + '. Confira com o app do banco: o período e os totais devem bater.</p>' +
+        ? '<p class="passo">' + tth(m.fmtNum ? 'importar.lidoComoNum' : 'importar.lidoComo', { datas: nomeFmtData(m.fmtData), numeros: nomeFmtNum(m.fmtNum), moeda: nomeMoeda() }) + '</p>' +
           '<div class="imp-tot"><div><span>' + tth('importar.periodoExtrato') + '</span><b>' + tth('comum.periodo', { de: dFull(r.periodo.de), ate: dFull(r.periodo.ate) }) + '</b>' +
           (r.periodo.fonte === 'arquivo' ? '<small>' + (r.periodo.de !== r.de || r.periodo.ate !== r.ate ? tth('importar.comoArquivoMov', { de: dFmt(r.de), ate: dFmt(r.ate) }) : tth('importar.comoArquivo')) + '</small>' : '<small>' + tth('importar.primeiraUltima') + '</small>') + '</div><div><span>' + tth('importar.movimentos') + '</span><b>' + r.tx.length + '</b></div>' +
           '<div><span>' + tth('importar.entradas') + '</span><b class="num pos">+' + f2(r.entradas / 100) + '</b></div><div><span>' + tth('importar.saidas') + '</span><b class="num neg">−' + f2(-r.saidas / 100) + '</b></div></div>' +

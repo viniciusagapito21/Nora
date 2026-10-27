@@ -28,9 +28,10 @@ const AREAS_FEITAS = {
     'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
   'configurações: formulário, categorias e seus dados': ['setup', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
     'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
-  // importação em três partes (10a, 10b, 10c): telaImportar e carregarLeitorPlanilhas (onde o analisador põe NOME_FMT_DATA) entram na 10c
   'importação: prévia e resultado': ['previaSaldo', 'textoBotao', 'confirmarImportacao'],
   'importação: leitura, erros e avisos': ['handleFiles', 'mudarImportacao', 'abrirGenerico', 'comLeitor', 'linhasDoArquivo', 'abrirPdf', 'carregarPdfjs', 'confSaldo', 'avisoLeitor'],
+  'importação: escolha de colunas': ['telaImportar', 'carregarLeitorPlanilhas', 'opSaldo', 'nomeFmtData', 'nomeFmtNum', 'separadoresTela', 'nomeColuna', 'opColunas', 'radios', 'celulas',
+    'ancoraDigitada', 'saldoNovo', 'podeSalvar', 'digitouAncora'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -42,6 +43,7 @@ const PERMITIDOS = {
   'Escape': 'nome da tecla (e.key), não é texto da tela',
   '0 0;background:': 'CSS do gráfico (flex: … 0 0;background: …), não é texto da tela',
   'informado por você': 'valor gravado nos dados (cambios[moeda].fonte, em lerCambios), não é texto da tela',
+  'Latin-1 (Windows)': 'nome técnico da codificação no seletor da importação, igual nos dois idiomas',
 };
 // chaves que ainda não têm uso no código, com o motivo
 const RESERVADAS = {

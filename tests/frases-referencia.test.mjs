@@ -712,7 +712,49 @@ const IMPORTAR_B = [
   ['tth', 'importar.respondaFalta', undefined, 'Responda o que falta acima para ver a prévia.'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B }))
+// área 10c: importação, escolha de colunas; nomes de coluna, de aba e células vêm do arquivo (escapados no HTML)
+const IMPORTAR_C = [
+  ['tth', 'importar.lembrado', undefined, 'Reconheci o formato deste arquivo e usei as colunas da última importação. Confira a prévia.'],
+  ['tth', 'importar.digaColunas', undefined, 'Diga quais colunas são a data, a descrição e o valor. O que o painel detectou já vem marcado: confira.'],
+  ['tth', 'importar.arquivo', undefined, 'Arquivo'],
+  ['tth', 'importar.aba', undefined, 'Aba'],
+  ['tth', 'importar.nAbas', { n: 2 }, 'A planilha tem 2 abas com dados.'],
+  ['tth', 'importar.codificacao', undefined, 'Codificação'],
+  ['tt', 'importar.letrasTrocadas', undefined, 'Se aparecerem letras trocadas (ex.: "HistÃ³rico"), troque aqui.'],
+  ['tth', 'importar.letrasTrocadas', undefined, 'Se aparecerem letras trocadas (ex.: &quot;HistÃ³rico&quot;), troque aqui.'],
+  ['tth', 'importar.separador', undefined, 'Separador'],
+  ['tt', 'importar.sepPontoVirgula', undefined, 'ponto e vírgula'],
+  ['tt', 'importar.sepVirgula', undefined, 'vírgula'],
+  ['tt', 'importar.sepTab', undefined, 'tabulação'],
+  ['tt', 'importar.sepBarra', undefined, 'barra vertical'],
+  ['tth', 'importar.linhaCabecalho', undefined, 'Linha do cabeçalho'],
+  ['tth', 'importar.escolhaLinha', undefined, 'Escolha a linha com os nomes das colunas'],
+  ['tt', 'importar.linhaCab', { n: 3, celulas: 'Data · Histórico · Valor' }, 'Linha 3: Data · Histórico · Valor'],
+  ['tt', 'importar.linhaCab', { n: 1, celulas: DESC_IMP }, 'Linha 1: PIX <MARIA> & "FILHOS"'],
+  ['tth', 'importar.colunas', undefined, 'Colunas'],
+  ['tt', 'importar.escolha', undefined, 'Escolha'],
+  ['tth', 'importar.valorEm', undefined, 'Valor em'],
+  ['tt', 'importar.umaColuna', undefined, 'Uma coluna'],
+  ['tt', 'importar.duasColunas', undefined, 'Duas colunas: saídas e entradas'],
+  ['tth', 'importar.saidasDebitos', undefined, 'Saídas (débitos)'],
+  ['tth', 'importar.entradasCreditos', undefined, 'Entradas (créditos)'],
+  ['tth', 'importar.saldoFimDia', undefined, 'Saldo (fim do dia)'],
+  ['tth', 'importar.saldoOpcional', undefined, 'Opcional. O saldo nunca entra como movimento: vale para o fim do dia.'],
+  ['tth', 'importar.semSaldo', undefined, 'Sem saldo'],
+  ['tth', 'importar.linhasRotulo', { rotulo: 'Saldo Diário' }, 'Linhas &quot;Saldo Diário&quot;'],
+  ['tth', 'importar.linhasRotulo', { rotulo: 'Saldo <x> & "y"' }, 'Linhas &quot;Saldo &lt;x&gt; &amp; &quot;y&quot;&quot;'],
+  ['tth', 'importar.colunaNome', { coluna: 'Valor' }, 'Coluna Valor'],
+  ['tth', 'importar.colunaNome', { coluna: COL_X }, 'Coluna Valor &lt;R$&gt; &amp; &quot;líquido&quot;'],
+  ['tt', 'importar.colunaN', { n: 4 }, 'coluna 4'],
+  ['tt', 'importar.fmtDmy', undefined, 'dia/mês/ano'],
+  ['tt', 'importar.fmtMdy', undefined, 'mês/dia/ano'],
+  ['tt', 'importar.fmtYmd', undefined, 'ano-mês-dia'],
+  ['tt', 'importar.fmtTexto', undefined, 'com o mês por extenso'],
+  ['tth', 'importar.lidoComo', { datas: 'dia/mês/ano', moeda: 'real' }, 'Lido como: datas dia/mês/ano, valores em real. Confira com o app do banco: o período e os totais devem bater.'],
+  ['tth', 'importar.lidoComoNum', { datas: 'dia/mês/ano', numeros: '1.234,56', moeda: 'real' }, 'Lido como: datas dia/mês/ano, números 1.234,56, valores em real. Confira com o app do banco: o período e os totais devem bater.'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
