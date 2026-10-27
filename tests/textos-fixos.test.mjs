@@ -28,8 +28,9 @@ const AREAS_FEITAS = {
     'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
   'configurações: formulário, categorias e seus dados': ['setup', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
     'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
-  // importação em três partes (10a, 10b, 10c): handleFiles, avisoLeitor e telaImportar entram quando a última parte delas for feita
+  // importação em três partes (10a, 10b, 10c): telaImportar e carregarLeitorPlanilhas (onde o analisador põe NOME_FMT_DATA) entram na 10c
   'importação: prévia e resultado': ['previaSaldo', 'textoBotao', 'confirmarImportacao'],
+  'importação: leitura, erros e avisos': ['handleFiles', 'mudarImportacao', 'abrirGenerico', 'comLeitor', 'linhasDoArquivo', 'abrirPdf', 'carregarPdfjs', 'confSaldo', 'avisoLeitor'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {

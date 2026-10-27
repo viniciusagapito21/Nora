@@ -1661,7 +1661,7 @@
   function handleFiles(list) {
     var files = Array.prototype.slice.call(list || []);
     if (!files.length) return Promise.resolve();
-    if (S.bloqueado) { toast('Antes de importar, resolva os dados salvos que não consegui ler.', true); return Promise.resolve(); }
+    if (S.bloqueado) { toast(tt('importar.resolvaBloqueio'), true); return Promise.resolve(); }
     if (!temLeitor(bancoAtual()) || LEITORES[bancoAtual()].previa) return abrirGenerico(files);
     var incoming = {}, bad = [], dup = 0, added = 0, months = 0, best = null, outras = {}, periodos = [];
     return files.reduce(function (p, f) {
@@ -1701,8 +1701,8 @@
     }).then(function () {
       recompute(); render();
       if (added) toast(tt('importar.adicionou', { n: added, meses: tt('importar.meses', { n: months }) }) + '.' + (dup ? ' ' + tt('importar.jaSalvas', { n: dup }) : '') + (bad.length ? ' ' + tt('importar.naoLi', { arquivos: bad.join(', ') }) : ''));
-      else if (bad.length && Object.keys(outras).length) toast('Não há conta em ' + moeda() + ' em ' + bad.join(', ') + ': o extrato tem ' + Object.keys(outras).join(', ') + '. Troque a moeda em Configurações ou baixe o extrato da conta em ' + moeda() + '.', true);
-      else if (bad.length) toast('Não encontrei movimentações em ' + bad.join(', ') + '. Use o extrato consolidado em CSV do Revolut.', true);
+      else if (bad.length && Object.keys(outras).length) toast(tt('importar.semConta', { moeda: moeda(), arquivos: bad.join(', '), outras: Object.keys(outras).join(', ') }), true);
+      else if (bad.length) toast(tt('importar.semMovimentos', { arquivos: bad.join(', ') }), true);
       else toast(tt('importar.nadaNovo', { n: dup }));
     });
   }
@@ -2110,10 +2110,10 @@
     var I = S.importar, m = I.mapa, k = t.getAttribute('data-imp-campo'), v = t.value, n = +v, foco = t.id;
     if (k === 'aba') {
       try { Object.assign(I, prepararPlanilha(window.XLSX, I.bytes, I.tipo, null, n)); }
-      catch (er) { toast('Não consegui ler essa aba: ' + er.message + '.', true); }
+      catch (er) { toast(tt('importar.abaIlegivel', { erro: er.message }), true); }
     } else if (k === 'cod' || k === 'sep') {
       try { Object.assign(I, prepararImportacao(I.bytes, null, k === 'cod' ? v : I.cod, k === 'sep' ? v : I.sep)); }
-      catch (er) { toast('Não consegui ler o arquivo assim: ' + er.message + '.', true); }
+      catch (er) { toast(tt('importar.assimIlegivel', { erro: er.message }), true); }
     } else if (k === 'cab') {
       I.mapa = n < 0 ? { cab: -1, sep: I.sep, data: -1, desc: -1, saldo: -1, valor: { modo: 'uma', col: -1, saidas: null } } : Object.assign(sugerirColunas(I.rows[n]), { cab: n, sep: I.sep });
       if (n >= 0) perguntasImportacao(I.rows, I.mapa);
@@ -2155,20 +2155,19 @@
     var h = '', an = ancoraDigitada(I), ks = Object.keys(r.saldos).sort(), m = I.mapa;
     if (ks.length) {
       var ult = ks[ks.length - 1], c = conferirSaldos(r.tx, r.saldos, an != null ? { data: r.ate, valor: an } : null), dv = c.divergencias;
-      h += '<p class="passo">Saldo do fim do dia: ' + ks.length + (ks.length === 1 ? ' dia' : ' dias') + ', ' + (m.saldoLinhas ? 'das linhas "' + esc(m.saldoLinhas) + '", que não entram como movimento' : 'da coluna ' + esc(nomeColuna(I, m.saldo))) +
-        '. Último: <b>' + esc(f2(r.saldos[ult] / 100)) + '</b> em ' + esc(dFull(ult)) + '.</p>';
+      h += '<p class="passo">' + tth(m.saldoLinhas ? 'conf.saldoLinhas' : 'conf.saldoColuna', { n: ks.length, rotulo: m.saldoLinhas, coluna: m.saldoLinhas ? '' : nomeColuna(I, m.saldo), valor: cru('<b>' + esc(f2(r.saldos[ult] / 100)) + '</b>'), data: dFull(ult) }) + '</p>';
       var rend = dv.filter(function (x) { return x.tipo === 'rendimento'; }), falta = dv.filter(function (x) { return x.tipo === 'falta'; });
-      var lista = function (xs) { return '<ul class="imp-ign">' + xs.slice(0, 6).map(function (x) { return '<li>Entre ' + esc(dFull(x.de)) + ' e ' + esc(dFull(x.ate)) + ': ' + esc(sgn(x.dif / 100, f2)) + '</li>'; }).join('') + (xs.length > 6 ? '<li>e mais ' + (xs.length - 6) + '</li>' : '') + '</ul>'; };
+      var lista = function (xs) { return '<ul class="imp-ign">' + xs.slice(0, 6).map(function (x) { return '<li>' + tth('conf.entre', { de: dFull(x.de), ate: dFull(x.ate), dif: sgn(x.dif / 100, f2) }) + '</li>'; }).join('') + (xs.length > 6 ? '<li>' + tth('conf.eMais', { n: xs.length - 6 }) + '</li>' : '') + '</ul>'; };
       if (rend.length) {
         var tr = 0; rend.forEach(function (x) { tr += x.dif; });
-        h += '<details class="metas"><summary>' + esc(sgn(tr / 100, f2)) + ' em ' + rend.length + (rend.length === 1 ? ' dia' : ' dias') + ': provável rendimento da conta, não listado no extrato</summary>' +
-          '<p class="passo">O saldo subiu um pouco mais do que os movimentos explicam (até ' + esc(f2(RENDIMENTO_DIA / 100)) + ' por dia). Nenhum movimento é criado para isso: o saldo do extrato vale como está.</p>' + lista(rend) + '</details>';
+        h += '<details class="metas"><summary>' + tth('conf.rendimento', { valor: sgn(tr / 100, f2), n: rend.length }) + '</summary>' +
+          '<p class="passo">' + tth('conf.rendimentoDica', { valor: f2(RENDIMENTO_DIA / 100) }) + '</p>' + lista(rend) + '</details>';
       }
-      if (falta.length) h += '<div class="aviso"><p>Em ' + falta.length + (falta.length === 1 ? ' trecho' : ' trechos') + ' o saldo do extrato não bate com o do dia anterior mais os movimentos: pode faltar alguma linha entre estes dias. Confira com o app do banco.</p>' + lista(falta) + '</div>';
+      if (falta.length) h += '<div class="aviso"><p>' + tth('conf.falta', { n: falta.length }) + '</p>' + lista(falta) + '</div>';
       if (c.ancora) h += c.ancora.dif
-        ? '<p class="aviso erro">O saldo que você informou (' + esc(f2(an / 100)) + ') não bate com o do extrato em ' + esc(dFull(r.ate)) + ' (' + esc(f2(c.ancora.extrato / 100)) + '): diferença de ' + esc(sgn(c.ancora.dif / 100, f2)) + '. Pode faltar alguma linha depois de ' + esc(dFull(ult)) + ', ou o saldo informado é de outro dia.</p>'
-        : '<p class="passo">O saldo que você informou bate com o do extrato em ' + esc(dFull(r.ate)) + '.</p>';
-    } else if (an != null) h += '<p class="passo">Sem saldo no extrato: o saldo de cada dia vai ser estimado a partir dos movimentos e desse saldo.</p>';
+        ? '<p class="aviso erro">' + tth('conf.ancoraDifere', { informado: f2(an / 100), data: dFull(r.ate), extrato: f2(c.ancora.extrato / 100), dif: sgn(c.ancora.dif / 100, f2), ultimo: dFull(ult) }) + '</p>'
+        : '<p class="passo">' + tth('conf.ancoraBate', { data: dFull(r.ate) }) + '</p>';
+    } else if (an != null) h += '<p class="passo">' + tth('conf.semSaldoExtrato') + '</p>';
     return h;
   }
   function confirmarImportacao() {
@@ -2203,19 +2202,19 @@
     });
   }
   function abrirGenerico(files) {
-    if (files.length > 1) toast('Um arquivo por vez neste banco: abri só ' + files[0].name + '.');
+    if (files.length > 1) toast(tt('importar.umPorVez', { arquivo: files[0].name }));
     var f = files[0];
     return f.arrayBuffer().then(function (buf) {
       var b = new Uint8Array(buf), c = cartAtual(), tipo = tipoArquivo(b), lem = c && c.importacao;
       if (tipo === 'pdf') return abrirPdf(f.name, b);
-      if (tipo === 'zip') throw new Error('é um arquivo compactado, não uma planilha');
+      if (tipo === 'zip') throw new Error(tt('importar.compactado'));
       if (tipo === 'senha') throw new Error(SENHA);
-      if (tipo === 'vazio') throw new Error('o arquivo está vazio');
+      if (tipo === 'vazio') throw new Error(tt('importar.vazio'));
       if (!ehPlanilha(tipo)) return Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, lem));
       return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });
     }).then(function (I) {
       S.importar = comLeitor(I); render(); window.scrollTo(0, 0);
-    }).catch(function (e) { toast('Não consegui ler ' + f.name + ': ' + ((e && e.message) || e) + '.', true); });
+    }).catch(function (e) { toast(tt('importar.naoLeu', { arquivo: f.name, erro: (e && e.message) || e }), true); });
   }
   /* banco reconhecido pelo conteúdo (hoje, o BTG): o leitor dele define colunas, formatos e o tipo de cada movimento,
      e a prévia é a mesma, sem perguntas */
@@ -2223,7 +2222,7 @@
     var lb = detectarBanco(I.rows);
     if (!lb || !LEITORES[lb].previa) return I;
     var L = LEITORES[lb].ler(I.rows, moeda(), { titular: S.plan && S.plan.titular });
-    if (!L.tx.length && L.moedas.length && L.moedas.indexOf(moeda()) < 0) throw new Error('é um extrato do ' + LEITORES[lb].nome + ' em ' + nomeMoeda(L.moedas[0]) + ', e esta carteira é em ' + nomeMoeda());
+    if (!L.tx.length && L.moedas.length && L.moedas.indexOf(moeda()) < 0) throw new Error(tt('importar.outraMoeda', { banco: LEITORES[lb].nome, moeda: nomeMoeda(L.moedas[0]), moedaCarteira: nomeMoeda() }));
     return Object.assign(I, { leitor: lb, lido: L, rows: L.previa.rows, mapa: L.previa.mapa, lembrado: false });
   }
   /* o arquivo virado em linhas, para reconhecer o banco antes de escolher a carteira (planilha carrega o leitor) */
@@ -2237,13 +2236,12 @@
     });
   }
   /* PDF: só o extrato do Itaú, e só com o painel servido (aberto do disco, o navegador não carrega o pdf.js) */
-  var PDF_DO_DISCO = 'para ler PDF, abra o painel pelo endereço do npm start (aberto direto do disco, o navegador não carrega o leitor de PDF). CSV e planilha funcionam dos dois jeitos';
   function abrirPdf(nome, b) {
-    if (location.protocol === 'file:') return Promise.reject(new Error(PDF_DO_DISCO));
+    if (location.protocol === 'file:') return Promise.reject(new Error(tt('importar.pdfDoDisco')));
     return carregarPdfjs().then(function (pdfjs) { return lerPdf(pdfjs, b); }).then(function (ps) {
       var t = tabelaDoPdf(ps), lb = detectarBanco(t.linhas);
-      if (!t.comTexto) throw new Error('este PDF é uma imagem (escaneado), sem texto para ler. Baixe o extrato em PDF pelo app ou pelo internet banking do banco');
-      if (!lb || !LEITORES[lb].previa) throw new Error('não reconheci este PDF: por enquanto só o extrato de conta corrente do Itaú é lido');
+      if (!t.comTexto) throw new Error(tt('importar.pdfImagem'));
+      if (!lb || !LEITORES[lb].previa) throw new Error(tt('importar.pdfDesconhecido'));
       return { nome: nome, bytes: b, tipo: 'pdf', cod: null, sep: 'pdf', rows: t.linhas, mapa: { cab: -1 }, lembrado: false };
     });
   }
@@ -2254,7 +2252,7 @@
     if (leitorPdf) return leitorPdf;
     leitorPdf = import('./vendor/pdfjs/pdf.min.mjs').then(function (pdfjs) {
       return import('./vendor/pdfjs/pdf.worker.min.mjs').then(function (w) { window.pdfjsWorker = w; return pdfjs; });
-    }).catch(function () { leitorPdf = null; throw new Error('o leitor de PDF não abriu'); });
+    }).catch(function () { leitorPdf = null; throw new Error(tt('importar.leitorPdf')); });
     return leitorPdf;
   }
   /* o leitor de planilhas (vendor/sheetjs, 0,5 MB) só entra na página quando a pessoa escolhe uma planilha */
@@ -2266,7 +2264,7 @@
       var s = document.createElement('script');
       s.src = 'vendor/sheetjs/xlsx.core.min.js';
       s.onload = function () { if (window.XLSX) ok(window.XLSX); else s.onerror(); };
-      s.onerror = function () { leitorPlanilhas = null; s.remove(); falhou(new Error('o leitor de planilhas não abriu')); };
+      s.onerror = function () { leitorPlanilhas = null; s.remove(); falhou(new Error(tt('importar.leitorPlanilhas'))); };
       document.head.appendChild(s);
     });
     return leitorPlanilhas;
@@ -2293,7 +2291,7 @@
     }).join('') + '</div>';
   }
   function avisoLeitor(I) {
-    var L = I.lido, ks = Object.keys(L.saldosDia || {}).sort(), ult = ks[ks.length - 1], h = '<p class="aviso">Reconheci um extrato do ' + esc(LEITORES[I.leitor].nome) + ': colunas e formatos já definidos. Confira a prévia.</p>';
+    var L = I.lido, ks = Object.keys(L.saldosDia || {}).sort(), ult = ks[ks.length - 1], h = '<p class="aviso">' + tth('importar.reconheci', { banco: LEITORES[I.leitor].nome }) + '</p>';
     /* Pix cujo nome cortado é o começo do nome do titular: só sugestão, a pessoa marca se quiser */
     if (L.sugestoes && L.sugestoes.length) {
       var ns = L.sugestoes.length;
@@ -2301,14 +2299,13 @@
     }
     /* saldo atual com data depois do período (Itaú): só informação, a diferença vem de movimentos depois dele */
     if (L.saldoAtual != null && ult && L.saldoAtualData && L.saldoAtualData > ult) {
-      h += '<p class="passo">Saldo em ' + esc(dFull(L.saldoAtualData)) + ', depois do período do extrato: ' + esc(f2(L.saldoAtual / 100)) + (Math.abs(L.saldoAtual - L.saldosDia[ult]) <= ARREDONDAMENTO
-        ? ', igual ao último saldo do período (' + esc(dFull(ult)) + ').</p>'
-        : '. O último saldo do período é ' + esc(f2(L.saldosDia[ult] / 100)) + ', em ' + esc(dFull(ult)) + '; a diferença vem de movimentos depois dele.</p>');
+      h += '<p class="passo">' + tth(Math.abs(L.saldoAtual - L.saldosDia[ult]) <= ARREDONDAMENTO ? 'importar.saldoDepoisIgual' : 'importar.saldoDepoisDifere',
+        { data: dFull(L.saldoAtualData), valor: f2(L.saldoAtual / 100), valorUltimo: f2(L.saldosDia[ult] / 100), ultimo: dFull(ult) }) + '</p>';
     } else if (L.saldoAtual != null && ult) {
       var dif = L.saldoAtual - L.saldosDia[ult];
       h += Math.abs(dif) <= ARREDONDAMENTO
-        ? '<p class="passo">O "Saldo atual" do extrato (' + esc(f2(L.saldoAtual / 100)) + ') bate com o último saldo do dia, em ' + esc(dFull(ult)) + '.</p>'
-        : '<p class="aviso erro">O "Saldo atual" do extrato (' + esc(f2(L.saldoAtual / 100)) + ') não bate com o último saldo do dia (' + esc(f2(L.saldosDia[ult] / 100)) + ', em ' + esc(dFull(ult)) + '): diferença de ' + esc(sgn(dif / 100, f2)) + '. Pode faltar alguma linha no fim do extrato.</p>';
+        ? '<p class="passo">' + tth('importar.saldoAtualBate', { valor: f2(L.saldoAtual / 100), data: dFull(ult) }) + '</p>'
+        : '<p class="aviso erro">' + tth('importar.saldoAtualDifere', { valor: f2(L.saldoAtual / 100), valorUltimo: f2(L.saldosDia[ult] / 100), data: dFull(ult), dif: sgn(dif / 100, f2) }) + '</p>';
     }
     return h;
   }
@@ -2340,16 +2337,15 @@
         '</div></fieldset>';
       var perg = '';
       q.forEach(function (x) {
-        if (x.id === 'fmtData' && x.erro) perg += '<p class="aviso erro">A coluna ' + esc(nomeColuna(I, m.data)) + ' não tem datas num formato só. Confira se é a coluna certa.</p>';
-        else if (x.id === 'fmtData') perg += '<fieldset><legend>Formato da data</legend><p class="passo">Datas como <b>' + esc(x.exemplo) + '</b> servem para mais de um formato. Como o banco escreve?</p>' +
+        if (x.id === 'fmtData' && x.erro) perg += '<p class="aviso erro">' + tth('importar.semFormatoData', { coluna: nomeColuna(I, m.data) }) + '</p>';
+        else if (x.id === 'fmtData') perg += '<fieldset><legend>' + tth('importar.fmtDataTitulo') + '</legend><p class="passo">' + tth('importar.fmtDataPergunta', { exemplo: cru('<b>' + esc(x.exemplo) + '</b>') }) + '</p>' +
           radios('fmtData', x.opcoes.map(function (f) { return [f, NOME_FMT_DATA[f] + ': ' + esc(dFull(lerData(x.exemplo, f)))]; }), m.fmtData) + '</fieldset>';
-        else if (x.id === 'saldoValor') perg += '<p class="aviso erro">A mesma coluna não pode ser o valor do movimento e o saldo. Escolha outra para o saldo, ou "Sem saldo".</p>';
-        else if (x.id === 'fmtNum' && x.erro) perg += '<p class="aviso erro">Há valores que não são número nas colunas escolhidas. Confira as colunas de valor e de saldo.</p>';
-        else if (x.id === 'fmtNum') perg += '<fieldset><legend>Formato do número</legend><p class="passo">Valores como <b>' + esc(x.exemplo) + '</b> servem para os dois formatos. Como o banco escreve?</p>' +
+        else if (x.id === 'saldoValor') perg += '<p class="aviso erro">' + tth('importar.saldoIgualValor') + '</p>';
+        else if (x.id === 'fmtNum' && x.erro) perg += '<p class="aviso erro">' + tth('importar.naoNumero') + '</p>';
+        else if (x.id === 'fmtNum') perg += '<fieldset><legend>' + tth('importar.fmtNumTitulo') + '</legend><p class="passo">' + tth('importar.fmtNumPergunta', { exemplo: cru('<b>' + esc(x.exemplo) + '</b>') }) + '</p>' +
           radios('fmtNum', x.opcoes.map(function (f) { return [f, NOME_FMT_NUM[f] + ': ' + esc(x.exemplo) + ' = ' + esc(f2(lerNumero(x.exemplo, f) / 100))]; }), m.fmtNum) + '</fieldset>';
-        else if (x.id === 'sinal') perg += '<fieldset><legend>Saídas</legend><p class="passo">Como as saídas (débitos) aparecem na coluna ' + esc(nomeColuna(I, v.col)) + '? No arquivo há ' +
-          x.pos + (x.pos === 1 ? ' valor positivo' : ' valores positivos') + ' e ' + x.neg + (x.neg === 1 ? ' negativo' : ' negativos') + '.</p>' +
-          radios('sinal', [['negativas', 'Com sinal de menos (−50,00); as entradas vêm sem sinal'], ['positivas', 'Sem sinal (50,00); as entradas é que vêm com menos']], v.saidas) + '</fieldset>';
+        else if (x.id === 'sinal') perg += '<fieldset><legend>' + tth('importar.saidas') + '</legend><p class="passo">' + tth('importar.sinalPergunta', { coluna: nomeColuna(I, v.col), positivos: tt('importar.nPositivos', { n: x.pos }), negativos: tt('importar.nNegativos', { n: x.neg }) }) + '</p>' +
+          radios('sinal', [['negativas', tth('importar.sinalNegativas', { exemplo: '−50,00' })], ['positivas', tth('importar.sinalPositivas', { exemplo: '50,00' })]], v.saidas) + '</fieldset>';
       });
       h += perg;
     }
@@ -2374,14 +2370,14 @@
             r.ignoradas.slice(0, 20).map(function (x) { return '<li>' + tth('importar.linhaIgnorada', { n: x.n, motivo: x.motivo, celulas: celulas(x.celulas) }) + '</li>'; }).join('') + '</ul></details>' : '') +
           (rep ? '<p class="aviso">' + tth('importar.repetidos', { n: rep }) + '</p>' : '') +
           previaSaldo(I, r)
-        : '<p class="aviso erro">Nenhum movimento entendido com essas colunas. Confira a linha do cabeçalho e as colunas.</p>') + '</fieldset>';
+        : '<p class="aviso erro">' + tth('importar.nenhumEntendido') + '</p>') + '</fieldset>';
     }
     return '<section class="sec" id="fin-imp"><div class="sec-top"><h2>' + tth('importar.titulo') + '</h2><span class="hint">' + esc(I.nome) + ' · ' + esc(c ? c.nome : '') + '</span></div>' +
       '<div class="card"><form id="fin-fimp" class="ggrid">' + h +
       '<div class="grupo"><button class="btn pri" type="submit"' + (pend || !r || !podeSalvar(I) ? ' disabled aria-describedby="fin-i-falta"' : '') + '>' +
       (pend || !r ? tth('importar.importar') : esc(textoBotao(I))) + '</button>' +
       '<button class="btn" type="button" data-imp="cancelar">' + tth('comum.cancelar') + '</button></div>' +
-      (pend ? '<p class="passo" id="fin-i-falta">Responda o que falta acima para ver a prévia.</p>' : '') + '</form></div></section>';
+      (pend ? '<p class="passo" id="fin-i-falta">' + tth('importar.respondaFalta') + '</p>' : '') + '</form></div></section>';
   }
   function telaExcluirCarteira() {
     var x = dadosAtuais(), c = x.carteiras.filter(function (w) { return w.id === S.excluir; })[0], r = resumoDados(c);

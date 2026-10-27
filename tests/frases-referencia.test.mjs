@@ -652,7 +652,67 @@ test('frases de referência em pt-BR: toasts da importação montados como antes
   for (const [a, m, d, b] of [[1, 1, 0, []], [56, 4, 0, []], [5, 2, 1, []], [5, 2, 3, ['x.csv']], [1, 1, 1, [ARQ_X, 'b.csv']]]) assert.equal(agora(a, m, d, b), antes(a, m, d, b));
 });
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A }))
+// área 10b: importação, leitura, erros e avisos; o erro do núcleo entra como {erro} (pt-BR até a área do núcleo);
+// nome de arquivo, coluna e rótulo de linha vêm do arquivo: só como variável (escapados no HTML)
+const COL_X = 'Valor <R$> & "líquido"';
+const IMPORTAR_B = [
+  ['tt', 'importar.resolvaBloqueio', undefined, 'Antes de importar, resolva os dados salvos que não consegui ler.'],
+  ['tt', 'importar.semConta', { moeda: 'EUR', arquivos: 'a.csv, ' + ARQ_X, outras: 'GBP, USD' }, 'Não há conta em EUR em a.csv, extrato <out> & "1".csv: o extrato tem GBP, USD. Troque a moeda em Configurações ou baixe o extrato da conta em EUR.'],
+  ['tt', 'importar.semMovimentos', { arquivos: 'a.csv' }, 'Não encontrei movimentações em a.csv. Use o extrato consolidado em CSV do Revolut.'],
+  ['tt', 'importar.abaIlegivel', { erro: 'a planilha está danificada ou incompleta' }, 'Não consegui ler essa aba: a planilha está danificada ou incompleta.'],
+  ['tt', 'importar.assimIlegivel', { erro: 'nenhuma linha com dados' }, 'Não consegui ler o arquivo assim: nenhuma linha com dados.'],
+  ['tt', 'importar.umPorVez', { arquivo: ARQ_X }, 'Um arquivo por vez neste banco: abri só extrato <out> & "1".csv.'],
+  ['tt', 'importar.naoLeu', { arquivo: ARQ_X, erro: 'o arquivo está vazio' }, 'Não consegui ler extrato <out> & "1".csv: o arquivo está vazio.'],
+  ['tt', 'importar.compactado', undefined, 'é um arquivo compactado, não uma planilha'],
+  ['tt', 'importar.vazio', undefined, 'o arquivo está vazio'],
+  ['tt', 'importar.outraMoeda', { banco: 'BTG Pactual', moeda: 'Dólar (US$)', moedaCarteira: 'Real (R$)' }, 'é um extrato do BTG Pactual em Dólar (US$), e esta carteira é em Real (R$)'],
+  ['tt', 'importar.pdfDoDisco', undefined, 'para ler PDF, abra o painel pelo endereço do npm start (aberto direto do disco, o navegador não carrega o leitor de PDF). CSV e planilha funcionam dos dois jeitos'],
+  ['tt', 'importar.pdfImagem', undefined, 'este PDF é uma imagem (escaneado), sem texto para ler. Baixe o extrato em PDF pelo app ou pelo internet banking do banco'],
+  ['tt', 'importar.pdfDesconhecido', undefined, 'não reconheci este PDF: por enquanto só o extrato de conta corrente do Itaú é lido'],
+  ['tt', 'importar.leitorPdf', undefined, 'o leitor de PDF não abriu'],
+  ['tt', 'importar.leitorPlanilhas', undefined, 'o leitor de planilhas não abriu'],
+  ['tth', 'importar.reconheci', { banco: 'BTG Pactual' }, 'Reconheci um extrato do BTG Pactual: colunas e formatos já definidos. Confira a prévia.'],
+  ['tth', 'importar.saldoDepoisIgual', { data: '20 de outubro de 2026', valor: 'R$ 1.234,56', ultimo: '15 de outubro de 2026' }, 'Saldo em 20 de outubro de 2026, depois do período do extrato: R$ 1.234,56, igual ao último saldo do período (15 de outubro de 2026).'],
+  ['tth', 'importar.saldoDepoisDifere', { data: '20 de outubro de 2026', valor: 'R$ 1.234,56', valorUltimo: 'R$ 1.000,00', ultimo: '15 de outubro de 2026' }, 'Saldo em 20 de outubro de 2026, depois do período do extrato: R$ 1.234,56. O último saldo do período é R$ 1.000,00, em 15 de outubro de 2026; a diferença vem de movimentos depois dele.'],
+  ['tth', 'importar.saldoAtualBate', { valor: 'R$ 1.234,56', data: '15 de outubro de 2026' }, 'O &quot;Saldo atual&quot; do extrato (R$ 1.234,56) bate com o último saldo do dia, em 15 de outubro de 2026.'],
+  ['tt', 'importar.saldoAtualDifere', { valor: 'R$ 1.234,56', valorUltimo: 'R$ 1.200,00', data: '15 de outubro de 2026', dif: '+R$ 34,56' }, 'O "Saldo atual" do extrato (R$ 1.234,56) não bate com o último saldo do dia (R$ 1.200,00, em 15 de outubro de 2026): diferença de +R$ 34,56. Pode faltar alguma linha no fim do extrato.'],
+  // conferência de saldos: valores formatados pelo código, rótulo de linha e nome de coluna do arquivo escapados
+  ['tth', 'conf.saldoLinhas', { n: 22, rotulo: 'Saldo Diário', valor: I.cru('<b>R$ 1.234,56</b>'), data: '15 de outubro de 2026' }, 'Saldo do fim do dia: 22 dias, das linhas &quot;Saldo Diário&quot;, que não entram como movimento. Último: <b>R$ 1.234,56</b> em 15 de outubro de 2026.'],
+  ['tth', 'conf.saldoLinhas', { n: 1, rotulo: 'Saldo <x> & "y"', valor: I.cru('<b>R$ 10,00</b>'), data: '1 de outubro de 2026' }, 'Saldo do fim do dia: 1 dia, das linhas &quot;Saldo &lt;x&gt; &amp; &quot;y&quot;&quot;, que não entram como movimento. Último: <b>R$ 10,00</b> em 1 de outubro de 2026.'],
+  ['tth', 'conf.saldoColuna', { n: 1, coluna: COL_X, valor: I.cru('<b>R$ 10,00</b>'), data: '1 de outubro de 2026' }, 'Saldo do fim do dia: 1 dia, da coluna Valor &lt;R$&gt; &amp; &quot;líquido&quot;. Último: <b>R$ 10,00</b> em 1 de outubro de 2026.'],
+  ['tth', 'conf.saldoColuna', { n: 30, coluna: 'Saldo', valor: I.cru('<b>R$ 10,00</b>'), data: '1 de outubro de 2026' }, 'Saldo do fim do dia: 30 dias, da coluna Saldo. Último: <b>R$ 10,00</b> em 1 de outubro de 2026.'],
+  ['tth', 'conf.entre', { de: '3 de agosto de 2026', ate: '5 de agosto de 2026', dif: '+R$ 0,42' }, 'Entre 3 de agosto de 2026 e 5 de agosto de 2026: +R$ 0,42'],
+  ['tth', 'conf.eMais', { n: 4 }, 'e mais 4'],
+  ['tth', 'conf.rendimento', { valor: '+R$ 0,42', n: 1 }, '+R$ 0,42 em 1 dia: provável rendimento da conta, não listado no extrato'],
+  ['tth', 'conf.rendimento', { valor: '+R$ 1,30', n: 3 }, '+R$ 1,30 em 3 dias: provável rendimento da conta, não listado no extrato'],
+  ['tth', 'conf.rendimentoDica', { valor: 'R$ 5,00' }, 'O saldo subiu um pouco mais do que os movimentos explicam (até R$ 5,00 por dia). Nenhum movimento é criado para isso: o saldo do extrato vale como está.'],
+  ['tth', 'conf.falta', { n: 1 }, 'Em 1 trecho o saldo do extrato não bate com o do dia anterior mais os movimentos: pode faltar alguma linha entre estes dias. Confira com o app do banco.'],
+  ['tth', 'conf.falta', { n: 2 }, 'Em 2 trechos o saldo do extrato não bate com o do dia anterior mais os movimentos: pode faltar alguma linha entre estes dias. Confira com o app do banco.'],
+  ['tth', 'conf.ancoraDifere', { informado: 'R$ 1.000,00', data: '15 de outubro de 2026', extrato: 'R$ 1.234,56', dif: '−R$ 234,56', ultimo: '14 de outubro de 2026' }, 'O saldo que você informou (R$ 1.000,00) não bate com o do extrato em 15 de outubro de 2026 (R$ 1.234,56): diferença de −R$ 234,56. Pode faltar alguma linha depois de 14 de outubro de 2026, ou o saldo informado é de outro dia.'],
+  ['tth', 'conf.ancoraBate', { data: '15 de outubro de 2026' }, 'O saldo que você informou bate com o do extrato em 15 de outubro de 2026.'],
+  ['tth', 'conf.semSaldoExtrato', undefined, 'Sem saldo no extrato: o saldo de cada dia vai ser estimado a partir dos movimentos e desse saldo.'],
+  // perguntas e avisos do importador genérico
+  ['tth', 'importar.semFormatoData', { coluna: COL_X }, 'A coluna Valor &lt;R$&gt; &amp; &quot;líquido&quot; não tem datas num formato só. Confira se é a coluna certa.'],
+  ['tth', 'importar.fmtDataTitulo', undefined, 'Formato da data'],
+  ['tth', 'importar.fmtDataPergunta', { exemplo: I.cru('<b>03/04/2026</b>') }, 'Datas como <b>03/04/2026</b> servem para mais de um formato. Como o banco escreve?'],
+  ['tth', 'importar.saldoIgualValor', undefined, 'A mesma coluna não pode ser o valor do movimento e o saldo. Escolha outra para o saldo, ou &quot;Sem saldo&quot;.'],
+  ['tth', 'importar.naoNumero', undefined, 'Há valores que não são número nas colunas escolhidas. Confira as colunas de valor e de saldo.'],
+  ['tth', 'importar.fmtNumTitulo', undefined, 'Formato do número'],
+  ['tth', 'importar.fmtNumPergunta', { exemplo: I.cru('<b>1.234</b>') }, 'Valores como <b>1.234</b> servem para os dois formatos. Como o banco escreve?'],
+  ['tth', 'importar.saidas', undefined, 'Saídas'],
+  ['tth', 'importar.sinalPergunta', { coluna: 'Valor', positivos: '1 valor positivo', negativos: '1 negativo' }, 'Como as saídas (débitos) aparecem na coluna Valor? No arquivo há 1 valor positivo e 1 negativo.'],
+  ['tth', 'importar.sinalPergunta', { coluna: COL_X, positivos: '12 valores positivos', negativos: '0 negativos' }, 'Como as saídas (débitos) aparecem na coluna Valor &lt;R$&gt; &amp; &quot;líquido&quot;? No arquivo há 12 valores positivos e 0 negativos.'],
+  ['tt', 'importar.nPositivos', { n: 1 }, '1 valor positivo'],
+  ['tt', 'importar.nPositivos', { n: 0 }, '0 valores positivos'],
+  ['tt', 'importar.nNegativos', { n: 1 }, '1 negativo'],
+  ['tt', 'importar.nNegativos', { n: 3 }, '3 negativos'],
+  ['tth', 'importar.sinalNegativas', { exemplo: '−50,00' }, 'Com sinal de menos (−50,00); as entradas vêm sem sinal'],
+  ['tth', 'importar.sinalPositivas', { exemplo: '50,00' }, 'Sem sinal (50,00); as entradas é que vêm com menos'],
+  ['tth', 'importar.nenhumEntendido', undefined, 'Nenhum movimento entendido com essas colunas. Confira a linha do cabeçalho e as colunas.'],
+  ['tth', 'importar.respondaFalta', undefined, 'Responda o que falta acima para ver a prévia.'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
