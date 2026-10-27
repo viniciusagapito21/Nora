@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>MSG-INVENTADA-001</MsgId></GrpHdr>
+    <Stmt>
+      <Id>EXTRATO-FALSO-001</Id>
+      <Acct>
+        <Id><IBAN>IE00FAKE00000000000001</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">1000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-03-31</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">12.50</Amt><CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><DtTm>2026-04-01T10:15:00Z</DtTm></BookgDt>
+        <ValDt><Dt>2026-03-31</Dt></ValDt>
+        <NtryDtls><TxDtls>
+          <AmtDtls><TxAmt><Amt Ccy="EUR">12.50</Amt></TxAmt></AmtDtls>
+          <RmtInf><Ustrd>Compra fictícia</Ustrd><Ustrd>Loja inventada</Ustrd></RmtInf>
+          <RltdPties><Dbtr><Nm>MARIA SILVA INVENTADA</Nm><Id><IBAN>IE00FAKE00000000000002</IBAN></Id></Dbtr></RltdPties>
+        </TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">5.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><RvslInd>true</RvslInd>
+        <BookgDt><Dt>2026-04-02</Dt></BookgDt>
+        <NtryDtls><TxDtls><RmtInf><Ustrd>Estorno inventado</Ustrd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">1000.10</Amt><CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-04-03</Dt></BookgDt>
+        <NtryDtls>
+          <TxDtls>
+            <AmtDtls><TxAmt><Amt Ccy="EUR">0.10</Amt></TxAmt></AmtDtls>
+            <RmtInf><Ustrd>Crédito de dez centavos</Ustrd></RmtInf>
+          </TxDtls>
+          <TxDtls>
+            <AmtDtls><TxAmt><Amt Ccy="EUR">1000.00</Amt></TxAmt></AmtDtls>
+            <RmtInf><Ustrd>Crédito de mil euros</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">0.10</Amt><CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-04-04</Dt></BookgDt>
+        <NtryDtls><TxDtls><RltdPties><Cdtr><Nm>LOJA FICTÍCIA CENTRAL</Nm><Id><IBAN>IE00FAKE00000000000003</IBAN></Id></Cdtr></RltdPties></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">0.10</Amt><CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-04-05</Dt></BookgDt>
+        <AddtlNtryInf>Ajuste escrito inventado</AddtlNtryInf>
+      </Ntry>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">1982.80</Amt><CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-04-30</Dt></Dt>
+      </Bal>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

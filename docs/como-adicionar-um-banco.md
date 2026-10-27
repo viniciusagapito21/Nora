@@ -12,6 +12,12 @@ O arquivo declara uma fábrica global `LEITOR_<BANCO>(ajuda)` que devolve:
 
 Cada movimento de `tx` tem `[data ISO, descrição, tipo, centavos, saldo em centavos]`. Use `AAAA-MM-DD`, centavos inteiros e códigos ISO 4217. Não use ponto flutuante para converter dinheiro. `saldos` é um mapa de datas para centavos, ou `null`; `periodo` é `{ de, ate, fonte: 'arquivo' }` quando o arquivo informa o período, ou `null`.
 
+Leitores puros de formatos bancários já cobertos:
+
+- `parsers/ofx.js`
+- `parsers/mt940.js`
+- `parsers/camt053.js`
+
 Leia apenas os campos necessários ao resultado. Não carregue linhas inteiras adiante, não acrescente nomes, documentos, agência, conta, identificadores ou outros dados pessoais. A moeda solicitada deve limitar os movimentos quando o formato contiver mais de uma moeda.
 
 ## Exemplo inventado e teste
@@ -28,4 +34,8 @@ Use exclusivamente dados inventados em exemplos e testes. Nunca adicione extrato
 
 ## Quando o extrato é de um banco novo
 
-Comece pelo `LEITOR_GENERICO`: ele tenta reconhecer data, descrição, valor (ou débito/crédito) e saldo por cabeçalho, sem precisar conhecer o banco. Confira a prévia e, se as colunas ou o formato de data/valor não forem reconhecidos, peça ajuda descrevendo os nomes das colunas e o formato geral — nunca envie o extrato, capturas ou dados da conta. Se o caminho genérico não bastar, siga este guia para propor um leitor específico usando apenas exemplos inventados.
+Comece pelo `LEITOR_GENERICO`: ele tenta reconhecer data, descrição, valor (ou débito/crédito) e saldo por cabeçalho, sem precisar conhecer o banco. Confira a prévia e, se as colunas ou o formato de data/valor não forem reconhecidos, peça ajuda descrevendo os nomes das colunas e o formato geral.
+
+O módulo puro `NORA_DIAGNOSTICO.gerar(entrada, opcoes)` prepara um diagnóstico anônimo: informa versão, extensão, leitor tentado, dimensões e separador, e mascara as formas das primeiras amostras. Não inclui valores, nomes de coluna desconhecidos, nomes de pessoas nem descrições; avisos fixos do leitor podem aparecer. Quando o integrador ligar o botão **Copiar diagnóstico**, cole aqui o texto completo gerado e explique em uma frase o que esperava que fosse lido. Cole somente esse diagnóstico — nunca o extrato, capturas, nomes, saldos ou dados da conta. O botão ainda não está ligado ao painel.
+
+Se o caminho genérico não bastar, siga este guia para propor um leitor específico usando apenas exemplos inventados.

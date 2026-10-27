@@ -14,7 +14,7 @@ const arquivos = [
   'icon.svg',
 ];
 const diretorios = ['fonts', 'rules', 'vendor'];
-const arquivosParsersDist = ['revolut.js', 'btg.js', 'itau.js', 'ofx.js', 'colunas.js', 'generico.js'];
+const arquivosParsersDist = ['revolut.js', 'btg.js', 'itau.js', 'ofx.js', 'colunas.js', 'generico.js', 'diagnostico.js', 'mt940.js', 'camt053.js'];
 
 rmSync(saida, { recursive: true, force: true });
 mkdirSync(saida, { recursive: true });
