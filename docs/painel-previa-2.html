@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nora — Prévia do painel (P4, P4b e P5)</title>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="painel-previa-2.css">
+</head>
+<body>
+<main class="wrap previa-wrap">
+  <div class="view fin previa-painel">
+    <header class="previa-cab">
+      <div class="view-top">
+        <div>
+          <p class="previa-marca"><img src="../logo.svg" alt="Nora" width="130" height="44"></p>
+          <span class="eyebrow">Roteiro de leitura rápida · Prévia estática 2</span>
+        </div>
+        <nav class="previa-nav" aria-label="Atalhos das ideias">
+          <a class="pill" href="#ideia-p4">P4 · Conferência de saldo</a>
+          <a class="pill" href="#ideia-p4b">P4b · Troca de mês ‹ ›</a>
+          <a class="pill" href="#ideia-p5">P5 · Modo privacidade</a>
+        </nav>
+      </div>
+      <h1>Conferência de saldo, troca de mês e modo privacidade</h1>
+      <p class="nota-pe">Validação visual estática de P4, P4b e P5 antes da implementação no núcleo. Todos os valores são fictícios, em euro, calculados em centavos e pontos-base inteiros e formatados com <code>Intl.NumberFormat</code>, em todos os estados e nos temas claro e escuro.</p>
+    </header>
+
+    <section class="previa-ideia" id="ideia-p4" aria-labelledby="titulo-p4">
+      <div class="ideia-cab">
+        <span class="eyebrow">Ideia P4 · Item 6 do handoff</span>
+        <h2 id="titulo-p4">Conferência de saldo após importar</h2>
+        <p>Mostra de forma simples, sem culpar a pessoa, se o saldo reconstruído pelo aplicativo bate com o saldo do banco depois de importar o extrato, indicando também a data do último movimento lido.</p>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 1 — Bateu com o banco</h3>
+          <span>Saldo do Nora € 2.400,00 = fechamento de 20 out no extrato (tolerância de centavos até € 0,05)</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4 saldo bateu — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out · extrato conferido</p>
+            </div>
+            <button type="button" class="btn pri">Adicionar extrato</button>
+          </div>
+          <div class="card conf-card estado-ok">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado ok"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Bateu com o banco</span></span>
+            </div>
+            <p class="conf-titulo">Saldo conferido com o extrato</p>
+            <p class="conf-texto">O saldo calculado pelo Nora bate com o fechamento de 20 de outubro trazido pelo extrato. Arredondamentos do banco até € 0,05 entram como normais.</p>
+            <dl class="conf-grade">
+              <div><dt>Saldo no Nora</dt><dd>€ 2.400,00</dd></div>
+              <div><dt>Saldo no banco (20 out)</dt><dd>€ 2.400,00</dd></div>
+              <div><dt>Diferença</dt><dd class="dif-ok">€ 0,00<small>nenhuma pendência</small></dd></div>
+            </dl>
+            <p class="conf-rodape">60 movimentos conferidos de 1 a 20 out · nenhuma ação necessária</p>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4 saldo bateu — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out · extrato conferido</p>
+            </div>
+            <button type="button" class="btn pri">Adicionar extrato</button>
+          </div>
+          <div class="card conf-card estado-ok">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado ok"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Bateu com o banco</span></span>
+            </div>
+            <p class="conf-titulo">Saldo conferido com o extrato</p>
+            <p class="conf-texto">O saldo calculado pelo Nora bate com o fechamento de 20 de outubro trazido pelo extrato. Arredondamentos do banco até € 0,05 entram como normais.</p>
+            <dl class="conf-grade">
+              <div><dt>Saldo no Nora</dt><dd>€ 2.400,00</dd></div>
+              <div><dt>Saldo no banco (20 out)</dt><dd>€ 2.400,00</dd></div>
+              <div><dt>Diferença</dt><dd class="dif-ok">€ 0,00<small>nenhuma pendência</small></dd></div>
+            </dl>
+            <p class="conf-rodape">60 movimentos conferidos de 1 a 20 out · nenhuma ação necessária</p>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 2 — Diferença pequena explicada</h3>
+          <span>+€ 10,00 em 2 dias de conta remunerada · mantém o saldo do banco sem criar movimento artificial</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4 diferença pequena explicada — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta remunerada · último movimento em 20 out · 2 dias com rendimento</p>
+            </div>
+            <button type="button" class="btn">Ver extrato</button>
+          </div>
+          <div class="card conf-card estado-explicada">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/></svg><span>Diferença pequena explicada</span></span>
+            </div>
+            <p class="conf-titulo">+€ 10,00 no saldo do banco, explicados</p>
+            <p class="conf-texto">Entre 18 e 20 de outubro o saldo do extrato subiu € 10,00 além das entradas e saídas listadas. Em contas remuneradas isso costuma ser rendimento diário somado direto no saldo. O Nora mantém o saldo do banco (€ 810,00) sem criar linha artificial.</p>
+            <dl class="conf-grade">
+              <div><dt>Pelos movimentos</dt><dd>€ 800,00</dd></div>
+              <div><dt>Saldo no banco (20 out)</dt><dd>€ 810,00</dd></div>
+              <div><dt>Diferença explicada</dt><dd class="dif-info">+€ 10,00<small>provável rendimento</small></dd></div>
+            </dl>
+            <p class="conf-rodape">Dentro da faixa diária esperada · nenhum gasto ou entrada foi inventado</p>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4 diferença pequena explicada — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta remunerada · último movimento em 20 out · 2 dias com rendimento</p>
+            </div>
+            <button type="button" class="btn">Ver extrato</button>
+          </div>
+          <div class="card conf-card estado-explicada">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/></svg><span>Diferença pequena explicada</span></span>
+            </div>
+            <p class="conf-titulo">+€ 10,00 no saldo do banco, explicados</p>
+            <p class="conf-texto">Entre 18 e 20 de outubro o saldo do extrato subiu € 10,00 além das entradas e saídas listadas. Em contas remuneradas isso costuma ser rendimento diário somado direto no saldo. O Nora mantém o saldo do banco (€ 810,00) sem criar linha artificial.</p>
+            <dl class="conf-grade">
+              <div><dt>Pelos movimentos</dt><dd>€ 800,00</dd></div>
+              <div><dt>Saldo no banco (20 out)</dt><dd>€ 810,00</dd></div>
+              <div><dt>Diferença explicada</dt><dd class="dif-info">+€ 10,00<small>provável rendimento</small></dd></div>
+            </dl>
+            <p class="conf-rodape">Dentro da faixa diária esperada · nenhum gasto ou entrada foi inventado</p>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 3 — Diferença que precisa de atenção (com onde olhar)</h3>
+          <span>Diferença de −€ 200,00 explicada com calma e roteiro prático de conferência</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4 diferença que precisa de atenção — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out · saldo informado pelo banco</p>
+            </div>
+            <button type="button" class="btn">Adicionar extrato</button>
+          </div>
+          <div class="card conf-card estado-atencao">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.2 17.6 16.4H2.4L10 3.2Z"/><path d="M10 8.2v3.8"/><circle cx="10" cy="14.4" r="0.6" fill="currentColor"/></svg><span>Diferença para conferir</span></span>
+            </div>
+            <p class="conf-titulo">Há uma diferença de −€ 200,00 para olhar com calma</p>
+            <p class="conf-texto">Os movimentos importados somam € 2.300,00, enquanto o saldo do banco mostra € 2.100,00. Isso é comum quando o aplicativo do banco já descontou compras que ainda não saíram no arquivo exportado.</p>
+            <dl class="conf-grade">
+              <div><dt>Pelos movimentos</dt><dd>€ 2.300,00</dd></div>
+              <div><dt>Saldo no banco</dt><dd>€ 2.100,00</dd></div>
+              <div><dt>Diferença</dt><dd class="dif-atencao">−€ 200,00<small>vale revisar os pontos abaixo</small></dd></div>
+            </dl>
+            <div class="onde-olhar">
+              <span class="onde-olhar-titulo"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="m13.2 13.2 3.6 3.6"/></svg><span>Onde vale olhar primeiro</span></span>
+              <ul>
+                <li><strong>Compras em processamento após 20 out:</strong> o aplicativo do banco abate na hora, mas o extrato exportado só lista o movimento depois que ele liquida.</li>
+                <li><strong>Datas fora do período baixado:</strong> veja se o arquivo cobre todos os dias entre 1 e 20 de outubro, sem lacuna entre dois extratos.</li>
+                <li><strong>Reserva ou subconta separada:</strong> confira se € 200,00 foram guardados em caixinha ou reserva (como Flexible Cash) fora da conta corrente.</li>
+              </ul>
+            </div>
+            <div class="conf-acoes">
+              <button type="button" class="btn pri">Importar extrato mais recente</button>
+              <button type="button" class="btn">Revisar saldo informado</button>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4 diferença que precisa de atenção — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out · saldo informado pelo banco</p>
+            </div>
+            <button type="button" class="btn">Adicionar extrato</button>
+          </div>
+          <div class="card conf-card estado-atencao">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.2 17.6 16.4H2.4L10 3.2Z"/><path d="M10 8.2v3.8"/><circle cx="10" cy="14.4" r="0.6" fill="currentColor"/></svg><span>Diferença para conferir</span></span>
+            </div>
+            <p class="conf-titulo">Há uma diferença de −€ 200,00 para olhar com calma</p>
+            <p class="conf-texto">Os movimentos importados somam € 2.300,00, enquanto o saldo do banco mostra € 2.100,00. Isso é comum quando o aplicativo do banco já descontou compras que ainda não saíram no arquivo exportado.</p>
+            <dl class="conf-grade">
+              <div><dt>Pelos movimentos</dt><dd>€ 2.300,00</dd></div>
+              <div><dt>Saldo no banco</dt><dd>€ 2.100,00</dd></div>
+              <div><dt>Diferença</dt><dd class="dif-atencao">−€ 200,00<small>vale revisar os pontos abaixo</small></dd></div>
+            </dl>
+            <div class="onde-olhar">
+              <span class="onde-olhar-titulo"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="m13.2 13.2 3.6 3.6"/></svg><span>Onde vale olhar primeiro</span></span>
+              <ul>
+                <li><strong>Compras em processamento após 20 out:</strong> o aplicativo do banco abate na hora, mas o extrato exportado só lista o movimento depois que ele liquida.</li>
+                <li><strong>Datas fora do período baixado:</strong> veja se o arquivo cobre todos os dias entre 1 e 20 de outubro, sem lacuna entre dois extratos.</li>
+                <li><strong>Reserva ou subconta separada:</strong> confira se € 200,00 foram guardados em caixinha ou reserva (como Flexible Cash) fora da conta corrente.</li>
+              </ul>
+            </div>
+            <div class="conf-acoes">
+              <button type="button" class="btn pri">Importar extrato mais recente</button>
+              <button type="button" class="btn">Revisar saldo informado</button>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 4 — “Não consigo conferir ainda” (faltam dados)</h3>
+          <span>Extrato CSV sem coluna de saldo · pede apenas um saldo de referência em 20 out</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4 não consigo conferir ainda — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Carteira CSV genérico · último movimento em 20 out · sem coluna de saldo</p>
+            </div>
+            <button type="button" class="btn">Configurações</button>
+          </div>
+          <div class="card conf-card estado-faltam">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado neutro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M7.9 8a2.1 2.1 0 1 1 3 1.9c-.7.4-.9.8-.9 1.5"/><circle cx="10" cy="14.3" r="0.6" fill="currentColor"/></svg><span>Não consigo conferir ainda</span></span>
+            </div>
+            <p class="conf-titulo">Não consigo conferir o saldo ainda</p>
+            <p class="conf-texto">Este arquivo CSV trouxe entradas e saídas normalmente, mas o banco não incluiu uma coluna com o saldo após cada movimento. Seus gastos do mês já estão prontos no painel; só falta um saldo de referência para bater a conta.</p>
+            <dl class="conf-grade">
+              <div><dt>Movimentos lidos</dt><dd>40 linhas</dd></div>
+              <div><dt>Coluna de saldo</dt><dd>Ausente no CSV</dd></div>
+              <div><dt>Status</dt><dd><small>Falta o saldo do banco em 20 out</small></dd></div>
+            </dl>
+            <div class="conf-ancora">
+              <label for="ancora-p4-claro">Saldo no banco no fim de 20 out (€)
+                <input id="ancora-p4-claro" type="text" inputmode="decimal" placeholder="ex.: 1.500,00">
+              </label>
+              <button type="button" class="btn pri">Informar saldo e conferir</button>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4 não consigo conferir ainda — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Carteira CSV genérico · último movimento em 20 out · sem coluna de saldo</p>
+            </div>
+            <button type="button" class="btn">Configurações</button>
+          </div>
+          <div class="card conf-card estado-faltam">
+            <div class="conf-cab">
+              <span class="conf-rotulo">Conferência após importar · outubro</span>
+              <span class="selo-estado neutro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M7.9 8a2.1 2.1 0 1 1 3 1.9c-.7.4-.9.8-.9 1.5"/><circle cx="10" cy="14.3" r="0.6" fill="currentColor"/></svg><span>Não consigo conferir ainda</span></span>
+            </div>
+            <p class="conf-titulo">Não consigo conferir o saldo ainda</p>
+            <p class="conf-texto">Este arquivo CSV trouxe entradas e saídas normalmente, mas o banco não incluiu uma coluna com o saldo após cada movimento. Seus gastos do mês já estão prontos no painel; só falta um saldo de referência para bater a conta.</p>
+            <dl class="conf-grade">
+              <div><dt>Movimentos lidos</dt><dd>40 linhas</dd></div>
+              <div><dt>Coluna de saldo</dt><dd>Ausente no CSV</dd></div>
+              <div><dt>Status</dt><dd><small>Falta o saldo do banco em 20 out</small></dd></div>
+            </dl>
+            <div class="conf-ancora">
+              <label for="ancora-p4-escuro">Saldo no banco no fim de 20 out (€)
+                <input id="ancora-p4-escuro" type="text" inputmode="decimal" placeholder="ex.: 1.500,00">
+              </label>
+              <button type="button" class="btn pri">Informar saldo e conferir</button>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+    </section>
+
+    <section class="previa-ideia" id="ideia-p4b" aria-labelledby="titulo-p4b">
+      <div class="ideia-cab">
+        <span class="eyebrow">Ideia P4b · Navegação direta</span>
+        <h2 id="titulo-p4b">Botões ‹ › para trocar de mês no painel</h2>
+        <p>Permite avançar e voltar entre meses sem precisar clicar numa coluna do gráfico. Cada seta tem alvo mínimo de 44×44 px, foco visível em teclado, nome do mês anunciável por leitor de tela e estado desabilitado legível sem transparência.</p>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 1 — Mês normal (intermediário, ‹ e › ativos)</h3>
+          <span>Setembro de 2026 · volta para agosto e avança para outubro</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4b mês normal — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="mes-bloco">
+            <div class="mes-topo">
+              <div class="mes-nav" role="group" aria-label="Navegação por mês">
+                <button type="button" class="btn btn-mes" aria-label="Mês anterior: agosto de 2026"><span aria-hidden="true">‹</span></button>
+                <div class="mes-titulo" role="status" aria-live="polite" aria-label="Mês selecionado: setembro de 2026, mês fechado">
+                  <span class="mes-nome">Setembro de 2026</span>
+                  <span class="mes-sub">mês fechado · 5 de 6 meses com dados</span>
+                </div>
+                <button type="button" class="btn btn-mes" aria-label="Próximo mês: outubro de 2026"><span aria-hidden="true">›</span></button>
+              </div>
+              <button type="button" class="btn btn-media">Ver média de todos os meses</button>
+            </div>
+            <div class="mes-meta-linha">
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M6.5 3v3M13.5 3v3M3 8.5h14"/></svg><span>Setas ‹ e › ativas · alvos de 44×44 px</span></span>
+              <span class="hint">último movimento do mês em 30 set</span>
+            </div>
+            <div class="p4b-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">setembro fechado</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Gastou</span>
+                <span class="v">€ 1.500</span>
+                <span class="s">75% do que entrou</span>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4b mês normal — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="mes-bloco">
+            <div class="mes-topo">
+              <div class="mes-nav" role="group" aria-label="Navegação por mês">
+                <button type="button" class="btn btn-mes" aria-label="Mês anterior: agosto de 2026"><span aria-hidden="true">‹</span></button>
+                <div class="mes-titulo" role="status" aria-live="polite" aria-label="Mês selecionado: setembro de 2026, mês fechado">
+                  <span class="mes-nome">Setembro de 2026</span>
+                  <span class="mes-sub">mês fechado · 5 de 6 meses com dados</span>
+                </div>
+                <button type="button" class="btn btn-mes" aria-label="Próximo mês: outubro de 2026"><span aria-hidden="true">›</span></button>
+              </div>
+              <button type="button" class="btn btn-media">Ver média de todos os meses</button>
+            </div>
+            <div class="mes-meta-linha">
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M6.5 3v3M13.5 3v3M3 8.5h14"/></svg><span>Setas ‹ e › ativas · alvos de 44×44 px</span></span>
+              <span class="hint">último movimento do mês em 30 set</span>
+            </div>
+            <div class="p4b-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">setembro fechado</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Gastou</span>
+                <span class="v">€ 1.500</span>
+                <span class="s">75% do que entrou</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 2 — Primeiro mês com dados (‹ desabilitado)</h3>
+          <span>Maio de 2026 · início do histórico importado</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4b primeiro mês com dados — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="mes-bloco">
+            <div class="mes-topo">
+              <div class="mes-nav" role="group" aria-label="Navegação por mês">
+                <button type="button" class="btn btn-mes" disabled aria-label="Mês anterior indisponível: maio de 2026 é o primeiro mês com dados"><span aria-hidden="true">‹</span></button>
+                <div class="mes-titulo" role="status" aria-live="polite" aria-label="Mês selecionado: maio de 2026, primeiro mês com dados">
+                  <span class="mes-nome">Maio de 2026</span>
+                  <span class="mes-sub">primeiro mês importado · 1 de 6 meses</span>
+                </div>
+                <button type="button" class="btn btn-mes" aria-label="Próximo mês: junho de 2026"><span aria-hidden="true">›</span></button>
+              </div>
+              <button type="button" class="btn btn-media">Ver média de todos os meses</button>
+            </div>
+            <div class="mes-meta-linha">
+              <span class="selo-estado neutro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M6.5 3v3M13.5 3v3M3 8.5h14"/></svg><span>Início do histórico · ‹ desabilitado sem transparência</span></span>
+              <span class="hint">não há extratos antes de maio</span>
+            </div>
+            <div class="p4b-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">maio fechado</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Gastou</span>
+                <span class="v">€ 1.400</span>
+                <span class="s">70% do que entrou</span>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4b primeiro mês com dados — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="mes-bloco">
+            <div class="mes-topo">
+              <div class="mes-nav" role="group" aria-label="Navegação por mês">
+                <button type="button" class="btn btn-mes" disabled aria-label="Mês anterior indisponível: maio de 2026 é o primeiro mês com dados"><span aria-hidden="true">‹</span></button>
+                <div class="mes-titulo" role="status" aria-live="polite" aria-label="Mês selecionado: maio de 2026, primeiro mês com dados">
+                  <span class="mes-nome">Maio de 2026</span>
+                  <span class="mes-sub">primeiro mês importado · 1 de 6 meses</span>
+                </div>
+                <button type="button" class="btn btn-mes" aria-label="Próximo mês: junho de 2026"><span aria-hidden="true">›</span></button>
+              </div>
+              <button type="button" class="btn btn-media">Ver média de todos os meses</button>
+            </div>
+            <div class="mes-meta-linha">
+              <span class="selo-estado neutro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M6.5 3v3M13.5 3v3M3 8.5h14"/></svg><span>Início do histórico · ‹ desabilitado sem transparência</span></span>
+              <span class="hint">não há extratos antes de maio</span>
+            </div>
+            <div class="p4b-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">maio fechado</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Gastou</span>
+                <span class="v">€ 1.400</span>
+                <span class="s">70% do que entrou</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 3 — Mês em andamento (› desabilitado)</h3>
+          <span>Outubro de 2026 · até dia 20</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P4b mês em andamento — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="mes-bloco">
+            <div class="mes-topo">
+              <div class="mes-nav" role="group" aria-label="Navegação por mês">
+                <button type="button" class="btn btn-mes" aria-label="Mês anterior: setembro de 2026"><span aria-hidden="true">‹</span></button>
+                <div class="mes-titulo" role="status" aria-live="polite" aria-label="Mês selecionado: outubro de 2026, mês em andamento até dia 20">
+                  <span class="mes-nome">Outubro de 2026 · até dia 20</span>
+                  <span class="mes-sub">mês em andamento · 6 de 6 meses</span>
+                </div>
+                <button type="button" class="btn btn-mes" disabled aria-label="Próximo mês indisponível: outubro de 2026 é o mês em andamento"><span aria-hidden="true">›</span></button>
+              </div>
+              <button type="button" class="btn btn-media">Ver média de todos os meses</button>
+            </div>
+            <div class="mes-meta-linha">
+              <span class="selo-estado ok"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M6.5 3v3M13.5 3v3M3 8.5h14"/></svg><span>Mês em andamento · › desabilitado</span></span>
+              <span class="hint">último movimento em 20 out</span>
+            </div>
+            <div class="p4b-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">parcial até dia 20</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Gastou</span>
+                <span class="v">€ 900</span>
+                <span class="s">meta mensal de € 1.000</span>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P4b mês em andamento — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="mes-bloco">
+            <div class="mes-topo">
+              <div class="mes-nav" role="group" aria-label="Navegação por mês">
+                <button type="button" class="btn btn-mes" aria-label="Mês anterior: setembro de 2026"><span aria-hidden="true">‹</span></button>
+                <div class="mes-titulo" role="status" aria-live="polite" aria-label="Mês selecionado: outubro de 2026, mês em andamento até dia 20">
+                  <span class="mes-nome">Outubro de 2026 · até dia 20</span>
+                  <span class="mes-sub">mês em andamento · 6 de 6 meses</span>
+                </div>
+                <button type="button" class="btn btn-mes" disabled aria-label="Próximo mês indisponível: outubro de 2026 é o mês em andamento"><span aria-hidden="true">›</span></button>
+              </div>
+              <button type="button" class="btn btn-media">Ver média de todos os meses</button>
+            </div>
+            <div class="mes-meta-linha">
+              <span class="selo-estado ok"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M6.5 3v3M13.5 3v3M3 8.5h14"/></svg><span>Mês em andamento · › desabilitado</span></span>
+              <span class="hint">último movimento em 20 out</span>
+            </div>
+            <div class="p4b-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">parcial até dia 20</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Gastou</span>
+                <span class="v">€ 900</span>
+                <span class="s">meta mensal de € 1.000</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+    </section>
+
+    <section class="previa-ideia" id="ideia-p5" aria-labelledby="titulo-p5">
+      <div class="ideia-cab">
+        <span class="eyebrow">Ideia P5 · D5 e D6</span>
+        <h2 id="titulo-p5">Modo privacidade no cabeçalho</h2>
+        <p>Botão com ícone de olho + texto explícito (“Ocultar valores” / “Mostrar valores”). Quando ativo, mascara todos os valores em dinheiro do painel, gráficos SVG, avisos e <code>aria-label</code> (“valor oculto”), preserva porcentagens visíveis e mantém valores reais em formulários e na pré-visualização da importação.</p>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 1 — Modo desligado (valores visíveis e botão “Ocultar valores”)</h3>
+          <span>aria-pressed="false" · todos os cartões, eixo do SVG e movimentos mostram valores reais</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P5 modo privacidade desligado — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out</p>
+            </div>
+            <button type="button" class="btn btn-privacidade" aria-pressed="false"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z"/><circle cx="10" cy="10" r="2.4"/></svg><span>Ocultar valores</span></button>
+          </div>
+          <div class="p5-kpis">
+            <div class="kpi">
+              <span class="l">Saldo atual</span>
+              <span class="v">€ 2.400</span>
+              <span class="s">conferido em 20 out</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v">€ 2.000</span>
+              <span class="s">outubro · até dia 20</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v">€ 850</span>
+              <span class="s">85% da meta de € 1.000</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Guardou</span>
+              <span class="v">18%</span>
+              <span class="s">€ 360 de € 2.000 que entraram</span>
+            </div>
+          </div>
+          <div class="card p5-painel-card">
+            <div class="sec-top">
+              <span class="card-titulo">Saldo, categorias e movimentos</span>
+              <span class="hint">valores em euro visíveis</span>
+            </div>
+            <div class="p5-svg-caixa">
+              <svg viewBox="0 0 360 104" role="img" aria-label="Evolução do saldo em outubro: de € 1.800 em 1 out para € 2.400 em 20 out">
+                <line x1="68" y1="22" x2="348" y2="22" stroke="var(--grid)" stroke-width="1"/>
+                <line x1="68" y1="74" x2="348" y2="74" stroke="var(--grid)" stroke-width="1"/>
+                <text x="4" y="26" class="p5-svg-eixo">€ 2.400</text>
+                <text x="4" y="78" class="p5-svg-eixo">€ 1.800</text>
+                <path d="M72 74 C 130 70, 175 56, 230 42 S 305 26, 344 22" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="344" cy="22" r="4" fill="var(--accent)"/>
+                <text x="286" y="15" class="p5-svg-topo">€ 2.400</text>
+                <text x="68" y="96" class="p5-svg-eixo">1 out</text>
+                <text x="312" y="96" class="p5-svg-eixo">20 out</text>
+              </svg>
+            </div>
+            <div class="cat em-atencao">
+              <i class="sw cor-atencao" aria-hidden="true"></i>
+              <span class="nm">Mercado</span>
+              <span class="val">€ 170</span>
+              <div class="track" role="img" aria-label="Mercado: € 170 de meta de € 200 (85%)"><i class="cor-atencao"></i><b class="meta-100"></b></div>
+              <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.2 17.6 16.4H2.4L10 3.2Z"/><path d="M10 8.2v3.8"/><circle cx="10" cy="14.4" r="0.6" fill="currentColor"/></svg><span>Atenção · 85% da meta</span></span><span>de € 200 (€ 30 livres)</span></span>
+            </div>
+            <div class="mov">
+              <span class="dt">20 out</span>
+              <span class="ds">Padaria Central</span>
+              <span class="am">−€ 20,00</span>
+              <span class="tg"><i class="sw cor-c1" aria-hidden="true"></i>Alimentação</span>
+            </div>
+            <p class="aviso-painel"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/></svg><span>Conferência do extrato: saldo de € 2.400,00 confirmado em 20 out.</span></p>
+          </div>
+          <div class="nao-mascara-bloco">
+            <div class="nao-mascara-cab">
+              <span class="card-titulo">O que nunca é mascarado</span>
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Formulários e prévia de importação</span></span>
+            </div>
+            <p class="nao-mascara-desc">Formulários de metas e a pré-visualização da importação continuam exibindo valores reais mesmo com o modo privacidade ativo, para ninguém editar limites nem importar extratos às cegas.</p>
+            <div class="excecoes-grade">
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Formulário · Editar metas mensais</span>
+                <div class="mgrid-previa">
+                  <label for="meta-gasto-vis-claro">Meta de gasto mensal (€)
+                    <input id="meta-gasto-vis-claro" type="text" inputmode="numeric" value="1.000" readonly>
+                  </label>
+                  <label for="meta-merc-vis-claro">Meta de Mercado (€)
+                    <input id="meta-merc-vis-claro" type="text" inputmode="numeric" value="200" readonly>
+                  </label>
+                </div>
+              </div>
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Pré-visualização da importação · extrato-outubro.csv</span>
+                <div class="imp-tot-previa">
+                  <div><span>Entradas</span><b class="pos">+€ 2.000,00</b></div>
+                  <div><span>Saídas</span><b class="neg">−€ 60,00</b></div>
+                  <div><span>Saldo final</span><b>€ 2.400,00</b></div>
+                </div>
+                <div class="imp-tw-previa">
+                  <table class="imp-previa">
+                    <thead>
+                      <tr><th>Data</th><th class="col-desc">Descrição</th><th>Valor</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>18 out</td><td class="col-desc">Salário Outubro</td><td class="pos">+€ 2.000,00</td></tr>
+                      <tr><td>20 out</td><td class="col-desc">Mercado Bairro</td><td class="neg">−€ 60,00</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P5 modo privacidade desligado — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out</p>
+            </div>
+            <button type="button" class="btn btn-privacidade" aria-pressed="false"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z"/><circle cx="10" cy="10" r="2.4"/></svg><span>Ocultar valores</span></button>
+          </div>
+          <div class="p5-kpis">
+            <div class="kpi">
+              <span class="l">Saldo atual</span>
+              <span class="v">€ 2.400</span>
+              <span class="s">conferido em 20 out</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v">€ 2.000</span>
+              <span class="s">outubro · até dia 20</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v">€ 850</span>
+              <span class="s">85% da meta de € 1.000</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Guardou</span>
+              <span class="v">18%</span>
+              <span class="s">€ 360 de € 2.000 que entraram</span>
+            </div>
+          </div>
+          <div class="card p5-painel-card">
+            <div class="sec-top">
+              <span class="card-titulo">Saldo, categorias e movimentos</span>
+              <span class="hint">valores em euro visíveis</span>
+            </div>
+            <div class="p5-svg-caixa">
+              <svg viewBox="0 0 360 104" role="img" aria-label="Evolução do saldo em outubro: de € 1.800 em 1 out para € 2.400 em 20 out">
+                <line x1="68" y1="22" x2="348" y2="22" stroke="var(--grid)" stroke-width="1"/>
+                <line x1="68" y1="74" x2="348" y2="74" stroke="var(--grid)" stroke-width="1"/>
+                <text x="4" y="26" class="p5-svg-eixo">€ 2.400</text>
+                <text x="4" y="78" class="p5-svg-eixo">€ 1.800</text>
+                <path d="M72 74 C 130 70, 175 56, 230 42 S 305 26, 344 22" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="344" cy="22" r="4" fill="var(--accent)"/>
+                <text x="286" y="15" class="p5-svg-topo">€ 2.400</text>
+                <text x="68" y="96" class="p5-svg-eixo">1 out</text>
+                <text x="312" y="96" class="p5-svg-eixo">20 out</text>
+              </svg>
+            </div>
+            <div class="cat em-atencao">
+              <i class="sw cor-atencao" aria-hidden="true"></i>
+              <span class="nm">Mercado</span>
+              <span class="val">€ 170</span>
+              <div class="track" role="img" aria-label="Mercado: € 170 de meta de € 200 (85%)"><i class="cor-atencao"></i><b class="meta-100"></b></div>
+              <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.2 17.6 16.4H2.4L10 3.2Z"/><path d="M10 8.2v3.8"/><circle cx="10" cy="14.4" r="0.6" fill="currentColor"/></svg><span>Atenção · 85% da meta</span></span><span>de € 200 (€ 30 livres)</span></span>
+            </div>
+            <div class="mov">
+              <span class="dt">20 out</span>
+              <span class="ds">Padaria Central</span>
+              <span class="am">−€ 20,00</span>
+              <span class="tg"><i class="sw cor-c1" aria-hidden="true"></i>Alimentação</span>
+            </div>
+            <p class="aviso-painel"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/></svg><span>Conferência do extrato: saldo de € 2.400,00 confirmado em 20 out.</span></p>
+          </div>
+          <div class="nao-mascara-bloco">
+            <div class="nao-mascara-cab">
+              <span class="card-titulo">O que nunca é mascarado</span>
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Formulários e prévia de importação</span></span>
+            </div>
+            <p class="nao-mascara-desc">Formulários de metas e a pré-visualização da importação continuam exibindo valores reais mesmo com o modo privacidade ativo, para ninguém editar limites nem importar extratos às cegas.</p>
+            <div class="excecoes-grade">
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Formulário · Editar metas mensais</span>
+                <div class="mgrid-previa">
+                  <label for="meta-gasto-vis-escuro">Meta de gasto mensal (€)
+                    <input id="meta-gasto-vis-escuro" type="text" inputmode="numeric" value="1.000" readonly>
+                  </label>
+                  <label for="meta-merc-vis-escuro">Meta de Mercado (€)
+                    <input id="meta-merc-vis-escuro" type="text" inputmode="numeric" value="200" readonly>
+                  </label>
+                </div>
+              </div>
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Pré-visualização da importação · extrato-outubro.csv</span>
+                <div class="imp-tot-previa">
+                  <div><span>Entradas</span><b class="pos">+€ 2.000,00</b></div>
+                  <div><span>Saídas</span><b class="neg">−€ 60,00</b></div>
+                  <div><span>Saldo final</span><b>€ 2.400,00</b></div>
+                </div>
+                <div class="imp-tw-previa">
+                  <table class="imp-previa">
+                    <thead>
+                      <tr><th>Data</th><th class="col-desc">Descrição</th><th>Valor</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>18 out</td><td class="col-desc">Salário Outubro</td><td class="pos">+€ 2.000,00</td></tr>
+                      <tr><td>20 out</td><td class="col-desc">Mercado Bairro</td><td class="neg">−€ 60,00</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 2 — Modo ativo (painel mascarado com “€ ••••”, formulários e prévia de importação reais)</h3>
+          <span>aria-pressed="true" · botão “Mostrar valores” + faixa de estado ativo + exceções intencionais visíveis</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P5 modo privacidade ativo — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out</p>
+            </div>
+            <button type="button" class="btn btn-privacidade" aria-pressed="true"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/></svg><span>Mostrar valores</span></button>
+          </div>
+          <div class="faixa-privacidade" role="status">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/></svg>
+            <div><strong>Modo privacidade ativo</strong> · valores em dinheiro ocultos no painel e nos rótulos de voz (preferência salva para recargas de página). Porcentagens continuam visíveis.</div>
+          </div>
+          <div class="p5-kpis">
+            <div class="kpi">
+              <span class="l">Saldo atual</span>
+              <span class="v valor-oculto" aria-label="Saldo atual: valor oculto">€ ••••</span>
+              <span class="s">conferido em 20 out</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v valor-oculto" aria-label="Entrou: valor oculto">€ ••••</span>
+              <span class="s">outubro · até dia 20</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v valor-oculto" aria-label="Gastou: valor oculto">€ ••••</span>
+              <span class="s">85% da meta · valor oculto</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Guardou</span>
+              <span class="v">18%</span>
+              <span class="s"><span class="valor-oculto" aria-label="Valor guardado: valor oculto">€ ••••</span> · taxa visível</span>
+            </div>
+          </div>
+          <div class="card p5-painel-card">
+            <div class="sec-top">
+              <span class="card-titulo">Saldo, categorias e movimentos</span>
+              <span class="selo-estado neutro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/></svg><span>Valores ocultos (€ ••••)</span></span>
+            </div>
+            <div class="p5-svg-caixa">
+              <svg viewBox="0 0 360 104" role="img" aria-label="Evolução do saldo em outubro: valor oculto">
+                <line x1="68" y1="22" x2="348" y2="22" stroke="var(--grid)" stroke-width="1"/>
+                <line x1="68" y1="74" x2="348" y2="74" stroke="var(--grid)" stroke-width="1"/>
+                <text x="4" y="26" class="p5-svg-eixo">€ ••••</text>
+                <text x="4" y="78" class="p5-svg-eixo">€ ••••</text>
+                <path d="M72 74 C 130 70, 175 56, 230 42 S 305 26, 344 22" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="344" cy="22" r="4" fill="var(--accent)"/>
+                <text x="292" y="15" class="p5-svg-topo">€ ••••</text>
+                <text x="68" y="96" class="p5-svg-eixo">1 out</text>
+                <text x="312" y="96" class="p5-svg-eixo">20 out</text>
+              </svg>
+            </div>
+            <div class="cat em-atencao">
+              <i class="sw cor-atencao" aria-hidden="true"></i>
+              <span class="nm">Mercado</span>
+              <span class="val valor-oculto" aria-label="Mercado: valor oculto">€ ••••</span>
+              <div class="track" role="img" aria-label="Mercado: 85% da meta, valor oculto"><i class="cor-atencao"></i><b class="meta-100"></b></div>
+              <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.2 17.6 16.4H2.4L10 3.2Z"/><path d="M10 8.2v3.8"/><circle cx="10" cy="14.4" r="0.6" fill="currentColor"/></svg><span>Atenção · 85% da meta</span></span><span>meta em € ••••</span></span>
+            </div>
+            <div class="mov">
+              <span class="dt">20 out</span>
+              <span class="ds">Padaria Central</span>
+              <span class="am valor-oculto" aria-label="Movimento: valor oculto">−€ ••••</span>
+              <span class="tg"><i class="sw cor-c1" aria-hidden="true"></i>Alimentação</span>
+            </div>
+            <p class="aviso-painel"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/></svg><span>Conferência do extrato: saldo de € •••• confirmado em 20 out.</span></p>
+          </div>
+          <div class="nao-mascara-bloco">
+            <div class="nao-mascara-cab">
+              <span class="card-titulo">O que nunca é mascarado</span>
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Não mascara · edição e conferência seguras</span></span>
+            </div>
+            <p class="nao-mascara-desc">Formulários de metas e a pré-visualização da importação continuam exibindo valores reais mesmo com o modo privacidade ativo, para ninguém editar limites nem importar extratos às cegas.</p>
+            <div class="excecoes-grade">
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Formulário · Editar metas mensais</span>
+                <div class="mgrid-previa">
+                  <label for="meta-gasto-ocu-claro">Meta de gasto mensal (€)
+                    <input id="meta-gasto-ocu-claro" type="text" inputmode="numeric" value="1.000" readonly>
+                  </label>
+                  <label for="meta-merc-ocu-claro">Meta de Mercado (€)
+                    <input id="meta-merc-ocu-claro" type="text" inputmode="numeric" value="200" readonly>
+                  </label>
+                </div>
+              </div>
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Pré-visualização da importação · extrato-outubro.csv</span>
+                <div class="imp-tot-previa">
+                  <div><span>Entradas</span><b class="pos">+€ 2.000,00</b></div>
+                  <div><span>Saídas</span><b class="neg">−€ 60,00</b></div>
+                  <div><span>Saldo final</span><b>€ 2.400,00</b></div>
+                </div>
+                <div class="imp-tw-previa">
+                  <table class="imp-previa">
+                    <thead>
+                      <tr><th>Data</th><th class="col-desc">Descrição</th><th>Valor</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>18 out</td><td class="col-desc">Salário Outubro</td><td class="pos">+€ 2.000,00</td></tr>
+                      <tr><td>20 out</td><td class="col-desc">Mercado Bairro</td><td class="neg">−€ 60,00</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P5 modo privacidade ativo — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta principal · último movimento em 20 out</p>
+            </div>
+            <button type="button" class="btn btn-privacidade" aria-pressed="true"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/></svg><span>Mostrar valores</span></button>
+          </div>
+          <div class="faixa-privacidade" role="status">
+            <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/></svg>
+            <div><strong>Modo privacidade ativo</strong> · valores em dinheiro ocultos no painel e nos rótulos de voz (preferência salva para recargas de página). Porcentagens continuam visíveis.</div>
+          </div>
+          <div class="p5-kpis">
+            <div class="kpi">
+              <span class="l">Saldo atual</span>
+              <span class="v valor-oculto" aria-label="Saldo atual: valor oculto">€ ••••</span>
+              <span class="s">conferido em 20 out</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v valor-oculto" aria-label="Entrou: valor oculto">€ ••••</span>
+              <span class="s">outubro · até dia 20</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v valor-oculto" aria-label="Gastou: valor oculto">€ ••••</span>
+              <span class="s">85% da meta · valor oculto</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Guardou</span>
+              <span class="v">18%</span>
+              <span class="s"><span class="valor-oculto" aria-label="Valor guardado: valor oculto">€ ••••</span> · taxa visível</span>
+            </div>
+          </div>
+          <div class="card p5-painel-card">
+            <div class="sec-top">
+              <span class="card-titulo">Saldo, categorias e movimentos</span>
+              <span class="selo-estado neutro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/></svg><span>Valores ocultos (€ ••••)</span></span>
+            </div>
+            <div class="p5-svg-caixa">
+              <svg viewBox="0 0 360 104" role="img" aria-label="Evolução do saldo em outubro: valor oculto">
+                <line x1="68" y1="22" x2="348" y2="22" stroke="var(--grid)" stroke-width="1"/>
+                <line x1="68" y1="74" x2="348" y2="74" stroke="var(--grid)" stroke-width="1"/>
+                <text x="4" y="26" class="p5-svg-eixo">€ ••••</text>
+                <text x="4" y="78" class="p5-svg-eixo">€ ••••</text>
+                <path d="M72 74 C 130 70, 175 56, 230 42 S 305 26, 344 22" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="344" cy="22" r="4" fill="var(--accent)"/>
+                <text x="292" y="15" class="p5-svg-topo">€ ••••</text>
+                <text x="68" y="96" class="p5-svg-eixo">1 out</text>
+                <text x="312" y="96" class="p5-svg-eixo">20 out</text>
+              </svg>
+            </div>
+            <div class="cat em-atencao">
+              <i class="sw cor-atencao" aria-hidden="true"></i>
+              <span class="nm">Mercado</span>
+              <span class="val valor-oculto" aria-label="Mercado: valor oculto">€ ••••</span>
+              <div class="track" role="img" aria-label="Mercado: 85% da meta, valor oculto"><i class="cor-atencao"></i><b class="meta-100"></b></div>
+              <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.2 17.6 16.4H2.4L10 3.2Z"/><path d="M10 8.2v3.8"/><circle cx="10" cy="14.4" r="0.6" fill="currentColor"/></svg><span>Atenção · 85% da meta</span></span><span>meta em € ••••</span></span>
+            </div>
+            <div class="mov">
+              <span class="dt">20 out</span>
+              <span class="ds">Padaria Central</span>
+              <span class="am valor-oculto" aria-label="Movimento: valor oculto">−€ ••••</span>
+              <span class="tg"><i class="sw cor-c1" aria-hidden="true"></i>Alimentação</span>
+            </div>
+            <p class="aviso-painel"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/></svg><span>Conferência do extrato: saldo de € •••• confirmado em 20 out.</span></p>
+          </div>
+          <div class="nao-mascara-bloco">
+            <div class="nao-mascara-cab">
+              <span class="card-titulo">O que nunca é mascarado</span>
+              <span class="selo-estado info"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Não mascara · edição e conferência seguras</span></span>
+            </div>
+            <p class="nao-mascara-desc">Formulários de metas e a pré-visualização da importação continuam exibindo valores reais mesmo com o modo privacidade ativo, para ninguém editar limites nem importar extratos às cegas.</p>
+            <div class="excecoes-grade">
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Formulário · Editar metas mensais</span>
+                <div class="mgrid-previa">
+                  <label for="meta-gasto-ocu-escuro">Meta de gasto mensal (€)
+                    <input id="meta-gasto-ocu-escuro" type="text" inputmode="numeric" value="1.000" readonly>
+                  </label>
+                  <label for="meta-merc-ocu-escuro">Meta de Mercado (€)
+                    <input id="meta-merc-ocu-escuro" type="text" inputmode="numeric" value="200" readonly>
+                  </label>
+                </div>
+              </div>
+              <div class="subcard-excecao">
+                <span class="subcard-titulo">Pré-visualização da importação · extrato-outubro.csv</span>
+                <div class="imp-tot-previa">
+                  <div><span>Entradas</span><b class="pos">+€ 2.000,00</b></div>
+                  <div><span>Saídas</span><b class="neg">−€ 60,00</b></div>
+                  <div><span>Saldo final</span><b>€ 2.400,00</b></div>
+                </div>
+                <div class="imp-tw-previa">
+                  <table class="imp-previa">
+                    <thead>
+                      <tr><th>Data</th><th class="col-desc">Descrição</th><th>Valor</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>18 out</td><td class="col-desc">Salário Outubro</td><td class="pos">+€ 2.000,00</td></tr>
+                      <tr><td>20 out</td><td class="col-desc">Mercado Bairro</td><td class="neg">−€ 60,00</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

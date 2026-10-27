@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nora — Prévia do painel (P1, P2 e P3)</title>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="painel-previa.css">
+</head>
+<body>
+<main class="wrap previa-wrap">
+  <div class="view fin previa-painel">
+    <header class="previa-cab">
+      <div class="view-top">
+        <div>
+          <p class="previa-marca"><img src="../logo.svg" alt="Nora" width="130" height="44"></p>
+          <span class="eyebrow">Roteiro de leitura rápida · Prévia estática</span>
+        </div>
+        <nav class="previa-nav" aria-label="Atalhos das ideias">
+          <a class="pill" href="#ideia-p1">P1 · Cota diária</a>
+          <a class="pill" href="#ideia-p2">P2 · Taxa de poupança</a>
+          <a class="pill" href="#ideia-p3">P3 · Alertas de meta</a>
+        </nav>
+      </div>
+      <h1>Cota diária, taxa de poupança e alertas de meta</h1>
+      <p class="nota-pe">Validação visual de P1, P2 e P3 antes da implementação no núcleo. Todos os valores são fictícios, em euro, calculados em centavos e pontos-base inteiros e formatados com <code>Intl.NumberFormat</code>, nos dois estados e nos temas claro e escuro.</p>
+    </header>
+
+    <section class="previa-ideia" id="ideia-p1" aria-labelledby="titulo-p1">
+      <div class="ideia-cab">
+        <span class="eyebrow">Ideia P1 · D1 e D2</span>
+        <h2 id="titulo-p1">Cota diária e livre para gastar</h2>
+        <p>Livre = meta de gasto − já gasto − contas fixas por cair (sem descontar de novo a meta de poupança). Dias restantes contam da última data importada; acima da dobra em 390 px. Quando o livre fica negativo, exibe ícone + “Meta usada, X acima” em vez de cota negativa.</p>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 1 — Dentro do limite (livre positivo no mês em andamento)</h3>
+          <span>Meta € 1.000 − gasto € 610 − fixas € 90 = € 300 livres ÷ 15 dias</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P1 dentro do limite — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta exemplo · extrato até 16 out · 15 dias restantes</p>
+            </div>
+            <button type="button" class="btn sm pri">Adicionar extrato</button>
+          </div>
+          <div class="card cota-card">
+            <div class="cota-cab">
+              <span class="cota-rotulo">Cota diária · outubro em andamento</span>
+              <span class="selo-estado ok"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Dentro da meta</span></span>
+            </div>
+            <div class="cota-destaque">
+              <p class="cota-valor">€ 20 <small>por dia</small></p>
+              <p class="cota-resumo"><strong>€ 300 livres para gastar</strong> · 15 dias pela frente</p>
+            </div>
+            <div class="cota-trilha" role="img" aria-label="Meta de € 1.000: € 610 gastos, € 90 de contas fixas por cair e € 300 livres">
+              <i class="cota-seg gasto-ok"></i>
+              <i class="cota-seg fixas-ok"></i>
+              <b class="marca-meta no-fim"></b>
+            </div>
+            <div class="cota-legenda">
+              <span><i class="sw cor-accent" aria-hidden="true"></i>já gasto (€ 610)</span>
+              <span><i class="sw cor-fixas" aria-hidden="true"></i>fixas por cair (€ 90)</span>
+              <span><i class="sw line" aria-hidden="true"></i>teto da meta (€ 1.000)</span>
+            </div>
+            <dl class="cota-conta">
+              <div><dt>Meta de gasto</dt><dd>€ 1.000</dd></div>
+              <div><dt>Já gasto</dt><dd>€ 610</dd></div>
+              <div><dt>Fixas por cair</dt><dd>€ 90</dd></div>
+            </dl>
+          </div>
+          <div class="cota-dobra">
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v">€ 2.000</span>
+              <span class="s">mês em andamento · até dia 16</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v">€ 610</span>
+              <span class="s"><span class="d good">▼ € 390 abaixo da meta</span> de € 1.000</span>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P1 dentro do limite — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta exemplo · extrato até 16 out · 15 dias restantes</p>
+            </div>
+            <button type="button" class="btn sm pri">Adicionar extrato</button>
+          </div>
+          <div class="card cota-card">
+            <div class="cota-cab">
+              <span class="cota-rotulo">Cota diária · outubro em andamento</span>
+              <span class="selo-estado ok"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>Dentro da meta</span></span>
+            </div>
+            <div class="cota-destaque">
+              <p class="cota-valor">€ 20 <small>por dia</small></p>
+              <p class="cota-resumo"><strong>€ 300 livres para gastar</strong> · 15 dias pela frente</p>
+            </div>
+            <div class="cota-trilha" role="img" aria-label="Meta de € 1.000: € 610 gastos, € 90 de contas fixas por cair e € 300 livres">
+              <i class="cota-seg gasto-ok"></i>
+              <i class="cota-seg fixas-ok"></i>
+              <b class="marca-meta no-fim"></b>
+            </div>
+            <div class="cota-legenda">
+              <span><i class="sw cor-accent" aria-hidden="true"></i>já gasto (€ 610)</span>
+              <span><i class="sw cor-fixas" aria-hidden="true"></i>fixas por cair (€ 90)</span>
+              <span><i class="sw line" aria-hidden="true"></i>teto da meta (€ 1.000)</span>
+            </div>
+            <dl class="cota-conta">
+              <div><dt>Meta de gasto</dt><dd>€ 1.000</dd></div>
+              <div><dt>Já gasto</dt><dd>€ 610</dd></div>
+              <div><dt>Fixas por cair</dt><dd>€ 90</dd></div>
+            </dl>
+          </div>
+          <div class="cota-dobra">
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v">€ 2.000</span>
+              <span class="s">mês em andamento · até dia 16</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v">€ 610</span>
+              <span class="s"><span class="d good">▼ € 390 abaixo da meta</span> de € 1.000</span>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 2 — Fora do limite (livre negativo mostra “Meta usada, € 100 acima”)</h3>
+          <span>Meta € 1.000 − gasto € 980 − fixas € 120 = −€ 100 · sem cota negativa</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P1 fora do limite — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta exemplo · extrato até 24 out · 7 dias restantes</p>
+            </div>
+            <button type="button" class="btn sm pri">Adicionar extrato</button>
+          </div>
+          <div class="card cota-card em-estouro">
+            <div class="cota-cab">
+              <span class="cota-rotulo">Cota diária · outubro em andamento</span>
+              <span class="selo-estado estouro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Limite ultrapassado</span></span>
+            </div>
+            <div class="cota-destaque">
+              <p class="cota-valor estouro-titulo"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Meta usada, € 100 acima</span></p>
+              <p class="cota-resumo">Sem cota nos <strong>7 dias restantes</strong> · comprometido em <strong>€ 1.100</strong></p>
+            </div>
+            <div class="cota-trilha" role="img" aria-label="Meta de € 1.000 ultrapassada em € 100: € 980 gastos mais € 120 de contas fixas por cair">
+              <i class="cota-seg gasto-acima"></i>
+              <i class="cota-seg fixas-acima"></i>
+              <b class="marca-meta pos-meta-estouro"></b>
+            </div>
+            <div class="cota-legenda">
+              <span><i class="sw cor-estouro" aria-hidden="true"></i>já gasto (€ 980)</span>
+              <span><i class="sw cor-atencao" aria-hidden="true"></i>fixas por cair (€ 120)</span>
+              <span><i class="sw line" aria-hidden="true"></i>meta (€ 1.000)</span>
+            </div>
+            <dl class="cota-conta">
+              <div><dt>Meta de gasto</dt><dd>€ 1.000</dd></div>
+              <div><dt>Já gasto</dt><dd>€ 980</dd></div>
+              <div><dt>Fixas por cair</dt><dd>€ 120</dd></div>
+            </dl>
+          </div>
+          <div class="cota-dobra">
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v">€ 2.000</span>
+              <span class="s">mês em andamento · até dia 24</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v">€ 980</span>
+              <span class="s">faltam € 120 de contas fixas até dia 30</span>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P1 fora do limite — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="painel-topo-sim">
+            <div>
+              <span class="marca-inline"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--cta)"/><path d="M9 23V9l14 14V9" stroke="var(--on-cta)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-nome">Nora</span></span>
+              <p class="painel-sub">Conta exemplo · extrato até 24 out · 7 dias restantes</p>
+            </div>
+            <button type="button" class="btn sm pri">Adicionar extrato</button>
+          </div>
+          <div class="card cota-card em-estouro">
+            <div class="cota-cab">
+              <span class="cota-rotulo">Cota diária · outubro em andamento</span>
+              <span class="selo-estado estouro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Limite ultrapassado</span></span>
+            </div>
+            <div class="cota-destaque">
+              <p class="cota-valor estouro-titulo"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Meta usada, € 100 acima</span></p>
+              <p class="cota-resumo">Sem cota nos <strong>7 dias restantes</strong> · comprometido em <strong>€ 1.100</strong></p>
+            </div>
+            <div class="cota-trilha" role="img" aria-label="Meta de € 1.000 ultrapassada em € 100: € 980 gastos mais € 120 de contas fixas por cair">
+              <i class="cota-seg gasto-acima"></i>
+              <i class="cota-seg fixas-acima"></i>
+              <b class="marca-meta pos-meta-estouro"></b>
+            </div>
+            <div class="cota-legenda">
+              <span><i class="sw cor-estouro" aria-hidden="true"></i>já gasto (€ 980)</span>
+              <span><i class="sw cor-atencao" aria-hidden="true"></i>fixas por cair (€ 120)</span>
+              <span><i class="sw line" aria-hidden="true"></i>meta (€ 1.000)</span>
+            </div>
+            <dl class="cota-conta">
+              <div><dt>Meta de gasto</dt><dd>€ 1.000</dd></div>
+              <div><dt>Já gasto</dt><dd>€ 980</dd></div>
+              <div><dt>Fixas por cair</dt><dd>€ 120</dd></div>
+            </dl>
+          </div>
+          <div class="cota-dobra">
+            <div class="kpi">
+              <span class="l">Entrou</span>
+              <span class="v">€ 2.000</span>
+              <span class="s">mês em andamento · até dia 24</span>
+            </div>
+            <div class="kpi">
+              <span class="l">Gastou</span>
+              <span class="v">€ 980</span>
+              <span class="s">faltam € 120 de contas fixas até dia 30</span>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+    </section>
+
+    <section class="previa-ideia" id="ideia-p2" aria-labelledby="titulo-p2">
+      <div class="ideia-cab">
+        <span class="eyebrow">Ideia P2 · D3</span>
+        <h2 id="titulo-p2">Taxa de poupança no KPI e nos últimos 6 meses</h2>
+        <p>Guardou ÷ entrou em pontos-base inteiros (transferências entre contas suas ficam fora do entrou; guardou soma reserva e investimentos menos resgates). Quando os resgates superam os aportes no mês, exibe ícone + “Retirou X da reserva” em vez de percentual negativo.</p>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 1 — Poupança líquida positiva (18% do que entrou)</h3>
+          <span>Guardou € 360 ÷ entrou € 2.000 = 1.800 pontos-base (18%)</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P2 poupança positiva — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="p2-pilha">
+            <div class="p2-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">renda + outras entradas<br>sem transferências entre contas suas</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Guardou</span>
+                <span class="v">€ 360</span>
+                <span class="kpi-taxa-destaque"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>18% do que entrou</span></span>
+                <span class="s"><span class="d good">▲ € 60 acima da meta</span> de € 300<br>reserva e investimentos</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="sec-top">
+                <p class="card-titulo">Taxa de poupança</p>
+                <span class="hint">quanto do que entrou foi guardado</span>
+              </div>
+              <div class="vb" role="img" aria-label="Taxa de poupança de maio a outubro: 12%, 14%, 16%, 18%, 20% e 18% em outubro em andamento">
+                <div class="vbc"><b>12%</b><i class="h-60"></i><span>mai</span></div>
+                <div class="vbc"><b>14%</b><i class="h-70"></i><span>jun</span></div>
+                <div class="vbc"><b>16%</b><i class="h-80"></i><span>jul</span></div>
+                <div class="vbc"><b>18%</b><i class="h-90"></i><span>ago</span></div>
+                <div class="vbc"><b>20%</b><i class="h-100"></i><span>set</span></div>
+                <div class="vbc at"><b>18%</b><i class="h-90"></i><span>out*</span></div>
+              </div>
+              <div class="tri3">
+                <div><b class="num">16%</b><span>média dos meses completos</span></div>
+                <div><b><span class="d good">▲ 6 pontos</span></b><span>últimos 3 meses contra os 3 anteriores</span></div>
+                <div><b class="num">15%</b><span>o que a meta de guardar € 300 representa</span></div>
+              </div>
+              <p class="s">* mês em andamento</p>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P2 poupança positiva — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="p2-pilha">
+            <div class="p2-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">renda + outras entradas<br>sem transferências entre contas suas</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Guardou</span>
+                <span class="v">€ 360</span>
+                <span class="kpi-taxa-destaque"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/></svg><span>18% do que entrou</span></span>
+                <span class="s"><span class="d good">▲ € 60 acima da meta</span> de € 300<br>reserva e investimentos</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="sec-top">
+                <p class="card-titulo">Taxa de poupança</p>
+                <span class="hint">quanto do que entrou foi guardado</span>
+              </div>
+              <div class="vb" role="img" aria-label="Taxa de poupança de maio a outubro: 12%, 14%, 16%, 18%, 20% e 18% em outubro em andamento">
+                <div class="vbc"><b>12%</b><i class="h-60"></i><span>mai</span></div>
+                <div class="vbc"><b>14%</b><i class="h-70"></i><span>jun</span></div>
+                <div class="vbc"><b>16%</b><i class="h-80"></i><span>jul</span></div>
+                <div class="vbc"><b>18%</b><i class="h-90"></i><span>ago</span></div>
+                <div class="vbc"><b>20%</b><i class="h-100"></i><span>set</span></div>
+                <div class="vbc at"><b>18%</b><i class="h-90"></i><span>out*</span></div>
+              </div>
+              <div class="tri3">
+                <div><b class="num">16%</b><span>média dos meses completos</span></div>
+                <div><b><span class="d good">▲ 6 pontos</span></b><span>últimos 3 meses contra os 3 anteriores</span></div>
+                <div><b class="num">15%</b><span>o que a meta de guardar € 300 representa</span></div>
+              </div>
+              <p class="s">* mês em andamento</p>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 2 — Resgate líquido no mês (“Retirou € 220 da reserva”)</h3>
+          <span>Aportes € 80 − resgates € 300 = −€ 220 · nunca exibe percentual negativo</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P2 resgate líquido da reserva — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="p2-pilha">
+            <div class="p2-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">renda + outras entradas<br>outubro em andamento</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Guardou</span>
+                <span class="kpi-retirada-valor"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/></svg><span>Retirou € 220 da reserva</span></span>
+                <span class="s">resgates (€ 300) superaram os aportes (€ 80)<br>no lugar de percentual negativo</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="sec-top">
+                <p class="card-titulo">Taxa de poupança</p>
+                <span class="hint">mês negativo mostra retirada, não −%</span>
+              </div>
+              <div class="vb" role="img" aria-label="Taxa de poupança de maio a setembro: 12%, 14%, 16%, 18%, 20%; em outubro em andamento, retirou € 220 da reserva">
+                <div class="vbc"><b>12%</b><i class="h-60"></i><span>mai</span></div>
+                <div class="vbc"><b>14%</b><i class="h-70"></i><span>jun</span></div>
+                <div class="vbc"><b>16%</b><i class="h-80"></i><span>jul</span></div>
+                <div class="vbc"><b>18%</b><i class="h-90"></i><span>ago</span></div>
+                <div class="vbc"><b>20%</b><i class="h-100"></i><span>set</span></div>
+                <div class="vbc resgate"><b><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/></svg><em>saída</em></b><i class="h-resgate"></i><span>out*</span></div>
+              </div>
+              <p class="nota-resgate"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/></svg><span><strong>Outubro*:</strong> retirou € 220 da reserva (sem percentual negativo no gráfico).</span></p>
+              <div class="tri3">
+                <div><b class="num">16%</b><span>média dos meses completos</span></div>
+                <div><b><span class="d good">▲ 6 pontos</span></b><span>últimos 3 completos contra os 3 anteriores</span></div>
+                <div><b class="num">15%</b><span>o que a meta de guardar € 300 representa</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P2 resgate líquido da reserva — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="p2-pilha">
+            <div class="p2-kpis">
+              <div class="kpi">
+                <span class="l">Entrou</span>
+                <span class="v">€ 2.000</span>
+                <span class="s">renda + outras entradas<br>outubro em andamento</span>
+              </div>
+              <div class="kpi">
+                <span class="l">Guardou</span>
+                <span class="kpi-retirada-valor"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/></svg><span>Retirou € 220 da reserva</span></span>
+                <span class="s">resgates (€ 300) superaram os aportes (€ 80)<br>no lugar de percentual negativo</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="sec-top">
+                <p class="card-titulo">Taxa de poupança</p>
+                <span class="hint">mês negativo mostra retirada, não −%</span>
+              </div>
+              <div class="vb" role="img" aria-label="Taxa de poupança de maio a setembro: 12%, 14%, 16%, 18%, 20%; em outubro em andamento, retirou € 220 da reserva">
+                <div class="vbc"><b>12%</b><i class="h-60"></i><span>mai</span></div>
+                <div class="vbc"><b>14%</b><i class="h-70"></i><span>jun</span></div>
+                <div class="vbc"><b>16%</b><i class="h-80"></i><span>jul</span></div>
+                <div class="vbc"><b>18%</b><i class="h-90"></i><span>ago</span></div>
+                <div class="vbc"><b>20%</b><i class="h-100"></i><span>set</span></div>
+                <div class="vbc resgate"><b><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/></svg><em>saída</em></b><i class="h-resgate"></i><span>out*</span></div>
+              </div>
+              <p class="nota-resgate"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/></svg><span><strong>Outubro*:</strong> retirou € 220 da reserva (sem percentual negativo no gráfico).</span></p>
+              <div class="tri3">
+                <div><b class="num">16%</b><span>média dos meses completos</span></div>
+                <div><b><span class="d good">▲ 6 pontos</span></b><span>últimos 3 completos contra os 3 anteriores</span></div>
+                <div><b class="num">15%</b><span>o que a meta de guardar € 300 representa</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+    </section>
+
+    <section class="previa-ideia" id="ideia-p3" aria-labelledby="titulo-p3">
+      <div class="ideia-cab">
+        <span class="eyebrow">Ideia P3 · D7</span>
+        <h2 id="titulo-p3">Barras de alerta de meta a 80% e 100%</h2>
+        <p>Categorias sempre ordenadas pelo gasto (sem cortar em top 3 no celular) e com alertas ativos também no mês em andamento. Comparação inteira no núcleo: de 80% a 100% em atenção (<code>--warn</code>) e acima de 100% em estouro (<code>--neg</code>), sempre com ícone + texto além da cor.</p>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 1 — Faixa de atenção (80%, 85% e limite de 100%, sem estouro)</h3>
+          <span>Amostra da categoria preservada à esquerda; barra muda para --warn a partir de 80%</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P3 faixa de atenção — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="card">
+            <div class="sec-top">
+              <p class="card-titulo">Categorias · outubro até dia 20</p>
+              <span class="hint">ordenadas pelo gasto · o traço é a meta</span>
+            </div>
+            <div class="cat-lista">
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c1" aria-hidden="true"></i>
+                <span class="nm">Aluguel e contas</span>
+                <span class="val">€ 600</span>
+                <span class="track"><i class="w-75 cor-c1"></i><b class="goal meta-100"></b></span>
+                <span class="st"><span class="d good">▼ € 200 abaixo</span><span>da meta de € 800 · 75%</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c3" aria-hidden="true"></i>
+                <span class="nm">Mercado</span>
+                <span class="val">€ 170</span>
+                <span class="track"><i class="w-21 cor-atencao"></i><b class="goal meta-25"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>Atenção · 85% da meta</span></span><span>restam € 30 de € 200</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c6" aria-hidden="true"></i>
+                <span class="nm">Comer fora e lazer</span>
+                <span class="val">€ 160</span>
+                <span class="track"><i class="w-20 cor-atencao"></i><b class="goal meta-25"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>Atenção · 80% da meta</span></span><span>restam € 40 de € 200</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c7" aria-hidden="true"></i>
+                <span class="nm">Assinaturas e celular</span>
+                <span class="val">€ 90</span>
+                <span class="track"><i class="w-11 cor-atencao"></i><b class="goal meta-11"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>No limite · 100% da meta</span></span><span>= igual à meta de € 90</span></span>
+              </button>
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c4" aria-hidden="true"></i>
+                <span class="nm">Compras</span>
+                <span class="val">€ 40</span>
+                <span class="track"><i class="w-5 cor-c4"></i><b class="goal meta-10"></b></span>
+                <span class="st"><span class="d good">▼ € 40 abaixo</span><span>da meta de € 80 · 50%</span></span>
+              </button>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P3 faixa de atenção — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="card">
+            <div class="sec-top">
+              <p class="card-titulo">Categorias · outubro até dia 20</p>
+              <span class="hint">ordenadas pelo gasto · o traço é a meta</span>
+            </div>
+            <div class="cat-lista">
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c1" aria-hidden="true"></i>
+                <span class="nm">Aluguel e contas</span>
+                <span class="val">€ 600</span>
+                <span class="track"><i class="w-75 cor-c1"></i><b class="goal meta-100"></b></span>
+                <span class="st"><span class="d good">▼ € 200 abaixo</span><span>da meta de € 800 · 75%</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c3" aria-hidden="true"></i>
+                <span class="nm">Mercado</span>
+                <span class="val">€ 170</span>
+                <span class="track"><i class="w-21 cor-atencao"></i><b class="goal meta-25"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>Atenção · 85% da meta</span></span><span>restam € 30 de € 200</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c6" aria-hidden="true"></i>
+                <span class="nm">Comer fora e lazer</span>
+                <span class="val">€ 160</span>
+                <span class="track"><i class="w-20 cor-atencao"></i><b class="goal meta-25"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>Atenção · 80% da meta</span></span><span>restam € 40 de € 200</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c7" aria-hidden="true"></i>
+                <span class="nm">Assinaturas e celular</span>
+                <span class="val">€ 90</span>
+                <span class="track"><i class="w-11 cor-atencao"></i><b class="goal meta-11"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>No limite · 100% da meta</span></span><span>= igual à meta de € 90</span></span>
+              </button>
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c4" aria-hidden="true"></i>
+                <span class="nm">Compras</span>
+                <span class="val">€ 40</span>
+                <span class="track"><i class="w-5 cor-c4"></i><b class="goal meta-10"></b></span>
+                <span class="st"><span class="d good">▼ € 40 abaixo</span><span>da meta de € 80 · 50%</span></span>
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+
+      <div class="bloco-estado">
+        <div class="estado-cab">
+          <h3>Estado 2 — Estouro acima de 100% convivendo com atenção (90%) e categorias calmas</h3>
+          <span>Barra em --neg ultrapassa o traço vertical da meta, acompanhada de ícone e valor acima</span>
+        </div>
+      <div class="temas-par">
+        <article class="tema-quadro" aria-label="P3 estouro de meta — Tema claro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema claro</span>
+            <span class="tema-nota">Warm Paper · Deep Fjord</span>
+          </div>
+          <div class="card">
+            <div class="sec-top">
+              <p class="card-titulo">Categorias · outubro até dia 26</p>
+              <span class="hint">ordenadas pelo gasto · sem corte de top 3 no celular</span>
+            </div>
+            <div class="cat-lista">
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c1" aria-hidden="true"></i>
+                <span class="nm">Aluguel e contas</span>
+                <span class="val">€ 600</span>
+                <span class="track"><i class="w-75 cor-c1"></i><b class="goal meta-100"></b></span>
+                <span class="st"><span class="d good">▼ € 200 abaixo</span><span>da meta de € 800 · 75%</span></span>
+              </button>
+              <button type="button" class="cat em-estouro" aria-pressed="false">
+                <i class="sw cor-c3" aria-hidden="true"></i>
+                <span class="nm">Mercado</span>
+                <span class="val">€ 240</span>
+                <span class="track"><i class="w-30 cor-estouro"></i><b class="goal meta-25"></b></span>
+                <span class="st"><span class="alerta-inline estouro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Estouro · € 40 acima da meta</span></span><span>120% de € 200</span></span>
+              </button>
+              <button type="button" class="cat em-estouro" aria-pressed="false">
+                <i class="sw cor-c6" aria-hidden="true"></i>
+                <span class="nm">Comer fora e lazer</span>
+                <span class="val">€ 150</span>
+                <span class="track"><i class="w-19 cor-estouro"></i><b class="goal meta-13"></b></span>
+                <span class="st"><span class="alerta-inline estouro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Estouro · € 50 acima da meta</span></span><span>150% de € 100</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c5" aria-hidden="true"></i>
+                <span class="nm">Transporte</span>
+                <span class="val">€ 90</span>
+                <span class="track"><i class="w-11 cor-atencao"></i><b class="goal meta-13"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>Atenção · 90% da meta</span></span><span>restam € 10 de € 100</span></span>
+              </button>
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c8" aria-hidden="true"></i>
+                <span class="nm">Saúde</span>
+                <span class="val">€ 30</span>
+                <span class="track"><i class="w-4 cor-c8"></i><b class="goal meta-8"></b></span>
+                <span class="st"><span class="d good">▼ € 30 abaixo</span><span>da meta de € 60 · 50%</span></span>
+              </button>
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-outros" aria-hidden="true"></i>
+                <span class="nm">Pessoas, taxas e outros</span>
+                <span class="val">€ 20</span>
+                <span class="track"><i class="w-3 cor-outros"></i></span>
+                <span class="st"><span>sem meta definida</span></span>
+              </button>
+            </div>
+          </div>
+        </article>
+        <article class="tema-quadro" data-tema="escuro" aria-label="P3 estouro de meta — Tema escuro">
+          <div class="tema-topo">
+            <span class="tema-etiqueta"><span class="dot-tema" aria-hidden="true"></span>Tema escuro</span>
+            <span class="tema-nota">data-tema="escuro"</span>
+          </div>
+          <div class="card">
+            <div class="sec-top">
+              <p class="card-titulo">Categorias · outubro até dia 26</p>
+              <span class="hint">ordenadas pelo gasto · sem corte de top 3 no celular</span>
+            </div>
+            <div class="cat-lista">
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c1" aria-hidden="true"></i>
+                <span class="nm">Aluguel e contas</span>
+                <span class="val">€ 600</span>
+                <span class="track"><i class="w-75 cor-c1"></i><b class="goal meta-100"></b></span>
+                <span class="st"><span class="d good">▼ € 200 abaixo</span><span>da meta de € 800 · 75%</span></span>
+              </button>
+              <button type="button" class="cat em-estouro" aria-pressed="false">
+                <i class="sw cor-c3" aria-hidden="true"></i>
+                <span class="nm">Mercado</span>
+                <span class="val">€ 240</span>
+                <span class="track"><i class="w-30 cor-estouro"></i><b class="goal meta-25"></b></span>
+                <span class="st"><span class="alerta-inline estouro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Estouro · € 40 acima da meta</span></span><span>120% de € 200</span></span>
+              </button>
+              <button type="button" class="cat em-estouro" aria-pressed="false">
+                <i class="sw cor-c6" aria-hidden="true"></i>
+                <span class="nm">Comer fora e lazer</span>
+                <span class="val">€ 150</span>
+                <span class="track"><i class="w-19 cor-estouro"></i><b class="goal meta-13"></b></span>
+                <span class="st"><span class="alerta-inline estouro"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/></svg><span>Estouro · € 50 acima da meta</span></span><span>150% de € 100</span></span>
+              </button>
+              <button type="button" class="cat em-atencao" aria-pressed="false">
+                <i class="sw cor-c5" aria-hidden="true"></i>
+                <span class="nm">Transporte</span>
+                <span class="val">€ 90</span>
+                <span class="track"><i class="w-11 cor-atencao"></i><b class="goal meta-13"></b></span>
+                <span class="st"><span class="alerta-inline atencao"><svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/></svg><span>Atenção · 90% da meta</span></span><span>restam € 10 de € 100</span></span>
+              </button>
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-c8" aria-hidden="true"></i>
+                <span class="nm">Saúde</span>
+                <span class="val">€ 30</span>
+                <span class="track"><i class="w-4 cor-c8"></i><b class="goal meta-8"></b></span>
+                <span class="st"><span class="d good">▼ € 30 abaixo</span><span>da meta de € 60 · 50%</span></span>
+              </button>
+              <button type="button" class="cat" aria-pressed="false">
+                <i class="sw cor-outros" aria-hidden="true"></i>
+                <span class="nm">Pessoas, taxas e outros</span>
+                <span class="val">€ 20</span>
+                <span class="track"><i class="w-3 cor-outros"></i></span>
+                <span class="st"><span>sem meta definida</span></span>
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>
