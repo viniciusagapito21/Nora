@@ -2777,30 +2777,30 @@
     var rows = M.rows;
     if (!rows.length) return '';
     if (M.semSaldo) return perguntaSaldo();
-    var sm = S.summary, pts = balSeries(), lp = pts[pts.length - 1], last = rows[rows.length - 1], pmin = pts[0], nt = [], parts = 'Conta ' + f0(lp.c);
+    var sm = S.summary, pts = balSeries(), lp = pts[pts.length - 1], last = rows[rows.length - 1], pmin = pts[0], nt = [], parts = tt('saldo.partesConta', { conta: f0(lp.c) });
     pts.forEach(function (p) { if (p.b < pmin.b) pmin = p; });
     if (sm) {
-      parts += ' + Flexible Cash ' + f0((sm.flex || 0) / 100) + ' + Investimentos ' + f0((sm.invest || 0) / 100) + ' + Cripto ' + f0((sm.cripto || 0) / 100);
-      if (sm.asOf && sm.asOf < last.date) nt.push('Flexible Cash e cripto de ' + dFull(sm.asOf));
-      if (sm.investAsOf && sm.investAsOf < last.date) nt.push('investimentos de ' + dFull(sm.investAsOf));
+      parts = tt('saldo.partesTotal', { conta: f0(lp.c), flex: f0((sm.flex || 0) / 100), invest: f0((sm.invest || 0) / 100), cripto: f0((sm.cripto || 0) / 100) });
+      if (sm.asOf && sm.asOf < last.date) nt.push(tt('saldo.flexCriptoDe', { data: dFull(sm.asOf) }));
+      if (sm.investAsOf && sm.investAsOf < last.date) nt.push(tt('saldo.investimentosDe', { data: dFull(sm.investAsOf) }));
     }
     var est = M.fonteSaldo === 'estimado', an = est && cartAtual().ancora;
-    return '<section class="sec"><div class="card cfm"><div><p class="l mono">' + (sm ? 'Dinheiro total · Revolut' : bancoAtual() === 'revolut' ? 'Saldo atual · conta Revolut' : (est ? 'Saldo estimado · ' : 'Saldo atual · ') + esc(origem())) + '</p><p class="big num">' + f0(lp.b) + '</p>' +
+    return '<section class="sec"><div class="card cfm"><div><p class="l mono">' + (sm ? tth('saldo.tituloTotal') : bancoAtual() === 'revolut' ? tth('saldo.tituloRevolut') : tth(est ? 'saldo.tituloEstimado' : 'saldo.tituloAtual', { origem: origem() })) + '</p><p class="big num">' + f0(lp.b) + '</p>' +
       '<p class="s">' + esc(parts) + '</p>' +
-      '<p class="s">em ' + esc(dFull(last.date)) + (nt.length ? ' · ' + esc(nt.join(' · ')) : '') + ' · média do período ' + f0(avgBal(pts)) + ' · mais baixo ' + f2(pmin.b) + '</p></div>' +
+      '<p class="s">' + tth('saldo.linhaData', { data: dFull(last.date), notas: nt.length ? ' · ' + nt.join(' · ') : '', media: f0(avgBal(pts)), minimo: f2(pmin.b) }) + '</p></div>' +
       '<div><div id="fin-bal" class="bal spark"></div><div class="axl mono"><span>' + esc(dFull(pts[0].d)) + '</span><span>' + esc(dFull(pts[pts.length - 1].d)) + '</span></div>' +
-      (sm ? '<p class="s">Antes de hoje, o total é reconstruído a partir das transferências para o Flexible Cash e para investimentos. Rendimentos e variação de preço não entram.</p>' : '') +
-      (est ? '<p class="s">Estimado a partir dos movimentos, com o saldo que você informou para ' + esc(dFull(an.data)) + ' (' + esc(f2(an.valor / 100)) + '). Rendimentos e tarifas que o extrato não lista não entram.</p>' : '') +
-      (!sm && bancoAtual() !== 'revolut' && !est ? '<p class="s">Saldo do fim de cada dia, como está no extrato.</p>' : '') + '</div></div></section>';
+      (sm ? '<p class="s">' + tth('saldo.notaTotal') + '</p>' : '') +
+      (est ? '<p class="s">' + tth('saldo.notaEstimado', { data: dFull(an.data), valor: f2(an.valor / 100) }) + '</p>' : '') +
+      (!sm && bancoAtual() !== 'revolut' && !est ? '<p class="s">' + tth('saldo.notaExtrato') + '</p>' : '') + '</div></div></section>';
   }
   /* sem saldo no extrato: pergunta uma vez o saldo segundo o banco, na data do último movimento */
   function perguntaSaldo() {
     var c = cartAtual();
-    if (c && c.ancoraDispensada) return '<section class="sec"><div class="aviso pergunta"><p>O extrato de ' + esc(origem()) + ' não traz saldo: o painel mostra o que entrou e saiu, sem saldo atual nem gráfico de saldo.</p>' +
-      '<button class="btn sm" type="button" data-saldo="perguntar">Informar o saldo</button></div></section>';
-    return '<section class="sec"><form class="aviso pergunta" id="fin-fancora"><p>O extrato de ' + esc(origem()) + ' não traz saldo. Qual era o saldo segundo o banco no fim de <b>' + esc(dFull(M.lastDate)) + '</b>? Com ele, o painel estima o saldo de cada dia a partir dos movimentos.</p>' +
-      '<div class="grupo"><label class="vh" for="fin-ancora">Saldo em ' + esc(dFull(M.lastDate)) + '</label><input id="fin-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="ex.: 1.234,56">' +
-      '<button class="btn sm pri" type="submit">Salvar</button><button class="btn sm" type="button" data-saldo="dispensar">Agora não</button></div></form></section>';
+    if (c && c.ancoraDispensada) return '<section class="sec"><div class="aviso pergunta"><p>' + tth('saldo.semSaldoDispensado', { origem: origem() }) + '</p>' +
+      '<button class="btn sm" type="button" data-saldo="perguntar">' + tth('saldo.informar') + '</button></div></section>';
+    return '<section class="sec"><form class="aviso pergunta" id="fin-fancora"><p>' + tth('saldo.semSaldoPergunta', { origem: origem(), data: cru('<b>' + esc(dFull(M.lastDate)) + '</b>') }) + '</p>' +
+      '<div class="grupo"><label class="vh" for="fin-ancora">' + tth('saldo.saldoEm', { data: dFull(M.lastDate) }) + '</label><input id="fin-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="' + tth('saldo.exValor') + '">' +
+      '<button class="btn sm pri" type="submit">' + tth('comum.salvar') + '</button><button class="btn sm" type="button" data-saldo="dispensar">' + tth('comum.agoraNao') + '</button></div></form></section>';
   }
   function mudarCarteira(fn) {
     var x = dadosAtuais();
@@ -2815,16 +2815,16 @@
     rows.forEach(function (r) {
       if (r.kind === 'gasto') { T.gasto -= r.a; cat[r.cat] = (cat[r.cat] || 0) - r.a; } else T[r.kind] += r.a;
     });
-    var items = (M.semSaldo ? [] : [{ c: 'base', l: 'Saldo inicial' + (M.fonteSaldo === 'estimado' ? ' estimado' : '') + ' (' + dFull(first.date) + ')', v: open }]).concat([
-      { l: 'Renda (salários e pagamentos)', v: T.renda },
-      { l: 'Outras entradas', v: T.outras }
+    var items = (M.semSaldo ? [] : [{ c: 'base', l: tt(M.fonteSaldo === 'estimado' ? 'saldo.inicialEstimado' : 'saldo.inicial', { data: dFull(first.date) }), v: open }]).concat([
+      { l: tt('saldo.renda'), v: T.renda },
+      { l: tt('comum.outrasEntradas'), v: T.outras }
     ]);
-    if (Math.abs(T.interno) >= .5) items.push({ l: 'Entre contas suas', v: T.interno });
-    if (Math.abs(T.movido) >= .5) items.push({ l: 'Movido para outras contas suas (líquido)', v: T.movido });
-    items.push({ l: T.flex <= 0 ? 'Enviado ao Flexible Cash (líquido)' : 'Retirado do Flexible Cash (líquido)', v: T.flex });
-    items.push({ l: 'Investimentos e cripto (líquido)', v: T.invest });
-    items.push({ l: 'Gastos (já descontados os reembolsos)', v: -T.gasto, cats: true });
-    if (!M.semSaldo) items.push({ c: 'end', l: M.fonteSaldo === 'estimado' ? 'Saldo atual estimado' : 'Saldo atual na conta', v: cur });
+    if (Math.abs(T.interno) >= .5) items.push({ l: tt('comum.entreContas'), v: T.interno });
+    if (Math.abs(T.movido) >= .5) items.push({ l: tt('saldo.movido'), v: T.movido });
+    items.push({ l: tt(T.flex <= 0 ? 'saldo.flexEnviado' : 'saldo.flexRetirado'), v: T.flex });
+    items.push({ l: tt('saldo.investLiquido'), v: T.invest });
+    items.push({ l: tt('saldo.gastos'), v: -T.gasto, cats: true });
+    if (!M.semSaldo) items.push({ c: 'end', l: tt(M.fonteSaldo === 'estimado' ? 'saldo.atualEstimado' : 'saldo.atualConta'), v: cur });
     var mx = 1; items.forEach(function (x) { mx = Math.max(mx, Math.abs(x.v)); });
     var br = '';
     items.forEach(function (x, i) {
@@ -2834,11 +2834,11 @@
       if (x.cats) {
         var sub = '';
         CATSV.forEach(function (c) { if (Math.abs(cat[c.id] || 0) >= .5) sub += '<div><span>' + esc(catNome(c)) + '</span><b>' + f0(cat[c.id]) + '</b></div>'; });
-        br += '<details class="brd"' + (S.cfOpen ? ' open' : '') + ' id="fin-cfd"><summary class="br">' + inner + '<span class="sub" style="grid-column:1/3">Toque para ver por categoria</span></summary><div class="brsub">' + sub + '</div></details>';
+        br += '<details class="brd"' + (S.cfOpen ? ' open' : '') + ' id="fin-cfd"><summary class="br">' + inner + '<span class="sub" style="grid-column:1/3">' + tth('saldo.verPorCategoria') + '</span></summary><div class="brsub">' + sub + '</div></details>';
       } else br += '<div class="br ' + cls + (i === 0 ? ' first' : '') + '">' + inner + '</div>';
     });
-    return '<section class="sec"><div class="sec-top"><h2>De onde veio e para onde foi</h2><span class="hint">' + esc(dFull(first.date)) + ' a ' + esc(dFull(last.date)) + '</span></div>' +
-      '<div class="card cfb"><h3>Tudo que entrou e saiu da conta</h3>' + br + '</div></section>';
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('saldo.deOndeVeio') + '</h2><span class="hint">' + tth('comum.periodo', { de: dFull(first.date), ate: dFull(last.date) }) + '</span></div>' +
+      '<div class="card cfb"><h3>' + tth('saldo.tudoQueEntrou') + '</h3>' + br + '</div></section>';
   }
 
   /* ---------- dívidas em observação ---------- */
@@ -2939,10 +2939,10 @@
     for (i = 1; i < pts.length; i++) dd += ' L' + X(pts[i].d).toFixed(1) + ' ' + Y(pts[i - 1].b).toFixed(1) + ' L' + X(pts[i].d).toFixed(1) + ' ' + Y(pts[i].b).toFixed(1);
     var yb = Y(0).toFixed(1), area = dd + ' L' + X(pts[pts.length - 1].d).toFixed(1) + ' ' + yb + ' L' + X(pts[0].d).toFixed(1) + ' ' + yb + ' Z';
     var lastp = pts[pts.length - 1], ya = Y(avg).toFixed(1);
-    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + (S.summary ? 'Dinheiro total (conta, Flexible Cash, investimentos e cripto) dia a dia' : 'Saldo da conta dia a dia') + ', de ' + esc(dFull(pts[0].d)) + ' a ' + esc(dFull(lastp.d)) + '. Média ' + f0(avg) + ', atual ' + f0(lastp.b) + '.">' +
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + tth(S.summary ? 'saldo.graficoTotal' : 'saldo.graficoConta', { de: dFull(pts[0].d), ate: dFull(lastp.d), media: f0(avg), atual: f0(lastp.b) }) + '">' +
       '<path d="' + area + '" fill="var(--accent)" fill-opacity=".13"/><path d="' + dd + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round"/>' +
       '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + ya + '" y2="' + ya + '" stroke="var(--muted)" stroke-dasharray="4 4"/>' +
-      '<text x="' + (W - R - 2) + '" y="' + (+ya - 6) + '" text-anchor="end" class="a">média ' + nn.format(avg) + '</text>' +
+      '<text x="' + (W - R - 2) + '" y="' + (+ya - 6) + '" text-anchor="end" class="a">' + tth('saldo.mediaGrafico', { valor: nn.format(avg) }) + '</text>' +
       '<circle cx="' + X(lastp.d).toFixed(1) + '" cy="' + Y(lastp.b).toFixed(1) + '" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>' +
       '<line id="fin-xh" y1="' + Tp + '" y2="' + (Tp + ih) + '" stroke="var(--muted)" visibility="hidden"/><circle id="fin-xd" r="4" fill="var(--fg)" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>' +
       '<rect id="fin-xr" x="' + L + '" y="0" width="' + iw + '" height="' + H + '" fill="transparent"/></svg>';
@@ -2952,15 +2952,16 @@
       pts.forEach(function (p) { var dx = Math.abs(X(p.d) - fx); if (dx < bd) { bd = dx; best = p; } });
       xh.setAttribute('x1', X(best.d)); xh.setAttribute('x2', X(best.d)); xh.setAttribute('visibility', 'visible');
       xd.setAttribute('cx', X(best.d)); xd.setAttribute('cy', Y(best.b)); xd.setAttribute('visibility', 'visible');
-      placeTip('<h3>' + esc(dFull(best.d)) + '</h3><div class="r"><span>' + (S.summary ? 'Total no fim do dia' : 'Saldo no fim do dia') + '</span><b>' + f2(best.b) + '</b></div>' + (S.summary ? '<div class="r"><span>Na conta</span><b>' + f2(best.c) + '</b></div><div class="r"><span>Fora da conta</span><b>' + f2(best.g) + '</b></div>' : ''), e.clientX, e.clientY);
+      placeTip('<h3>' + esc(dFull(best.d)) + '</h3><div class="r"><span>' + tth(S.summary ? 'saldo.totalFimDia' : 'saldo.saldoFimDia') + '</span><b>' + f2(best.b) + '</b></div>' + (S.summary ? '<div class="r"><span>' + tth('saldo.naConta') + '</span><b>' + f2(best.c) + '</b></div><div class="r"><span>' + tth('saldo.foraConta') + '</span><b>' + f2(best.g) + '</b></div>' : ''), e.clientX, e.clientY);
     }
     rect.addEventListener('pointermove', at);
     rect.addEventListener('pointerdown', at);
     rect.addEventListener('pointerleave', function () { xh.setAttribute('visibility', 'hidden'); xd.setAttribute('visibility', 'hidden'); hideTip(); });
   }
   /* ---------- blocos de planejamento: previsão, metas de poupança, contas fixas, envios a outra conta e taxa de poupança ---------- */
-  var ORIGENS = [['', 'Digitado por você'], ['flex', 'Saldo do Flexible Cash'], ['invest', 'Investimentos e cripto']];
-  var DE_ORIGEM = { flex: 'Flexible Cash', invest: 'investimentos e cripto' };
+  /* de onde vem o valor de uma meta de poupança; funções, não constantes, para acompanhar o idioma */
+  function origensMeta() { return [['', tt('metas.origemDigitado')], ['flex', tt('metas.origemFlex')], ['invest', tt('metas.origemInvest')]]; }
+  function deOrigemMeta(src) { return tth(src === 'flex' ? 'metas.deOrigemFlex' : 'metas.deOrigemInvest'); }
   function metasPoupanca() { return listaMetasPoupanca(S.plan); }
   /* nome da meta na tela: o de fábrica traduzido, o da pessoa como está */
   function nomeMeta(g) { return nomeExibido('meta', g.id, g.nome, NORA_I18N.t); }
@@ -3014,7 +3015,7 @@
       else st = 'Faltam ' + f0(falta) + (ml ? '<br>' + f0(falta / ml) + ' por mês até ' + esc(mesAno(c.prazo)) : '<br>sem prazo definido');
       h += '<div class="kpi goal"><span class="l">' + esc(nomeMeta(g)) + '</span><span class="v">' + f0(tem) + (alvo ? ' <small>de ' + f0(alvo) + '</small>' : '') + '</span>' +
         '<span class="gbar" role="img" aria-label="' + (alvo ? nn.format(pc) + '% da meta' : 'sem meta') + '"><i style="width:' + pc.toFixed(1) + '%"></i></span>' +
-        '<span class="s">' + st + (g.src ? '<br><span class="src">valor atual: ' + DE_ORIGEM[g.src] + '</span>' : '') + '</span></div>';
+        '<span class="s">' + st + (g.src ? '<br><span class="src">valor atual: ' + deOrigemMeta(g.src) + '</span>' : '') + '</span></div>';
     });
     h += '</div><details class="metas" id="fin-gedit"' + (S.gOpen ? ' open' : '') + '><summary>Editar metas de poupança</summary><form id="fin-fgoals"><div class="ggrid">';
     var lista = metasPoupanca();
@@ -3022,7 +3023,7 @@
       var c = goalCfg(g.id), k = 'fin-g-' + g.id;
       h += '<fieldset><legend>' + esc(nomeMeta(g)) + '</legend><div class="mgrid">' +
         '<label>Nome<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(nomeMeta(g)) + '"></label>' +
-        '<label>De onde vem o valor<select id="' + k + '-src">' + opcoes(ORIGENS, g.src || '') + '</select></label>' +
+        '<label>De onde vem o valor<select id="' + k + '-src">' + opcoes(origensMeta(), g.src || '') + '</select></label>' +
         '<label>Meta (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-alvo" type="number" min="0" step="50" inputmode="decimal" value="' + (+c.alvo || '') + '"></label>' +
         '<label>Prazo<input id="' + k + '-prazo" type="month" value="' + esc(c.prazo || '') + '"></label>' +
         '<label>Já guardado (' + esc(simbolo(moedaP())) + ')<input id="' + k + '-tem" type="number" min="0" step="10" inputmode="decimal" value="' + (+c.tem || '') + '"><small>Só vale quando o valor é digitado por você.</small></label>' +

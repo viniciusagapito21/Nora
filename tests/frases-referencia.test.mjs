@@ -114,7 +114,62 @@ const CASCA = [
   ['tth', 'casca.escolherBackup', undefined, 'Escolher backup'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA }))
+// área: saldo e caixa (e as origens do valor das metas, que eram constantes de módulo)
+const SALDO = [
+  ['tt', 'saldo.partesConta', { conta: '€ 1.200' }, 'Conta € 1.200'],
+  ['tt', 'saldo.partesTotal', { conta: '€ 1.200', flex: '€ 300', invest: '€ 50', cripto: '€ 0' }, 'Conta € 1.200 + Flexible Cash € 300 + Investimentos € 50 + Cripto € 0'],
+  ['tt', 'saldo.flexCriptoDe', { data: '1 de outubro de 2026' }, 'Flexible Cash e cripto de 1 de outubro de 2026'],
+  ['tt', 'saldo.investimentosDe', { data: '1 de outubro de 2026' }, 'investimentos de 1 de outubro de 2026'],
+  ['tth', 'saldo.tituloTotal', undefined, 'Dinheiro total · Revolut'],
+  ['tth', 'saldo.tituloRevolut', undefined, 'Saldo atual · conta Revolut'],
+  ['tth', 'saldo.tituloEstimado', { origem: 'Banco <X>' }, 'Saldo estimado · Banco &lt;X&gt;'],
+  ['tth', 'saldo.tituloAtual', { origem: 'BTG Pactual' }, 'Saldo atual · BTG Pactual'],
+  ['tth', 'saldo.linhaData', { data: '15 de outubro de 2026', notas: '', media: '€ 1.100', minimo: '€ 812,40' }, 'em 15 de outubro de 2026 · média do período € 1.100 · mais baixo € 812,40'],
+  ['tth', 'saldo.linhaData', { data: '15 de outubro de 2026', notas: ' · Flexible Cash e cripto de 1 de outubro de 2026 · investimentos de 2 de outubro de 2026', media: '€ 1.100', minimo: '€ 812,40' },
+    'em 15 de outubro de 2026 · Flexible Cash e cripto de 1 de outubro de 2026 · investimentos de 2 de outubro de 2026 · média do período € 1.100 · mais baixo € 812,40'],
+  ['tth', 'saldo.notaTotal', undefined, 'Antes de hoje, o total é reconstruído a partir das transferências para o Flexible Cash e para investimentos. Rendimentos e variação de preço não entram.'],
+  ['tth', 'saldo.notaEstimado', { data: '30 de setembro de 2026', valor: '€ 1.234,56' }, 'Estimado a partir dos movimentos, com o saldo que você informou para 30 de setembro de 2026 (€ 1.234,56). Rendimentos e tarifas que o extrato não lista não entram.'],
+  ['tth', 'saldo.notaExtrato', undefined, 'Saldo do fim de cada dia, como está no extrato.'],
+  ['tth', 'saldo.semSaldoDispensado', { origem: 'Banco & Cia' }, 'O extrato de Banco &amp; Cia não traz saldo: o painel mostra o que entrou e saiu, sem saldo atual nem gráfico de saldo.'],
+  ['tth', 'saldo.informar', undefined, 'Informar o saldo'],
+  ['tth', 'saldo.semSaldoPergunta', { origem: 'Nubank', data: I.cru('<b>30 de setembro de 2026</b>') }, 'O extrato de Nubank não traz saldo. Qual era o saldo segundo o banco no fim de <b>30 de setembro de 2026</b>? Com ele, o painel estima o saldo de cada dia a partir dos movimentos.'],
+  ['tth', 'saldo.saldoEm', { data: '30 de setembro de 2026' }, 'Saldo em 30 de setembro de 2026'],
+  ['tth', 'saldo.exValor', undefined, 'ex.: 1.234,56'],
+  ['tth', 'comum.salvar', undefined, 'Salvar'],
+  ['tth', 'comum.agoraNao', undefined, 'Agora não'],
+  ['tt', 'saldo.inicial', { data: '1 de julho de 2026' }, 'Saldo inicial (1 de julho de 2026)'],
+  ['tt', 'saldo.inicialEstimado', { data: '1 de julho de 2026' }, 'Saldo inicial estimado (1 de julho de 2026)'],
+  ['tt', 'saldo.renda', undefined, 'Renda (salários e pagamentos)'],
+  ['tt', 'comum.outrasEntradas', undefined, 'Outras entradas'],
+  ['tt', 'comum.entreContas', undefined, 'Entre contas suas'],
+  ['tt', 'saldo.movido', undefined, 'Movido para outras contas suas (líquido)'],
+  ['tt', 'saldo.flexEnviado', undefined, 'Enviado ao Flexible Cash (líquido)'],
+  ['tt', 'saldo.flexRetirado', undefined, 'Retirado do Flexible Cash (líquido)'],
+  ['tt', 'saldo.investLiquido', undefined, 'Investimentos e cripto (líquido)'],
+  ['tt', 'saldo.gastos', undefined, 'Gastos (já descontados os reembolsos)'],
+  ['tt', 'saldo.atualEstimado', undefined, 'Saldo atual estimado'],
+  ['tt', 'saldo.atualConta', undefined, 'Saldo atual na conta'],
+  ['tth', 'saldo.verPorCategoria', undefined, 'Toque para ver por categoria'],
+  ['tth', 'saldo.deOndeVeio', undefined, 'De onde veio e para onde foi'],
+  ['tth', 'comum.periodo', { de: '1 de julho de 2026', ate: '15 de outubro de 2026' }, '1 de julho de 2026 a 15 de outubro de 2026'],
+  ['tth', 'saldo.tudoQueEntrou', undefined, 'Tudo que entrou e saiu da conta'],
+  ['tth', 'saldo.graficoTotal', { de: '1 de julho de 2026', ate: '15 de outubro de 2026', media: '€ 1.100', atual: '€ 1.250' },
+    'Dinheiro total (conta, Flexible Cash, investimentos e cripto) dia a dia, de 1 de julho de 2026 a 15 de outubro de 2026. Média € 1.100, atual € 1.250.'],
+  ['tth', 'saldo.graficoConta', { de: '1 de julho de 2026', ate: '15 de outubro de 2026', media: '€ 1.100', atual: '€ 1.250' },
+    'Saldo da conta dia a dia, de 1 de julho de 2026 a 15 de outubro de 2026. Média € 1.100, atual € 1.250.'],
+  ['tth', 'saldo.mediaGrafico', { valor: '1.100,25' }, 'média 1.100,25'],
+  ['tth', 'saldo.totalFimDia', undefined, 'Total no fim do dia'],
+  ['tth', 'saldo.saldoFimDia', undefined, 'Saldo no fim do dia'],
+  ['tth', 'saldo.naConta', undefined, 'Na conta'],
+  ['tth', 'saldo.foraConta', undefined, 'Fora da conta'],
+  ['tt', 'metas.origemDigitado', undefined, 'Digitado por você'],
+  ['tt', 'metas.origemFlex', undefined, 'Saldo do Flexible Cash'],
+  ['tt', 'metas.origemInvest', undefined, 'Investimentos e cripto'],
+  ['tth', 'metas.deOrigemFlex', undefined, 'Flexible Cash'],
+  ['tth', 'metas.deOrigemInvest', undefined, 'investimentos e cripto'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
