@@ -2049,16 +2049,16 @@
   }
   function setup() {
     var p = S.plan || {}, primeira = !configurado();
-    return '<section class="sec" id="fin-setup"><div class="sec-top"><h2>' + (primeira ? 'Antes de começar' : 'Configurações') + '</h2>' +
-      '<span class="hint">tudo fica só neste navegador</span></div><div class="card"><form id="fin-fsetup" class="ggrid">' +
-      '<fieldset><legend>Você</legend><div class="mgrid">' +
-      '<label>Seu nome no extrato<input id="fin-s-titular" type="text" autocomplete="off" spellcheck="false" placeholder="ex.: MARIA SILVA" value="' + esc(p.titular || '') + '">' +
-      '<small>Como aparece em transferências para você mesmo (ex.: "To MARIA SILVA"). Serve para reconhecer envios para outra conta sua. Pode deixar em branco.</small></label>' +
+    return '<section class="sec" id="fin-setup"><div class="sec-top"><h2>' + tth(primeira ? 'config.antesDeComecar' : 'comum.configuracoes') + '</h2>' +
+      '<span class="hint">' + tth('config.soNesteNavegador') + '</span></div><div class="card"><form id="fin-fsetup" class="ggrid">' +
+      '<fieldset><legend>' + tth('config.voce') + '</legend><div class="mgrid">' +
+      '<label>' + tth('config.seuNome') + '<input id="fin-s-titular" type="text" autocomplete="off" spellcheck="false" placeholder="' + tth('config.nomeExemplo') + '" value="' + esc(p.titular || '') + '">' +
+      '<small>' + tth('config.nomeDica') + '</small></label>' +
       '</div></fieldset>' + carteirasCampos() + categoriasCampos() +
-      '<fieldset><legend>Metas por mês' + (variasCarteiras() ? ' de ' + esc(cartAtual().nome) : '') + ' (' + esc(simbolo()) + ')</legend><p class="passo">' + (SUG ? 'Em branco, vale a sugestão: a média dos seus primeiros meses de extrato.' : 'Pode deixar em branco: depois de importar o extrato, o painel sugere metas pela média dos seus primeiros meses.') + '</p>' +
+      '<fieldset><legend>' + (variasCarteiras() ? tth('config.metasTituloCarteira', { carteira: cartAtual().nome, simbolo: simbolo() }) : tth('config.metasTitulo', { simbolo: simbolo() })) + '</legend><p class="passo">' + tth(SUG ? 'config.metasSug' : 'config.metasSemSug') + '</p>' +
       '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' + secaoDados() +
-      '<div class="grupo"><button class="btn pri" type="submit">' + (primeira ? 'Salvar e começar' : 'Salvar configurações') + '</button>' +
-      (primeira ? '' : '<button class="btn" type="button" data-fin-setup>Cancelar</button>') + '</div>' +
+      '<div class="grupo"><button class="btn pri" type="submit">' + tth(primeira ? 'config.salvarComecar' : 'config.salvar') + '</button>' +
+      (primeira ? '' : '<button class="btn" type="button" data-fin-setup>' + tth('comum.cancelar') + '</button>') + '</div>' +
       '</form></div></section>';
   }
   /* as moedas da lista, mais a da carteira se ela não estiver na lista (veio de um backup) */
@@ -2403,18 +2403,17 @@
     CATST.forEach(function (c) {
       var k = 'fin-k-' + c.id, n = cont[c.id] || 0, outros = c.id === 'outros';
       h += '<div class="crow' + (c.oculta ? ' oculta' : '') + '"><i class="sw" style="background:' + colorOf(c) + '"></i>' +
-        '<label class="cnome"><span class="vh">Nome da categoria ' + esc(c.padrao) + '</span><input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" placeholder="' + esc(c.padrao) + '" value="' + esc(c.propria || c.nome !== c.padrao ? c.nome : '') + '"></label>' +
-        '<label class="chk"><input id="' + k + '-fixa" type="checkbox"' + (c.fixa ? ' checked' : '') + '>Conta fixa</label>' +
-        (outros ? '<span></span>' : '<label class="chk"><input id="' + k + '-oculta" type="checkbox"' + (c.oculta ? ' checked' : '') + '>Esconder</label>') +
-        (c.propria ? '<label class="chk"><input id="' + k + '-excluir" type="checkbox">Excluir</label>' : '<span></span>') +
-        '<small>' + (c.oculta ? 'escondida' : n + (n === 1 ? ' movimento' : ' movimentos')) + '</small></div>';
+        '<label class="cnome"><span class="vh">' + tth('categorias.nomeDe', { nome: c.padrao }) + '</span><input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" placeholder="' + esc(c.padrao) + '" value="' + esc(c.propria || c.nome !== c.padrao ? c.nome : '') + '"></label>' +
+        '<label class="chk"><input id="' + k + '-fixa" type="checkbox"' + (c.fixa ? ' checked' : '') + '>' + tth('categorias.contaFixa') + '</label>' +
+        (outros ? '<span></span>' : '<label class="chk"><input id="' + k + '-oculta" type="checkbox"' + (c.oculta ? ' checked' : '') + '>' + tth('categorias.esconder') + '</label>') +
+        (c.propria ? '<label class="chk"><input id="' + k + '-excluir" type="checkbox">' + tth('categorias.excluir') + '</label>' : '<span></span>') +
+        '<small>' + tth(c.oculta ? 'categorias.escondida' : 'categorias.nMov', { n: n }) + '</small></div>';
     });
-    return '<fieldset><legend>Categorias</legend><details class="metas" id="fin-kedit"' + (S.kOpen ? ' open' : '') + '><summary>Renomear, esconder ou criar categorias</summary>' +
-      '<p class="passo">Nome em branco volta ao nome de fábrica. "Conta fixa" entra na previsão pela meta, e não pelo ritmo do mês. ' +
-      'Ao esconder ou excluir, os movimentos vão para ' + esc(catPor('outros').nome) + '; ao mostrar de novo uma categoria escondida, voltam.</p>' +
+    return '<fieldset><legend>' + tth('categorias.titulo') + '</legend><details class="metas" id="fin-kedit"' + (S.kOpen ? ' open' : '') + '><summary>' + tth('categorias.editar') + '</summary>' +
+      '<p class="passo">' + tth('categorias.dica', { outros: catPor('outros').nome }) + '</p>' +
       '<div class="clista">' + h + '</div>' +
-      '<div class="mgrid"><label>Nova categoria<input id="fin-k-nova" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Educação"' + (livres.length ? '' : ' aria-describedby="fin-k-nova-d"') + '>' +
-      '<small id="fin-k-nova-d">' + (livres.length ? (livres.length === 1 ? '1 cor livre.' : livres.length + ' cores livres.') + ' Depois, escolha a categoria dos comerciantes em Revisar categorias.' : 'As ' + MAX_CORES + ' cores estão em uso: esconda uma categoria para liberar a cor dela.') + '</small></label></div>' +
+      '<div class="mgrid"><label>' + tth('categorias.nova') + '<input id="fin-k-nova" type="text" autocomplete="off" maxlength="40" placeholder="' + tth('categorias.novaExemplo') + '"' + (livres.length ? '' : ' aria-describedby="fin-k-nova-d"') + '>' +
+      '<small id="fin-k-nova-d">' + (livres.length ? tth('categorias.coresLivres', { n: livres.length }) : tth('categorias.semCor', { n: MAX_CORES })) + '</small></label></div>' +
       '</details></fieldset>';
   }
   /* lê o editor de categorias para dentro de um plan novo; devolve { plan, erro, tirar } (erro só ao criar sem cor livre;
@@ -2430,7 +2429,7 @@
       if ($(k + '-fixa').checked) fixas.push(c.id);
     });
     var np = Object.assign({}, p, { nomes: nomes, ocultas: ocultas, fixas: fixas, proprias: proprias }), nova = $('#fin-k-nova').value.trim(), erro = null;
-    if (nova) { try { np = criarCategoria(np, nova); } catch (e) { erro = 'Não criei "' + nova + '": ' + e.message + '.'; } }
+    if (nova) { try { np = criarCategoria(np, nova); } catch (e) { erro = tt('msg.naoCrieiCategoria', { nome: nova, erro: e.message }); } }
     return { plan: np, erro: erro, tirar: tirar };
   }
   /* ---------- seus dados: backup, restaurar, apagar ---------- */
@@ -2452,64 +2451,61 @@
     if (!file) return Promise.resolve();
     return file.text().then(function (txt) {
       S.restaurar = { nome: file.name, dados: lerSalvo(txt, '') }; render();
-    }).catch(function (e) { toast('Esse arquivo não é um backup do painel: ' + ((e && e.message) || e) + '.', true); });
+    }).catch(function (e) { toast(tt('msg.naoEBackup', { erro: (e && e.message) || e }), true); });
   }
   function resumoTxt(x) {
     var r = resumoDados(x);
-    if (!r.meses) return 'nenhum extrato';
-    return r.meses + (r.meses === 1 ? ' mês' : ' meses') + ', ' + (r.meses === 1 ? 'de ' + mLabel(r.de) : 'de ' + mLabel(r.de) + ' a ' + mLabel(r.ate)) + ' (' + r.mov + ' movimentações)';
+    if (!r.meses) return tt('dados.nenhumExtrato');
+    return tt(r.meses === 1 ? 'dados.resumoUmMes' : 'dados.resumoMeses', { meses: tt('importar.meses', { n: r.meses }), de: mLabel(r.de), ate: mLabel(r.ate), mov: tt('carteiras.nMov', { n: r.mov }) });
   }
   function temDados() { return !!(Object.keys(S.months).length || S.plan); }
   function secaoDados() {
-    return '<fieldset><legend>Seus dados</legend><p class="passo">' + (temDados()
-      ? 'Ficam só neste navegador. Se ele for limpo, somem: baixe um backup de vez em quando.'
-      : 'Já usou o painel em outro navegador? Restaure o backup que você baixou lá.') + '</p><div class="grupo">' +
-      (temDados() ? '<button class="btn" type="button" data-backup="baixar">Baixar backup</button>' : '') +
-      '<button class="btn" type="button" data-backup="restaurar">Restaurar backup</button>' +
-      (temDados() ? '<button class="pill perigo" type="button" data-apagar="pedir">Apagar meus dados</button>' : '') +
+    return '<fieldset><legend>' + tth('dados.titulo') + '</legend><p class="passo">' + tth(temDados() ? 'dados.soNesteNavegador' : 'dados.outroNavegador') + '</p><div class="grupo">' +
+      (temDados() ? '<button class="btn" type="button" data-backup="baixar">' + tth('comum.baixarBackup') + '</button>' : '') +
+      '<button class="btn" type="button" data-backup="restaurar">' + tth('dados.restaurar') + '</button>' +
+      (temDados() ? '<button class="pill perigo" type="button" data-apagar="pedir">' + tth('dados.apagar') + '</button>' : '') +
       '</div></fieldset>';
   }
   function telaRestaurar() {
     var R = S.restaurar, B = resumoBackup(R.dados), ag = dadosAtuais(), nAg = ag.carteiras.length;
-    var atual = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : (temDados() ? 'tudo o que está salvo neste navegador: ' + (nAg > 1 ? nAg + ' carteiras (' + nomes(ag.carteiras.map(function (c) { return c.nome; })) + '), ' : '') + resumoTxt(ag) : '');
+    var atual = S.bloqueado ? tt('dados.ilegiveis') : (temDados() ? (nAg > 1 ? tt('restaurar.tudoVarias', { n: nAg, nomes: listaE(ag.carteiras.map(function (c) { return c.nome; })), resumo: resumoTxt(ag) }) : tt('restaurar.tudo', { resumo: resumoTxt(ag) })) : '');
     var mp = B.moedaPrincipal, extra = [];
-    if (B.cambios.length) extra.push('Câmbio: ' + B.cambios.map(function (c) {
-      return '1 ' + esc(simbolo(mp)) + ' = ' + esc(nr.format(c.rate)) + ' ' + esc(simbolo(c.moeda)) + (c.data ? ' (informado em ' + esc(dFull(c.data)) + ')' : '');
-    }).join(' · ') + '.');
-    if (B.transf || B.dispensadas) extra.push([B.transf ? B.transf + (B.transf === 1 ? ' transferência entre carteiras confirmada' : ' transferências entre carteiras confirmadas') : '',
-      B.dispensadas ? B.dispensadas + (B.dispensadas === 1 ? ' sugestão dispensada' : ' sugestões dispensadas') : ''].filter(Boolean).join(' e ') + '.');
+    if (B.cambios.length) extra.push(tth('restaurar.cambio', { taxas: cru(B.cambios.map(function (c) {
+      return '1 ' + esc(simbolo(mp)) + ' = ' + esc(nr.format(c.rate)) + ' ' + esc(simbolo(c.moeda)) + (c.data ? ' (' + tth('cambio.informadoEm', { data: dFull(c.data) }) + ')' : '');
+    }).join(' · ')) }));
+    if (B.transf || B.dispensadas) extra.push(esc(listaE([B.transf ? tt('restaurar.transf', { n: B.transf }) : '',
+      B.dispensadas ? tt('restaurar.dispensadas', { n: B.dispensadas }) : ''].filter(Boolean))) + '.');
     var col = B.carteiras.filter(function (c) { return c.colunas; });
     var mv = B.carteiras.filter(function (c) { return c.envios === 'movido'; });
-    if (mv.length) extra.push('Envios para outra conta sua contam como dinheiro movido (não gasto) em ' + esc(nomes(mv.map(function (c) { return c.nome; }))) + '.');
-    if (col.length) extra.push('Colunas do importador lembradas para ' + esc(nomes(col.map(function (c) { return c.nome; }))) + '.');
-    return '<section class="sec"><div class="sec-top"><h2>Restaurar backup</h2><span class="hint">' + esc(R.nome) + '</span></div><div class="card ggrid">' +
-      '<p>No arquivo: <b>' + (B.carteiras.length === 1 ? 'uma carteira' : B.carteiras.length + ' carteiras') + '</b>, somas em ' + esc(nomeMoeda(mp)) + (B.titular ? ', titular ' + esc(B.titular) : '') + '.</p>' +
-      '<div class="tw"><table class="rpor rbk"><thead><tr><th>Carteira</th><th>Moeda</th><th>Meses</th><th>Período dos extratos</th><th>Movimentos</th></tr></thead><tbody>' +
+    if (mv.length) extra.push(tth('restaurar.movido', { nomes: listaE(mv.map(function (c) { return c.nome; })) }));
+    if (col.length) extra.push(tth('restaurar.colunas', { nomes: listaE(col.map(function (c) { return c.nome; })) }));
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('dados.restaurar') + '</h2><span class="hint">' + esc(R.nome) + '</span></div><div class="card ggrid">' +
+      '<p>' + tth(B.titular ? 'restaurar.noArquivoTitular' : 'restaurar.noArquivo', { carteiras: cru('<b>' + tth('restaurar.nCarteiras', { n: B.carteiras.length }) + '</b>'), moeda: nomeMoeda(mp), titular: B.titular }) + '</p>' +
+      '<div class="tw"><table class="rpor rbk"><thead><tr><th>' + tth('carteiras.titulo') + '</th><th>' + tth('comum.moeda') + '</th><th>' + tth('restaurar.colMeses') + '</th><th>' + tth('restaurar.colPeriodo') + '</th><th>' + tth('restaurar.colMovimentos') + '</th></tr></thead><tbody>' +
       B.carteiras.map(function (c) {
-        return '<tr><td>' + esc(c.nome) + '</td><td data-l="Moeda">' + esc(c.moeda) + '</td>' + (c.mov ? '<td data-l="Meses">' + c.meses + '</td><td data-l="Período">' + (c.de ? esc(dFull(c.de)) + ' a ' + esc(dFull(c.ate)) + (c.trechos > 1 ? ' <small>em ' + c.trechos + ' trechos</small>' : '') : '–') + '</td><td data-l="Movimentos">' + c.mov + '</td>' : '<td colspan="3" class="sem">sem extrato</td>') + '</tr>';
+        return '<tr><td>' + esc(c.nome) + '</td><td data-l="' + tth('comum.moeda') + '">' + esc(c.moeda) + '</td>' + (c.mov ? '<td data-l="' + tth('restaurar.colMeses') + '">' + c.meses + '</td><td data-l="' + tth('restaurar.periodo') + '">' + (c.de ? tth('comum.periodo', { de: dFull(c.de), ate: dFull(c.ate) }) + (c.trechos > 1 ? ' <small>' + tth('restaurar.trechos', { n: c.trechos }) + '</small>' : '') : '–') + '</td><td data-l="' + tth('restaurar.colMovimentos') + '">' + c.mov + '</td>' : '<td colspan="3" class="sem">' + tth('carteiras.semExtrato') + '</td>') + '</tr>';
       }).join('') + '</tbody></table></div>' +
       (extra.length ? '<ul class="bkx">' + extra.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>' : '') +
-      (atual ? '<p class="aviso">Isso substitui ' + esc(atual) + '. Não dá para desfazer.</p>' : '') +
-      '<div class="grupo"><button class="btn pri" type="button" data-restaurar="confirmar">' + (atual ? 'Substituir tudo pelos dados do backup' : 'Restaurar') + '</button>' +
-      (temDados() && !S.bloqueado ? '<button class="btn" type="button" data-backup="baixar">Baixar backup dos dados atuais antes</button>' : '') +
-      '<button class="btn" type="button" data-restaurar="cancelar">Cancelar</button></div></div></section>';
+      (atual ? '<p class="aviso">' + tth('restaurar.aviso', { atual: atual }) + '</p>' : '') +
+      '<div class="grupo"><button class="btn pri" type="button" data-restaurar="confirmar">' + tth(atual ? 'restaurar.substituir' : 'restaurar.restaurar') + '</button>' +
+      (temDados() && !S.bloqueado ? '<button class="btn" type="button" data-backup="baixar">' + tth('restaurar.backupAntes') + '</button>' : '') +
+      '<button class="btn" type="button" data-restaurar="cancelar">' + tth('comum.cancelar') + '</button></div></div></section>';
   }
   function telaApagar() {
-    var o = S.bloqueado ? 'os dados ilegíveis salvos neste navegador' : resumoTxt(dadosAtuais()) + ', suas metas, categorias escolhidas e configuração';
-    return '<section class="sec"><div class="sec-top"><h2>Apagar meus dados</h2></div><div class="card ggrid">' +
-      '<p class="aviso erro">Isso apaga deste navegador: ' + esc(o) + '. Não dá para desfazer.</p>' +
-      '<div class="grupo"><button class="pill perigo" type="button" data-apagar="confirmar">Apagar tudo</button>' +
-      (S.bloqueado ? '<button class="btn" type="button" data-backup="copia">Baixar cópia antes</button>' : '<button class="btn" type="button" data-backup="baixar">Baixar backup antes</button>') +
-      '<button class="btn" type="button" data-apagar="cancelar">Cancelar</button></div></div></section>';
+    var o = S.bloqueado ? tt('dados.ilegiveis') : tt('apagar.oQue', { resumo: resumoTxt(dadosAtuais()) });
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('dados.apagar') + '</h2></div><div class="card ggrid">' +
+      '<p class="aviso erro">' + tth('apagar.aviso', { oQue: o }) + '</p>' +
+      '<div class="grupo"><button class="pill perigo" type="button" data-apagar="confirmar">' + tth('apagar.tudo') + '</button>' +
+      (S.bloqueado ? '<button class="btn" type="button" data-backup="copia">' + tth('apagar.copiaAntes') + '</button>' : '<button class="btn" type="button" data-backup="baixar">' + tth('excluir.backupAntes') + '</button>') +
+      '<button class="btn" type="button" data-apagar="cancelar">' + tth('comum.cancelar') + '</button></div></div></section>';
   }
   function telaBloqueio() {
-    return '<section class="sec"><div class="sec-top"><h2>Não consegui ler seus dados</h2></div><div class="card ggrid">' +
-      '<p class="aviso erro">Os dados salvos neste navegador estão corrompidos ou são de uma versão do painel que esta não conhece (' + esc(S.bloqueado.motivo) + '). ' +
-      'Para não perder nada, o painel não vai gravar por cima.</p>' +
-      '<p class="passo">Baixe uma cópia do que existe, restaure um backup ou, se não precisar mais desses dados, apague e comece do zero.</p>' +
-      '<div class="grupo"><button class="btn pri" type="button" data-backup="copia">Baixar cópia do que existe</button>' +
-      '<button class="btn" type="button" data-backup="restaurar">Restaurar backup</button>' +
-      '<button class="pill perigo" type="button" data-apagar="pedir">Apagar e começar do zero</button></div></div></section>';
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('bloqueio.titulo') + '</h2></div><div class="card ggrid">' +
+      '<p class="aviso erro">' + tth('bloqueio.aviso', { motivo: S.bloqueado.motivo }) + '</p>' +
+      '<p class="passo">' + tth('bloqueio.dica') + '</p>' +
+      '<div class="grupo"><button class="btn pri" type="button" data-backup="copia">' + tth('bloqueio.copia') + '</button>' +
+      '<button class="btn" type="button" data-backup="restaurar">' + tth('dados.restaurar') + '</button>' +
+      '<button class="pill perigo" type="button" data-apagar="pedir">' + tth('bloqueio.apagar') + '</button></div></div></section>';
   }
   function emptyState() {
     if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">' + tth('casca.primeiroExtrato') + '</p><h2>' + tth('casca.nenhumExtrato') + '</h2>' +

@@ -26,6 +26,8 @@ const AREAS_FEITAS = {
     'recorrentes', 'vbars', 'enviosBrasil', 'taxaPoup', 'statusPrevisao', 'pendNum', 'pendFrase', 'pendBotao'],
   'configurações: carteiras, países, moedas e câmbio': ['camposCambio', 'lerCambios', 'resumoCambio', 'opcoesPais', 'notaRegrasPais', 'configurado', 'temRegras', 'suportado',
     'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
+  'configurações: formulário, categorias e seus dados': ['setup', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
+    'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -55,6 +57,7 @@ test('o analisador separa texto de tela de código', () => {
   assert.deepEqual(v('cortex-financas.v4'), []); assert.deepEqual(v('0 3px,color-mix(in srgb'), []);
   assert.deepEqual(v('-nome" type="text" autocomplete="off" maxlength="40" value="'), []);
   assert.deepEqual(v('-x <b>Nome</b>'), ['Nome']);
+  assert.deepEqual(v('<td data-l="Meses">'), ['Meses']); assert.deepEqual(v('<td data-label="x" data-title="Ab">'), []);
 });
 
 test('áreas já extraídas: nenhum texto visível fora do dicionário', () => {

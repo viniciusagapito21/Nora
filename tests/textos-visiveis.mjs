@@ -1,9 +1,9 @@
 // Analisador de textos visíveis do app.js (o mesmo do inventário do passo d): lê cada literal entre aspas simples,
-// separa o texto que aparece na tela (entre tags, ou em aria-label/title/placeholder/alt) do que é código (classes,
+// separa o texto que aparece na tela (entre tags, ou em aria-label/title/placeholder/alt/data-l) do que é código (classes,
 // ids, seletores, chaves "area.item", CSS) e diz em que função de topo do app.js ele está. É uma heurística: o que
 // ela confundir vai para a lista de permitidos do teste, com o motivo.
 
-const ATRIB = /\b(aria-label|title|placeholder|alt)="([^"]*)"/g;
+const ATRIB = /(?<![\w-])(aria-label|title|placeholder|alt|data-l)="([^"]*)"/g;  // data-l: rótulo que o CSS mostra (content: attr(data-l))
 const LETRA = /[A-Za-zÀ-ÿ]{2,}/;
 const ACENTO = /[À-ÿ]/;
 const CODIGO = /^-?[a-z0-9_]+([-.:#/][a-z0-9_]+)*$/;  // inclui o fim de um id montado, como '-nome"'
