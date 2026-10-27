@@ -29,6 +29,22 @@ function pontuarCabecalho(cabecalho, sinonimos) {
   return melhor;
 }
 
+function campoConhecido(cabecalho) {
+  const papeis = ['data', 'descricao', 'saldo', 'debito', 'credito', 'valor'];
+  let melhor = null;
+  let melhorNota = 0;
+  for (const campo of papeis) {
+    const pontuacao = campo === 'valor'
+      ? pontuarValor(cabecalho)
+      : pontuarCabecalho(cabecalho, SINONIMOS[campo]);
+    if (pontuacao > melhorNota) {
+      melhor = campo;
+      melhorNota = pontuacao;
+    }
+  }
+  return melhor;
+}
+
 function pareceData(valor) {
   const texto = String(valor ?? '').trim();
   return /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:[T\s].*)?$/.test(texto)
@@ -177,5 +193,5 @@ function paraCentavos(valor) {
   return centavosDeTexto(valor);
 }
 
-return { detectarColunas: detectarColunas, paraCentavos: paraCentavos };
+return { detectarColunas: detectarColunas, paraCentavos: paraCentavos, campoConhecido: campoConhecido };
 })();
