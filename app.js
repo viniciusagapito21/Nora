@@ -1710,24 +1710,25 @@
     var st = '';
     if (M.keys.length) {
       var n = 0; M.keys.forEach(function (k) { n += M.by[k].n; });
-      st = n + ' movimentações · ' + mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4) + ' a ' + mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4) + ' · última em ' + dFull(M.lastDate);
-    } else st = origem() + ' · conta em ' + nomeMoeda();
+      st = tt('casca.resumoCarteira', { n: n, de: mShort(M.keys[0]) + ' ' + M.keys[0].slice(0, 4), ate: mShort(M.keys[M.keys.length - 1]) + ' ' + M.keys[M.keys.length - 1].slice(0, 4), data: dFull(M.lastDate) });
+    } else st = tt('casca.contaEm', { origem: origem(), moeda: nomeMoeda() });
     if (M.keys.length) st = origem() + ' · ' + st;
-    if (emResumo() && RES) st = S.dados.carteiras.length + ' carteiras · somas em ' + nomeMoeda(moedaP()) + (RES.ref ? ' · dados até ' + dFull(RES.ref) : '');
+    if (emResumo() && RES) st = tt('casca.resumoTopo', { n: S.dados.carteiras.length, moeda: nomeMoeda(moedaP()) }) + (RES.ref ? ' · ' + tt('casca.dadosAte', { data: dFull(RES.ref) }) : '');
     return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
-      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">Configurações</button><button class="pill primario" type="button" data-fin-add>Adicionar extrato</button></div>' : '') + '</div>' +
+      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">' + tth('comum.configuracoes') + '</button><button class="pill primario" type="button" data-fin-add>' + tth('comum.adicionarExtrato') + '</button></div>' : '') + '</div>' +
       avisoEspaco() +
       (configurado() && !suportado() && !S.setupOpen && !RES ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
   }
   /* acima de 4 MB (somando a v3 guardada e a v4), sugere backup; se a gravação falhou, avisa como erro */
   function avisoEspaco() {
-    if (S.semEspaco) return '<div class="aviso erro pergunta"><p>A última mudança não foi salva: o espaço deste navegador acabou. Baixe um backup para não perder o que fez.</p><button class="btn sm" type="button" data-backup="baixar">Baixar backup</button></div>';
+    if (S.semEspaco) return '<div class="aviso erro pergunta"><p>' + tth('casca.semEspaco') + '</p><button class="btn sm" type="button" data-backup="baixar">' + tth('comum.baixarBackup') + '</button></div>';
     if (S.espaco <= ESPACO_AVISO) return '';
-    return '<div class="aviso pergunta"><p>Os dados do Nora ocupam ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(S.espaco / 1048576) + ' MB neste navegador, perto do limite de cerca de 5 MB. A cópia da versão anterior, guardada para dar para voltar, entra na conta. Baixe um backup: se o espaço acabar, o que você mudar deixa de ser salvo.</p>' +
-      '<button class="btn sm" type="button" data-backup="baixar">Baixar backup</button></div>';
+    return '<div class="aviso pergunta"><p>' + tth('casca.espacoPerto', { mb: new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(S.espaco / 1048576) }) + '</p>' +
+      '<button class="btn sm" type="button" data-backup="baixar">' + tth('comum.baixarBackup') + '</button></div>';
   }
   /* ---------- carteiras ---------- */
-  var GENERICO = 'Sem leitor próprio: na primeira importação, você escolhe as colunas de data, descrição e valor e confere uma prévia.';
+  /* função, não constante: o texto acompanha o idioma de cada renderização */
+  function genericoTxt() { return tth('config.semLeitor'); }
   function cartAtual() { return S.dados ? carteiraAtiva(S.dados) : null; }
   function bancoAtual() { var c = cartAtual(); return c ? c.banco : 'revolut'; }
   function nomeBanco(b) { var o = BANCOS.filter(function (x) { return x[0] === b; })[0]; return o ? o[1] : b; }
@@ -1770,12 +1771,12 @@
   function abas() {
     if (!variasCarteiras()) return '';
     var r = emResumo();
-    return '<nav class="abas" aria-label="Carteiras"><button type="button" data-carteira="resumo"' + (r ? ' aria-current="true"' : '') + '>Resumo <small>' + esc(moedaP()) + '</small></button>' + S.dados.carteiras.map(function (c) {
+    return '<nav class="abas" aria-label="' + tth('abas.rotulo') + '"><button type="button" data-carteira="resumo"' + (r ? ' aria-current="true"' : '') + '>' + tth('abas.resumo') + ' <small>' + esc(moedaP()) + '</small></button>' + S.dados.carteiras.map(function (c) {
       return '<button type="button" data-carteira="' + esc(c.id) + '"' + (!r && c.id === S.dados.ativa ? ' aria-current="true"' : '') + '>' + esc(c.nome) + ' <small>' + esc(c.moeda) + '</small></button>';
     }).join('') + '</nav>';
   }
   function notaResumo() {
-    return '<p class="passo">Em observação e Metas de poupança valem para todas as carteiras e ficam no <b>Resumo</b>.</p>';
+    return '<p class="passo">' + tth('casca.notaResumo', { resumo: cru('<b>' + tth('abas.resumo') + '</b>') }) + '</p>';
   }
   /* ---------- Resumo ---------- */
   /* valor na moeda de uma carteira (sem casas) */
@@ -2070,7 +2071,7 @@
         '<button class="btn sm" type="button" data-wexcluir="' + esc(c.id) + '">Excluir carteira</button></div>' : '') +
         '<div class="mgrid"><label>Nome da carteira<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(c.nome) + '"></label>' +
         '<label>Extrato<select id="' + k + '-banco"' + desc + '>' + opcoes(BANCOS, c.banco) + '</select>' +
-        '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + GENERICO + '</small></label>' +
+        '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + genericoTxt() + '</small></label>' +
         '<label>Moeda da conta<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
         (trava ? '' : '<small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small>') + '</label>' +
         '<label>País<select id="' + k + '-pais">' + opcoesPais(c.moeda, c.pais) + '</select></label>' +
@@ -2083,7 +2084,7 @@
       : '<details class="metas" id="fin-wnova"' + (S.wOpen ? ' open' : '') + '><summary>Adicionar carteira</summary>' +
         '<p class="passo">Uma carteira para cada conta: um banco e uma moeda. Até ' + MAX_CARTEIRAS + '. Cada uma tem a sua aba, com o extrato dela. Ao salvar, a carteira nova é criada e aberta.</p>' +
         '<div class="mgrid"><label>Nome da carteira<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Wise libras"></label>' +
-        '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + GENERICO + '</small></label>' +
+        '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + genericoTxt() + '</small></label>' +
         '<label>Moeda da conta<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
         '<label>País<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small>' + notaRegrasPais() + '</small></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
@@ -2509,13 +2510,13 @@
       '<button class="pill perigo" type="button" data-apagar="pedir">Apagar e começar do zero</button></div></div></section>';
   }
   function emptyState() {
-    if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
-      '<ol><li>No app ou no site de ' + esc(origem()) + ', baixe o extrato da conta ' + (bancoAtual() === 'itau' ? 'em PDF' : 'em CSV ou planilha (.xls, .xlsx)') + '.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li>' +
-      '<li>Na primeira vez, diga quais colunas são a data, a descrição e o valor, e confira a prévia antes de importar.</li></ol>' +
-      '<button class="btn pri" type="button" data-fin-add>Escolher arquivo</button></section>';
-    return '<section class="vazio-grande"><p class="eyebrow">Primeiro extrato</p><h2>Nenhum extrato salvo ainda</h2>' +
-      '<ol><li>No Revolut, abra Extratos e escolha o extrato consolidado.</li><li>Baixe em CSV, de 1º de janeiro até hoje.</li><li>Toque em Adicionar extrato ou arraste o arquivo para esta página.</li></ol>' +
-      '<button class="btn pri" type="button" data-fin-add>Escolher arquivo CSV</button></section>';
+    if (!temLeitor(bancoAtual())) return '<section class="vazio-grande"><p class="eyebrow">' + tth('casca.primeiroExtrato') + '</p><h2>' + tth('casca.nenhumExtrato') + '</h2>' +
+      '<ol><li>' + tth(bancoAtual() === 'itau' ? 'casca.baixePdf' : 'casca.baixePlanilha', { origem: origem() }) + '</li><li>' + tth('casca.toqueAdicionar') + '</li>' +
+      '<li>' + tth('casca.primeiraVezColunas') + '</li></ol>' +
+      '<button class="btn pri" type="button" data-fin-add>' + tth('casca.escolherArquivo') + '</button></section>';
+    return '<section class="vazio-grande"><p class="eyebrow">' + tth('casca.primeiroExtrato') + '</p><h2>' + tth('casca.nenhumExtrato') + '</h2>' +
+      '<ol><li>' + tth('casca.revolutPasso1') + '</li><li>' + tth('casca.revolutPasso2') + '</li><li>' + tth('casca.toqueAdicionar') + '</li></ol>' +
+      '<button class="btn pri" type="button" data-fin-add>' + tth('casca.escolherCsv') + '</button></section>';
   }
   function kpis() {
     var s = periodStats(), all = S.sel === 'all';
@@ -3112,11 +3113,18 @@
     if (e.target && e.target.id === 'fin-kedit') S.kOpen = e.target.open;
   }, true);
 
+  /* os campos de arquivo escondidos (inseridos uma vez, no fim deste arquivo) ganham o rótulo a cada renderização */
+  function rotularArquivos() {
+    var a = $('#fin-csv'), b = $('#fin-json');
+    if (a) a.setAttribute('aria-label', tt('casca.escolherExtrato'));
+    if (b) b.setAttribute('aria-label', tt('casca.escolherBackup'));
+  }
   function render() {
     var root = $('#fin-app'), sc = $('.fin .cscroll'), keep = sc ? sc.scrollLeft : null;
     if (!root) return;
+    rotularArquivos();
     RES = null;
-    if (!S.ready) { root.innerHTML = header() + '<p class="passo">Carregando seus dados…</p>'; return; }
+    if (!S.ready) { root.innerHTML = header() + '<p class="passo">' + tth('casca.carregandoDados') + '</p>'; return; }
     if (S.restaurar) { root.innerHTML = header() + telaRestaurar(); return; }
     if (S.apagar) { root.innerHTML = header() + telaApagar(); return; }
     if (S.excluir) { root.innerHTML = header() + telaExcluirCarteira(); return; }
@@ -3138,7 +3146,7 @@
     root.innerHTML = header() + abas() + perguntaAluguel() + perguntaEnvios() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
-      '<p class="passo">Todo fim de mês: baixe o extrato ' + (bancoAtual() === 'revolut' ? 'consolidado do Revolut' : 'de ' + esc(origem())) + (bancoAtual() === 'revolut' ? ' em CSV' : bancoAtual() === 'itau' ? ' em PDF' : ' em CSV ou planilha') + ' e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.</p>' + cashBridge();
+      '<p class="passo">' + tth(bancoAtual() === 'revolut' ? 'casca.fimMesRevolut' : bancoAtual() === 'itau' ? 'casca.fimMesPdf' : 'casca.fimMesPlanilha', { origem: origem() }) + '</p>' + cashBridge();
     var s2 = $('.fin .cscroll');
     if (s2) s2.scrollLeft = keep != null ? keep : s2.scrollWidth;
     drawBal();
@@ -3499,19 +3507,19 @@
   function cartao() {
     var el = document.getElementById('cartao-fin');
     if (!el || !S.ready) return;
-    var tag = '<span class="tag">Finanças</span>';
-    if (!M.keys.length) { el.innerHTML = tag + '<span class="txt">Nenhum extrato ainda</span><span class="pe">adicione o CSV do Revolut</span>'; return; }
+    var tag = '<span class="tag">' + tth('casca.financas') + '</span>';
+    if (!M.keys.length) { el.innerHTML = tag + '<span class="txt">' + tth('casca.cartaoVazio') + '</span><span class="pe">' + tth('casca.cartaoAdicione') + '</span>'; return; }
     var ks = M.keys.slice(-6), cur = ks[ks.length - 1], mx = 1;
     ks.forEach(function (k) { mx = Math.max(mx, M.by[k].gasto || 0); });
     var bars = ks.map(function (k) { return '<i' + (k === cur ? ' class="at"' : '') + ' style="height:' + Math.max(8, (M.by[k].gasto || 0) / mx * 100).toFixed(0) + '%"></i>'; }).join('');
-    el.title = 'Gasto em ' + mLabel(cur) + (M.partial === cur ? ', até agora' : '');
-    el.innerHTML = tag + '<span class="fin-l"><span class="txt">' + f0(M.by[cur].gasto || 0) + ' <small>em ' + mShort(cur) + '</small></span><span class="mini" aria-hidden="true">' + bars + '</span></span><span class="pe">meta ' + f0(planTotal()) + ' por mês</span>';
+    el.title = tt(M.partial === cur ? 'casca.cartaoTituloParcial' : 'casca.cartaoTitulo', { mes: mLabel(cur) });
+    el.innerHTML = tag + '<span class="fin-l"><span class="txt">' + f0(M.by[cur].gasto || 0) + ' <small>' + tth('casca.cartaoMes', { mes: mShort(cur) }) + '</small></span><span class="mini" aria-hidden="true">' + bars + '</span></span><span class="pe">' + tth('casca.cartaoMeta', { valor: f0(planTotal()) }) + '</span>';
   }
   function start() {
     localLoad(); S.ready = true; S.resumo = true; recompute(); render(); cartao();
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
-  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf" multiple tabindex="-1" aria-label="Escolher extrato"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1" aria-label="Escolher backup"><div id="fin-tip" class="fin-tip" hidden></div>');
+  document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf" multiple tabindex="-1"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1"><div id="fin-tip" class="fin-tip" hidden></div>');
   window.__cortexFin = { montar: function () { render(); }, cartao: cartao };
   render();
   start();

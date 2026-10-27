@@ -39,14 +39,14 @@ test('t() devolve o texto do idioma efetivo e troca as variáveis (APLICAR_LANG 
   const pt = abrir({ languages: ['pt-BR'], aplicarLang: true }), en = abrir({ languages: ['en-US'], aplicarLang: true });
   assert.equal(pt.NORA_I18N.idioma(), 'pt-BR'); assert.equal(en.NORA_I18N.idioma(), 'en-GB');
   assert.equal(pt.t('abas.resumo'), 'Resumo'); assert.equal(en.t('abas.resumo'), 'Summary');
-  assert.equal(pt.t('abas.abrir', { nome: 'Revolut' }), 'Abrir Revolut');
+  assert.equal(pt.t('comum.removerNome', { nome: 'Revolut' }), 'Remover Revolut');
   assert.equal(en.t('tema.escuro'), 'Dark');
   // nora.prefs vence o navegador
   assert.equal(abrir({ languages: ['pt-BR'], salvo: { idioma: 'en-GB', tema: 'auto' }, aplicarLang: true }).t('tema.claro'), 'Light');
   assert.equal(abrir({ languages: ['en-GB'], salvo: { idioma: 'pt-BR', tema: 'auto' }, aplicarLang: true }).t('tema.claro'), 'Claro');
   // variável que falta fica como {nome}; variável a mais é ignorada; números viram texto
-  assert.equal(pt.t('abas.abrir'), 'Abrir {nome}');
-  assert.equal(pt.t('abas.abrir', { nome: 7, outra: 'x' }), 'Abrir 7');
+  assert.equal(pt.t('comum.removerNome'), 'Remover {nome}');
+  assert.equal(pt.t('comum.removerNome', { nome: 7, outra: 'x' }), 'Remover 7');
   assert.deepEqual(faltas(pt), []);
 });
 
@@ -83,10 +83,10 @@ test('fallback: idioma efetivo → pt-BR → a própria chave, e cada falta fica
 test('texto da pessoa nunca passa pelo dicionário: o valor de vars entra como está', () => {
   const en = abrir({ languages: ['en-GB'], aplicarLang: true });
   // um nome de carteira igual a uma chave, ou com {chaves} dentro, não é traduzido nem preenchido de novo
-  assert.equal(en.t('abas.abrir', { nome: 'abas.resumo' }), 'Open abas.resumo');
-  assert.equal(en.t('abas.abrir', { nome: '{nome} {n}' }), 'Open {nome} {n}');
-  assert.equal(en.t('abas.abrir', { nome: 'Resumo' }), 'Open Resumo');
-  assert.equal(en.t('abas.abrir', { nome: '$& $1 $$' }), 'Open $& $1 $$');
+  assert.equal(en.t('comum.removerNome', { nome: 'abas.resumo' }), 'Remove abas.resumo');
+  assert.equal(en.t('comum.removerNome', { nome: '{nome} {n}' }), 'Remove {nome} {n}');
+  assert.equal(en.t('comum.removerNome', { nome: 'Resumo' }), 'Remove Resumo');
+  assert.equal(en.t('comum.removerNome', { nome: '$& $1 $$' }), 'Remove $& $1 $$');
   assert.deepEqual(faltas(en), []);
 });
 

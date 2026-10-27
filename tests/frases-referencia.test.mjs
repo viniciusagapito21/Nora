@@ -74,7 +74,47 @@ const OBS = [
   ['tth', 'obs.pagaEm', { data: '2 de outubro de 2026' }, 'paga em 2 de outubro de 2026'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS }))
+// área: casca e abas
+const CASCA = [
+  ['tt', 'casca.resumoCarteira', { n: 56, de: 'jul 2026', ate: 'out 2026', data: '15 de outubro de 2026' }, '56 movimentações · jul 2026 a out 2026 · última em 15 de outubro de 2026'],
+  ['tt', 'casca.resumoCarteira', { n: 1, de: 'out 2026', ate: 'out 2026', data: '1 de outubro de 2026' }, '1 movimentações · out 2026 a out 2026 · última em 1 de outubro de 2026'],
+  ['tt', 'casca.contaEm', { origem: 'Revolut', moeda: 'euro' }, 'Revolut · conta em euro'],
+  ['tt', 'casca.resumoTopo', { n: 3, moeda: 'euro' }, '3 carteiras · somas em euro'],
+  ['tt', 'casca.dadosAte', { data: '15 de outubro de 2026' }, 'dados até 15 de outubro de 2026'],
+  ['tth', 'comum.configuracoes', undefined, 'Configurações'],
+  ['tth', 'comum.adicionarExtrato', undefined, 'Adicionar extrato'],
+  ['tth', 'casca.semEspaco', undefined, 'A última mudança não foi salva: o espaço deste navegador acabou. Baixe um backup para não perder o que fez.'],
+  ['tth', 'comum.baixarBackup', undefined, 'Baixar backup'],
+  ['tth', 'casca.espacoPerto', { mb: '4,2' }, 'Os dados do Nora ocupam 4,2 MB neste navegador, perto do limite de cerca de 5 MB. A cópia da versão anterior, guardada para dar para voltar, entra na conta. Baixe um backup: se o espaço acabar, o que você mudar deixa de ser salvo.'],
+  ['tth', 'config.semLeitor', undefined, 'Sem leitor próprio: na primeira importação, você escolhe as colunas de data, descrição e valor e confere uma prévia.'],
+  ['tth', 'abas.rotulo', undefined, 'Carteiras'],
+  ['tth', 'abas.resumo', undefined, 'Resumo'],
+  ['tth', 'casca.notaResumo', { resumo: I.cru('<b>Resumo</b>') }, 'Em observação e Metas de poupança valem para todas as carteiras e ficam no <b>Resumo</b>.'],
+  ['tth', 'casca.primeiroExtrato', undefined, 'Primeiro extrato'],
+  ['tth', 'casca.nenhumExtrato', undefined, 'Nenhum extrato salvo ainda'],
+  ['tth', 'casca.baixePdf', { origem: 'Itaú' }, 'No app ou no site de Itaú, baixe o extrato da conta em PDF.'],
+  ['tth', 'casca.baixePlanilha', { origem: 'Banco <X>' }, 'No app ou no site de Banco &lt;X&gt;, baixe o extrato da conta em CSV ou planilha (.xls, .xlsx).'],
+  ['tth', 'casca.toqueAdicionar', undefined, 'Toque em Adicionar extrato ou arraste o arquivo para esta página.'],
+  ['tth', 'casca.primeiraVezColunas', undefined, 'Na primeira vez, diga quais colunas são a data, a descrição e o valor, e confira a prévia antes de importar.'],
+  ['tth', 'casca.escolherArquivo', undefined, 'Escolher arquivo'],
+  ['tth', 'casca.revolutPasso1', undefined, 'No Revolut, abra Extratos e escolha o extrato consolidado.'],
+  ['tth', 'casca.revolutPasso2', undefined, 'Baixe em CSV, de 1º de janeiro até hoje.'],
+  ['tth', 'casca.escolherCsv', undefined, 'Escolher arquivo CSV'],
+  ['tth', 'casca.carregandoDados', undefined, 'Carregando seus dados…'],
+  ['tth', 'casca.fimMesRevolut', undefined, 'Todo fim de mês: baixe o extrato consolidado do Revolut em CSV e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.'],
+  ['tth', 'casca.fimMesPdf', { origem: 'Itaú' }, 'Todo fim de mês: baixe o extrato de Itaú em PDF e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.'],
+  ['tth', 'casca.fimMesPlanilha', { origem: 'Conta & cia' }, 'Todo fim de mês: baixe o extrato de Conta &amp; cia em CSV ou planilha e toque em Adicionar extrato. Movimentos que já estavam salvos são ignorados.'],
+  ['tth', 'casca.cartaoVazio', undefined, 'Nenhum extrato ainda'],
+  ['tth', 'casca.cartaoAdicione', undefined, 'adicione o CSV do Revolut'],
+  ['tt', 'casca.cartaoTitulo', { mes: 'outubro de 2026' }, 'Gasto em outubro de 2026'],
+  ['tt', 'casca.cartaoTituloParcial', { mes: 'outubro de 2026' }, 'Gasto em outubro de 2026, até agora'],
+  ['tth', 'casca.cartaoMes', { mes: 'out' }, 'em out'],
+  ['tth', 'casca.cartaoMeta', { valor: '€ 1.800' }, 'meta € 1.800 por mês'],
+  ['tth', 'casca.escolherExtrato', undefined, 'Escolher extrato'],
+  ['tth', 'casca.escolherBackup', undefined, 'Escolher backup'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

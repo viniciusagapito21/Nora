@@ -15,6 +15,7 @@ const D = JSON.parse(JSON.stringify(vm.runInContext('NORA_DICIONARIOS', ctx)));
 const AREAS_FEITAS = {
   'dicas do gráfico': ['tipHtml', 'showTip', 'placeTip', 'hideTip'],
   'em observação': ['vencTxt', 'divState', 'divMut', 'dividas'],
+  'casca e abas': ['header', 'avisoEspaco', 'abas', 'notaResumo', 'emResumo', 'emptyState', 'render', 'start', 'cartao', 'variasCarteiras', 'origem', 'cartAtual', 'bancoAtual', 'nomeBanco', 'rotularArquivos', 'genericoTxt'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -25,7 +26,6 @@ const PERMITIDOS = {
 };
 // chaves que ainda não têm uso no código, com o motivo
 const RESERVADAS = {
-  'abas.rotulo': 'área casca e abas', 'abas.resumo': 'área casca e abas', 'abas.abrir': 'área casca e abas',
   'tema.rotulo': 'seletor de tema (passo g)', 'tema.auto': 'seletor de tema (passo g)', 'tema.claro': 'seletor de tema (passo g)', 'tema.escuro': 'seletor de tema (passo g)',
   'idioma.rotulo': 'seletor de idioma (passo f)', 'idioma.auto': 'seletor de idioma (passo f)', 'idioma.pt-BR': 'seletor de idioma (passo f)', 'idioma.en-GB': 'seletor de idioma (passo f)',
   'importar.adicionou': 'área importação', 'importar.meses': 'área importação',
@@ -94,4 +94,12 @@ test('index.html: todo texto e aria-label do <body> tem data-i18n (o <title> "No
   // o português fica no HTML e é o mesmo do dicionário
   for (const m of corpo.matchAll(/data-i18n="([^"]+)"[^>]*>([^<]*)</g)) assert.equal(m[2], D['pt-BR'][m[1]], m[1]);
   for (const m of corpo.matchAll(/aria-label="([^"]+)" data-i18n-aria-label="([^"]+)"/g)) assert.equal(m[1], D['pt-BR'][m[2]], m[2]);
+});
+
+test('nenhuma tradução no nível de módulo do app.js: o texto ficaria no idioma do carregamento', () => {
+  // nível de módulo = comandos no recuo base do IIFE (2 espaços) que não são declaração de função
+  const ruins = appJs.split('\n').map((l, i) => [i + 1, l])
+    .filter(([, l]) => /^ {2}[^ /*}]/.test(l) && !/^ {2}function /.test(l) && /(\btth?\(|(^|[^\w.$])t\()/.test(l));
+  assert.deepEqual(ruins.map(([n, l]) => `app.js:${n} ${l.trim().slice(0, 60)}`), [],
+    'troque a constante por uma função (ex.: genericoTxt()) ou ponha o texto dentro da renderização');
 });
