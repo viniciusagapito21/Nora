@@ -1593,7 +1593,7 @@
     if (S.bloqueado) return;
     S.dados = dadosAtuais();
     try { localStorage.setItem(LS, JSON.stringify(S.dados)); S.semEspaco = false; } catch (e) {
-      if (!S.semEspaco) toast('Não consegui salvar neste navegador: o espaço acabou. Baixe um backup agora para não perder o que fez.', true);
+      if (!S.semEspaco) toast(tt('msg.semEspacoSalvar'), true);
       S.semEspaco = true;
     }
     S.espaco = espacoUsado();
@@ -1633,7 +1633,7 @@
   }
   var chain = Promise.resolve();
   function enqueue(fn) {
-    chain = chain.then(fn).catch(function (e) { toast('Não consegui salvar: ' + ((e && e.message) || e), true); });
+    chain = chain.then(fn).catch(function (e) { toast(tt('msg.naoSalvou', { erro: (e && e.message) || e }), true); });
     return chain;
   }
   function saveMonth(m, tx) {
@@ -3204,15 +3204,15 @@
     if (t.hasAttribute('data-tconf') || t.hasAttribute('data-tdisp')) {
       var tc = t.hasAttribute('data-tconf'), pq = parPorChave(t.getAttribute(tc ? 'data-tconf' : 'data-tdisp'));
       if (!pq) return;
-      var pp = pq.p, quem = pp.ja === 's' ? 'a entrada no ' + pp.e.w.nome : pp.ja === 'e' ? 'a saída no ' + pp.s.w.nome : pp.s.w.nome + ' ' + dFmt(pp.s.r.date) + ' e ' + pp.e.w.nome + ' ' + dFmt(pp.e.r.date);
-      if (tc) mudarTransf(function (x) { return confirmarTransferencia(x, pq); }, 'Marcado como Entre contas suas: ' + quem + '. Dá para desfazer em Transferências confirmadas.');
-      else mudarTransf(function (x) { return dispensarSugestao(x, pq); }, 'Sugestão dispensada: ela não volta.');
+      var pp = pq.p, quem = pp.ja === 's' ? tt('msg.quemEntrada', { carteira: pp.e.w.nome }) : pp.ja === 'e' ? tt('msg.quemSaida', { carteira: pp.s.w.nome }) : tt('msg.quemPar', { origem: pp.s.w.nome, dataOrigem: dFmt(pp.s.r.date), destino: pp.e.w.nome, dataDestino: dFmt(pp.e.r.date) });
+      if (tc) mudarTransf(function (x) { return confirmarTransferencia(x, pq); }, tt('msg.transfConfirmada', { quem: quem }));
+      else mudarTransf(function (x) { return dispensarSugestao(x, pq); }, tt('msg.sugestaoDispensada'));
       return;
     }
     if (t.hasAttribute('data-tdesf')) {
       var tw = t.getAttribute('data-tdesf'), tm = t.getAttribute('data-tmov');
       S.tConf = true;
-      mudarTransf(function (x) { return desfazerTransferencia(x, tw, tm); }, 'Transferência desfeita: as duas pontas voltaram ao que eram.');
+      mudarTransf(function (x) { return desfazerTransferencia(x, tw, tm); }, tt('msg.transfDesfeita'));
       return;
     }
     if (t.hasAttribute('data-rmes')) { S.rMes = t.getAttribute('data-rmes'); render(); var rb = document.querySelector('[data-rmes="' + S.rMes + '"]'); if (rb) rb.focus(); return; }
@@ -3226,8 +3226,8 @@
     if (t.hasAttribute('data-fin-setup')) { S.setupOpen = !S.setupOpen; render(); return; }
     if (t.hasAttribute('data-backup')) {
       var bk = t.getAttribute('data-backup');
-      if (bk === 'baixar') { baixarBackup(); toast('Backup baixado.'); }
-      else if (bk === 'copia') { baixarCopiaIlegivel(); toast('Cópia baixada.'); }
+      if (bk === 'baixar') { baixarBackup(); toast(tt('msg.backupBaixado')); }
+      else if (bk === 'copia') { baixarCopiaIlegivel(); toast(tt('msg.copiaBaixada')); }
       else $('#fin-json').click();
       return;
     }
@@ -3236,13 +3236,13 @@
         var x = S.restaurar.dados;
         usarDados(x);
         S.bloqueado = null; S.restaurar = null; S.setupOpen = false; S.resumo = true; localSave(); recompute(); render();
-        toast('Backup restaurado: ' + resumoTxt(x) + '.');
+        toast(tt('msg.backupRestaurado', { resumo: resumoTxt(x) }));
       } else { S.restaurar = null; render(); }
       return;
     }
     if (t.hasAttribute('data-apagar')) {
       var ap = t.getAttribute('data-apagar');
-      if (ap === 'confirmar') { apagarTudo(); S.apagar = false; recompute(); render(); toast('Seus dados foram apagados deste navegador.'); }
+      if (ap === 'confirmar') { apagarTudo(); S.apagar = false; recompute(); render(); toast(tt('msg.dadosApagados')); }
       else { S.apagar = ap === 'pedir'; render(); }
       return;
     }
@@ -3273,14 +3273,14 @@
         var x0 = dadosAtuais(), ex = x0.carteiras.filter(function (w) { return w.id === S.excluir; })[0], x1 = excluirCarteira(x0, S.excluir);
         var semCambio = Object.keys(x0.cambios || {}).length && !Object.keys(x1.cambios).length;
         usarDados(x1); localSave(); S.excluir = null; S.sel = null; recompute(); render();
-        toast('Carteira ' + ex.nome + ' excluída.' + (semCambio ? ' A carteira principal mudou de moeda: informe o câmbio de novo em Em observação.' : ''));
+        toast(tt('msg.carteiraExcluida', { nome: ex.nome }) + (semCambio ? ' ' + tt('msg.principalMudouMoeda') : ''));
       } else { S.excluir = null; render(); }
       return;
     }
     if (t.hasAttribute('data-envios')) {
       var mov = t.getAttribute('data-envios') === 'movido';
       mudarCarteira(function (c) { c.enviosDecidido = true; if (mov) c.envios = 'movido'; return c; });
-      toast((mov ? 'Envios para outra conta sua contam como dinheiro movido nesta carteira.' : 'Envios para outra conta sua continuam contando como gasto.') + ' Dá para mudar em Configurações.');
+      toast(tt(mov ? 'msg.enviosMovido' : 'msg.enviosGasto') + ' ' + tt('msg.mudarEmConfig'));
       return;
     }
     if (t.hasAttribute('data-aluguel')) {
@@ -3288,7 +3288,7 @@
       if (!al) return;
       if (t.getAttribute('data-aluguel') === 'sim') {
         al.keys.forEach(function (k) { S.over[k] = 'aluguel'; });
-        enqueue(saveOver).then(function () { recompute(); render(); toast(al.last.desc + ' agora conta como aluguel. Dá para mudar em Revisar categorias.'); });
+        enqueue(saveOver).then(function () { recompute(); render(); toast(tt('msg.agoraAluguel', { desc: al.last.desc })); });
       } else {
         var pn = Object.assign({}, S.plan || {}, { naoAluguel: ((S.plan && S.plan.naoAluguel) || []).concat(al.id) });
         enqueue(function () { return savePlan(pn); }).then(function () { render(); });
@@ -3297,8 +3297,8 @@
     }
     if (t.hasAttribute('data-pixtit-aplicar')) {
       var ks = Array.prototype.map.call(document.querySelectorAll('#fin-pixtit [data-pixtit]:checked'), function (i) { return i.getAttribute('data-pixtit'); });
-      if (!ks.length) { toast('Marque pelo menos um Pix antes de aplicar.'); return; }
-      salvarPixTitular(aplicarPixTitular(S.over, cartAtual().pixTitular, ks), (ks.length === 1 ? 'Marquei 1 Pix' : 'Marquei ' + ks.length + ' Pix') + ' como entre contas suas.');
+      if (!ks.length) { toast(tt('msg.marquePix')); return; }
+      salvarPixTitular(aplicarPixTitular(S.over, cartAtual().pixTitular, ks), tt('msg.pixMarcados', { n: ks.length }));
       return;
     }
     if (t.hasAttribute('data-pixtit-marcar')) {
@@ -3306,7 +3306,7 @@
       Array.prototype.forEach.call(document.querySelectorAll('#fin-pixtit [data-pixtit]'), function (i) { if (!mm || i.getAttribute('data-mes') === mm) i.checked = true; });
       return;
     }
-    if (t.hasAttribute('data-pixtit-desfazer')) { salvarPixTitular(desfazerPixTitular(S.over, cartAtual().pixTitular), 'Desfeito: os Pix voltaram à categoria automática.'); return; }
+    if (t.hasAttribute('data-pixtit-desfazer')) { salvarPixTitular(desfazerPixTitular(S.over, cartAtual().pixTitular), tt('msg.pixDesfeito')); return; }
     if (t.hasAttribute('data-sel')) { S.sel = t.getAttribute('data-sel'); S.more = 12; hideTip(); render(); return; }
     if (t.hasAttribute('data-all')) { S.sel = S.sel === 'all' ? (M.complete.length ? M.complete[M.complete.length - 1] : M.keys[M.keys.length - 1]) : 'all'; S.more = 12; render(); return; }
     if (t.hasAttribute('data-f')) {
@@ -3322,12 +3322,12 @@
     if (t.hasAttribute('data-more')) { S.more += 30; render(); return; }
     if (t.hasAttribute('data-dpay')) {
       var pid = t.getAttribute('data-dpay');
-      divMut(function (d) { d.items.forEach(function (i) { if (i.id === pid) { i.status = 'paga'; i.pagaEm = todayIso(); } }); }).then(function () { toast('Marcada como paga.'); });
+      divMut(function (d) { d.items.forEach(function (i) { if (i.id === pid) { i.status = 'paga'; i.pagaEm = todayIso(); } }); }).then(function () { toast(tt('msg.marcadaPaga')); });
       return;
     }
     if (t.hasAttribute('data-ddel')) {
       var rid = t.getAttribute('data-ddel');
-      divMut(function (d) { d.items = d.items.filter(function (i) { return i.id !== rid; }); }).then(function () { toast('Removida.'); });
+      divMut(function (d) { d.items = d.items.filter(function (i) { return i.id !== rid; }); }).then(function () { toast(tt('msg.removida')); });
     }
   });
   document.addEventListener('pointerover', function (e) { var c = e.target.closest && e.target.closest('.fin .mcol'); if (c && e.pointerType !== 'touch') showTip(c, e.clientX, e.clientY); });
@@ -3388,39 +3388,39 @@
     if (fid === 'fin-fancora') {
       e.preventDefault();
       var va = parseNum($('#fin-ancora').value);
-      if (isNaN(va)) { toast('Informe o saldo, ex.: 1.234,56.', true); return; }
+      if (isNaN(va)) { toast(tt('msg.informeSaldo'), true); return; }
       mudarCarteira(function (c) { c.ancora = { data: M.lastDate, valor: Math.round(va * 100), informadoEm: todayIso() }; delete c.ancoraDispensada; return c; });
-      toast('Saldo salvo: o gráfico de saldo é estimado a partir dele.');
+      toast(tt('msg.saldoSalvo'));
       return;
     }
     if (fid === 'fin-fimp') { e.preventDefault(); if (S.importar && podeSalvar(S.importar)) confirmarImportacao(); return; }
     if (fid === 'fin-fdiv') {
       e.preventDefault();
       var nome = $('#fin-d-nome').value.trim(), valor = parseNum($('#fin-d-valor').value);
-      if (!nome || !(valor > 0)) { toast('Informe o nome e o valor.', true); return; }
+      if (!nome || !(valor > 0)) { toast(tt('msg.informeNomeValor'), true); return; }
       var venc = $('#fin-d-venc').value, desc = $('#fin-d-desc').value.trim(), cod = $('#fin-d-cur').value;
       if (cod === 'outra') cod = $('#fin-d-outra').value.trim().toUpperCase();
-      if (!/^[A-Z]{3}$/.test(cod)) { toast('Use o código de 3 letras da moeda (ex.: CHF).', true); return; }
+      if (!/^[A-Z]{3}$/.test(cod)) { toast(tt('msg.codigoMoeda'), true); return; }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(venc)) venc = '';
       S.dAdd = false;
-      divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso(), valor: Math.round(valor * 100) / 100, moeda: cod }; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast('Pagamento anotado.'); });
+      divMut(function (d) { var it = { id: 'd' + Date.now().toString(36), nome: nome, status: 'aberta', criada: todayIso(), valor: Math.round(valor * 100) / 100, moeda: cod }; if (venc) it.venc = venc; if (desc) it.desc = desc.slice(0, 120); d.items.push(it); }).then(function () { toast(tt('msg.pagamentoAnotado')); });
       return;
     }
     if (fid === 'fin-frcamb') {
       e.preventDefault();
       var lr = lerCambios('cambr');
-      if (lr.ruim) { toast('Informe quantos ' + lr.ruim + ' valem 1 ' + nomeMoeda(moedaP()) + ' (ex.: 0,86).', true); return; }
+      if (lr.ruim) { toast(tt('msg.informeCambio', { moeda: lr.ruim, principal: nomeMoeda(moedaP()), exemplo: '0,86' }), true); return; }
       S.rCamb = false;
-      divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, lr.novos); }).then(function () { toast(Object.keys(lr.novos).length ? 'Câmbio salvo.' : 'Nada mudou no câmbio.'); });
+      divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, lr.novos); }).then(function () { toast(tt(Object.keys(lr.novos).length ? 'msg.cambioSalvo' : 'msg.cambioNadaMudou')); });
       return;
     }
     if (fid === 'fin-fcamb') {
       e.preventDefault();
       var mg = parseNum($('#fin-c-mg').value), lc = lerCambios('camb'), novos = lc.novos;
-      if (lc.ruim) { toast('Informe quantos ' + lc.ruim + ' valem 1 ' + nomeMoeda(moedaP()) + ' (ex.: 1,08).', true); return; }
+      if (lc.ruim) { toast(tt('msg.informeCambio', { moeda: lc.ruim, principal: nomeMoeda(moedaP()), exemplo: '1,08' }), true); return; }
       if (isNaN(mg) || mg < 0 || mg > 20) mg = 2;
       S.dCamb = false;
-      divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast('Câmbio atualizado.'); });
+      divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast(tt('msg.cambioAtualizado')); });
       return;
     }
     if (fid === 'fin-fsetup') {
@@ -3428,14 +3428,14 @@
       /* 1) carteiras (nome, banco, moeda, país); 2) você, categorias e metas da carteira ativa; 3) carteira nova, que vira a ativa */
       var x = dadosAtuais(), erros = [], tinhaCambio = Object.keys(x.cambios || {}).length > 0, mp0 = x.config.moedaPrincipal;
       x.carteiras.forEach(function (c) {
-        try { x = editarCarteira(x, c.id, lerCarteira(c.id)); } catch (er) { erros.push(c.nome + ': ' + er.message + '.'); }
+        try { x = editarCarteira(x, c.id, lerCarteira(c.id)); } catch (er) { erros.push(tt('msg.erroCarteira', { nome: c.nome, erro: er.message })); }
       });
       /* moeda principal (com várias carteiras) e câmbio; trocar a moeda apaga as taxas, e as digitadas não valem */
       var mpSel = $('#fin-w-mp'), trocouMP = false;
       if (mpSel && mpSel.value !== x.config.moedaPrincipal) { x = trocarMoedaPrincipal(x, mpSel.value); trocouMP = true; }
       else if (mpSel) {
         var lc = lerCambios('cambc');
-        if (lc.ruim) erros.push('Câmbio de ' + lc.ruim + ' inválido: informe quantos ' + lc.ruim + ' valem 1 ' + x.config.moedaPrincipal + ' (ex.: 0,86).');
+        if (lc.ruim) erros.push(tt('msg.cambioInvalido', { moeda: lc.ruim, principal: x.config.moedaPrincipal, exemplo: '0,86' }));
         else if (Object.keys(lc.novos).length) x = Object.assign({}, x, { cambios: Object.assign({}, x.cambios, lc.novos) });
       }
       var mudouPrincipal = x.config.moedaPrincipal !== mp0;
@@ -3451,15 +3451,15 @@
       var wn = $('#fin-wn-nome'), criada = null;
       if (wn && wn.value.trim()) {
         try { x = novaCarteira(x, { nome: wn.value, banco: $('#fin-wn-banco').value, moeda: $('#fin-wn-moeda').value, pais: $('#fin-wn-pais').value }); criada = carteiraAtiva(x); }
-        catch (er) { erros.push('Não criei a carteira "' + wn.value.trim() + '": ' + er.message + '.'); }
+        catch (er) { erros.push(tt('msg.naoCrieiCarteira', { nome: wn.value.trim(), erro: er.message })); }
       }
       S.setupOpen = false; S.wOpen = false;
       if (criada) { S.sel = null; S.f = []; S.q = ''; S.resumo = false; }
       enqueue(function () { usarDados(x); localSave(); }).then(function () {
         recompute(); render();
-        var msg = 'Configuração salva.' + (criada ? ' Carteira ' + criada.nome + ' criada: adicione o extrato dela.' : '') +
-          (trocouMP ? ' A moeda principal agora é ' + nomeMoeda(x.config.moedaPrincipal) + ': informe o câmbio de novo. As metas de poupança não foram convertidas.' :
-            mudouPrincipal && tinhaCambio ? ' A moeda principal mudou: informe o câmbio de novo em Em observação.' : '');
+        var msg = tt('msg.configSalva') + (criada ? ' ' + tt('msg.carteiraCriada', { nome: criada.nome }) : '') +
+          (trocouMP ? ' ' + tt('msg.principalAgora', { moeda: nomeMoeda(x.config.moedaPrincipal) }) :
+            mudouPrincipal && tinhaCambio ? ' ' + tt('msg.principalMudou') : '');
         toast(erros.length ? msg + ' ' + erros.join(' ') : msg, !!erros.length);
       });
       return;
@@ -3482,14 +3482,14 @@
       }
       var pg = Object.assign({}, S.plan || {}, { goals: gs, metasPoupanca: lm });
       S.gOpen = false;
-      enqueue(function () { return savePlan(pg); }).then(function () { render(); toast('Metas de poupança salvas.'); });
+      enqueue(function () { return savePlan(pg); }).then(function () { render(); toast(tt('msg.metasPoupancaSalvas')); });
       return;
     }
     if (fid !== 'fin-fmetas') return;
     e.preventDefault();
     var p = Object.assign({}, S.plan || {}, lerMetas('m'));
     S.metasOpen = true;
-    enqueue(function () { return savePlan(p); }).then(function () { render(); toast('Metas salvas.'); });
+    enqueue(function () { return savePlan(p); }).then(function () { render(); toast(tt('msg.metasSalvas')); });
   });
   document.addEventListener('toggle', function (e) { if (e.target.id === 'fin-metas') S.metasOpen = e.target.open; if (e.target.id === 'fin-cfd') S.cfOpen = e.target.open; if (e.target.id === 'fin-revd') S.revOpen = e.target.open; if (e.target.id === 'fin-dadd') S.dAdd = e.target.open; if (e.target.id === 'fin-dcamb') S.dCamb = e.target.open; if (e.target.id === 'fin-dpaid') S.dPaid = e.target.open; if (e.target.id === 'fin-wnova') S.wOpen = e.target.open; if (e.target.id === 'fin-rcamb') S.rCamb = e.target.open; if (e.target.id === 'fin-rpor') S.rPor = e.target.open; if (e.target.id === 'fin-rfd') S.rFora = e.target.open; if (e.target.id === 'fin-tconf') S.tConf = e.target.open; }, true);
   /* arrastar um extrato só vale com a aba Finanças aberta */

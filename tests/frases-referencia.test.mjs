@@ -224,7 +224,63 @@ const REVISAR = [
   ['tth', 'revisar.buscar', undefined, 'Buscar comerciante ou entrada'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR }))
+// área: mensagens (toasts; texto puro, por textContent: o texto digitado entra cru, sem escape, como antes)
+const ESTRANHO = 'Conta <b> & "cia"';
+const MSG = [
+  ['tt', 'msg.semEspacoSalvar', undefined, 'Não consegui salvar neste navegador: o espaço acabou. Baixe um backup agora para não perder o que fez.'],
+  ['tt', 'msg.naoSalvou', { erro: 'a carteira precisa de um nome' }, 'Não consegui salvar: a carteira precisa de um nome'],
+  ['tt', 'msg.quemEntrada', { carteira: 'Banco Exemplo' }, 'a entrada no Banco Exemplo'],
+  ['tt', 'msg.quemSaida', { carteira: ESTRANHO }, 'a saída no Conta <b> & "cia"'],
+  ['tt', 'msg.quemPar', { origem: 'Revolut', dataOrigem: '03/07', destino: ESTRANHO, dataDestino: '04/07' }, 'Revolut 03/07 e Conta <b> & "cia" 04/07'],
+  ['tt', 'msg.transfConfirmada', { quem: 'Revolut 03/07 e Banco Exemplo 04/07' }, 'Marcado como Entre contas suas: Revolut 03/07 e Banco Exemplo 04/07. Dá para desfazer em Transferências confirmadas.'],
+  ['tt', 'msg.sugestaoDispensada', undefined, 'Sugestão dispensada: ela não volta.'],
+  ['tt', 'msg.transfDesfeita', undefined, 'Transferência desfeita: as duas pontas voltaram ao que eram.'],
+  ['tt', 'msg.backupBaixado', undefined, 'Backup baixado.'],
+  ['tt', 'msg.copiaBaixada', undefined, 'Cópia baixada.'],
+  ['tt', 'msg.backupRestaurado', { resumo: '4 meses, de julho de 2026 a outubro de 2026 (56 movimentações)' }, 'Backup restaurado: 4 meses, de julho de 2026 a outubro de 2026 (56 movimentações).'],
+  ['tt', 'msg.dadosApagados', undefined, 'Seus dados foram apagados deste navegador.'],
+  ['tt', 'msg.carteiraExcluida', { nome: ESTRANHO }, 'Carteira Conta <b> & "cia" excluída.'],
+  ['tt', 'msg.principalMudouMoeda', undefined, 'A carteira principal mudou de moeda: informe o câmbio de novo em Em observação.'],
+  ['tt', 'msg.enviosMovido', undefined, 'Envios para outra conta sua contam como dinheiro movido nesta carteira.'],
+  ['tt', 'msg.enviosGasto', undefined, 'Envios para outra conta sua continuam contando como gasto.'],
+  ['tt', 'msg.mudarEmConfig', undefined, 'Dá para mudar em Configurações.'],
+  ['tt', 'msg.agoraAluguel', { desc: 'IMOBILIÁRIA <X> & "Y"' }, 'IMOBILIÁRIA <X> & "Y" agora conta como aluguel. Dá para mudar em Revisar categorias.'],
+  ['tt', 'msg.marquePix', undefined, 'Marque pelo menos um Pix antes de aplicar.'],
+  ['tt', 'msg.pixMarcados', { n: 1 }, 'Marquei 1 Pix como entre contas suas.'],
+  ['tt', 'msg.pixMarcados', { n: 2 }, 'Marquei 2 Pix como entre contas suas.'],
+  ['tt', 'msg.pixDesfeito', undefined, 'Desfeito: os Pix voltaram à categoria automática.'],
+  ['tt', 'msg.marcadaPaga', undefined, 'Marcada como paga.'],
+  ['tt', 'msg.removida', undefined, 'Removida.'],
+  ['tt', 'msg.informeSaldo', undefined, 'Informe o saldo, ex.: 1.234,56.'],
+  ['tt', 'msg.saldoSalvo', undefined, 'Saldo salvo: o gráfico de saldo é estimado a partir dele.'],
+  ['tt', 'msg.informeNomeValor', undefined, 'Informe o nome e o valor.'],
+  ['tt', 'msg.codigoMoeda', undefined, 'Use o código de 3 letras da moeda (ex.: CHF).'],
+  ['tt', 'msg.pagamentoAnotado', undefined, 'Pagamento anotado.'],
+  ['tt', 'msg.informeCambio', { moeda: 'BRL', principal: 'euro', exemplo: '0,86' }, 'Informe quantos BRL valem 1 euro (ex.: 0,86).'],
+  ['tt', 'msg.informeCambio', { moeda: 'GBP', principal: 'euro', exemplo: '1,08' }, 'Informe quantos GBP valem 1 euro (ex.: 1,08).'],
+  ['tt', 'msg.cambioSalvo', undefined, 'Câmbio salvo.'],
+  ['tt', 'msg.cambioNadaMudou', undefined, 'Nada mudou no câmbio.'],
+  ['tt', 'msg.cambioAtualizado', undefined, 'Câmbio atualizado.'],
+  ['tt', 'msg.erroCarteira', { nome: ESTRANHO, erro: 'já existe uma carteira chamada Wise' }, 'Conta <b> & "cia": já existe uma carteira chamada Wise.'],
+  ['tt', 'msg.cambioInvalido', { moeda: 'BRL', principal: 'EUR', exemplo: '0,86' }, 'Câmbio de BRL inválido: informe quantos BRL valem 1 EUR (ex.: 0,86).'],
+  ['tt', 'msg.naoCrieiCarteira', { nome: ESTRANHO, erro: 'já há 5 carteiras: exclua uma para criar outra' }, 'Não criei a carteira "Conta <b> & "cia"": já há 5 carteiras: exclua uma para criar outra.'],
+  ['tt', 'msg.configSalva', undefined, 'Configuração salva.'],
+  ['tt', 'msg.carteiraCriada', { nome: ESTRANHO }, 'Carteira Conta <b> & "cia" criada: adicione o extrato dela.'],
+  ['tt', 'msg.principalAgora', { moeda: 'libra' }, 'A moeda principal agora é libra: informe o câmbio de novo. As metas de poupança não foram convertidas.'],
+  ['tt', 'msg.principalMudou', undefined, 'A moeda principal mudou: informe o câmbio de novo em Em observação.'],
+  ['tt', 'msg.metasPoupancaSalvas', undefined, 'Metas de poupança salvas.'],
+  ['tt', 'msg.metasSalvas', undefined, 'Metas salvas.'],
+];
+// mensagens montadas por partes (o separador ' ' fica no código, como antes)
+test('frases de referência em pt-BR: mensagens compostas', () => {
+  assert.equal(I.t('msg.configSalva') + ' ' + I.t('msg.carteiraCriada', { nome: 'Wise' }) + ' ' + I.t('msg.principalMudou'),
+    'Configuração salva. Carteira Wise criada: adicione o extrato dela. A moeda principal mudou: informe o câmbio de novo em Em observação.');
+  assert.equal(I.t('msg.carteiraExcluida', { nome: 'Wise' }) + ' ' + I.t('msg.principalMudouMoeda'),
+    'Carteira Wise excluída. A carteira principal mudou de moeda: informe o câmbio de novo em Em observação.');
+  assert.equal(I.t('msg.enviosGasto') + ' ' + I.t('msg.mudarEmConfig'), 'Envios para outra conta sua continuam contando como gasto. Dá para mudar em Configurações.');
+});
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

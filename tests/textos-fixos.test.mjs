@@ -18,6 +18,8 @@ const AREAS_FEITAS = {
   'casca e abas': ['header', 'avisoEspaco', 'abas', 'notaResumo', 'emResumo', 'emptyState', 'render', 'start', 'cartao', 'variasCarteiras', 'origem', 'cartAtual', 'bancoAtual', 'nomeBanco', 'rotularArquivos', 'genericoTxt'],
   'saldo e caixa': ['dayN', 'balSeries', 'avgBal', 'cashSummary', 'perguntaSaldo', 'mudarCarteira', 'cashBridge', 'drawBal', 'origensMeta', 'deOrigemMeta'],
   'revisão de categorias e Pix': ['merchants', 'entradas', 'nomeEntrada', 'optionsEntrada', 'effNome', 'optionsFor', 'revList', 'pixTitularBloco', 'salvarPixTitular', 'review'],
+  // (eventos) = o código de topo depois das funções (cliques, envios de formulário), como o analisador o chama
+  'mensagens': ['(eventos)', 'localSave', 'enqueue'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -25,6 +27,8 @@ const PERMITIDOS = {
   'Revolut': 'nome de banco',
   'Flexible Cash': 'nome de um produto do Revolut',
   'Pix': 'nome do sistema de pagamento do Brasil',
+  'março': 'nome do mês na lista MES do app.js: os formatos de data mudam no passo e (formato.js)',
+  'Escape': 'nome da tecla (e.key), não é texto da tela',
 };
 // chaves que ainda não têm uso no código, com o motivo
 const RESERVADAS = {
@@ -81,7 +85,7 @@ test('dicionários: sem tag, sem entidade, sem espaço nas pontas, em NFC', () =
 
 test('PERMITIDOS e AREAS_FEITAS sempre com motivo e funções que existem', () => {
   for (const [t, m] of Object.entries(PERMITIDOS)) assert.ok(m.trim(), t);
-  for (const f of Object.values(AREAS_FEITAS).flat()) assert.match(appJs, new RegExp(`\\n  function ${f}\\(`), `função ${f} não existe`);
+  for (const f of Object.values(AREAS_FEITAS).flat().filter(f => f !== '(eventos)')) assert.match(appJs, new RegExp(`\\n  function ${f}\\(`), `função ${f} não existe`);
 });
 
 test('index.html: todo texto e aria-label do <body> tem data-i18n (o <title> "Nora" é o nome do produto)', () => {
