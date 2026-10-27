@@ -16,9 +16,9 @@ const copia = x => JSON.parse(JSON.stringify(x));
 const FABRICA = [
   ['meta', 'reserva', 'Reserva de emergência', 'Emergency fund'],
   ['meta', 'invest', 'Investimentos', 'Investments'],
-  ['meta', 'viagens', 'Viagens pequenas', 'Short trips'],
-  ['meta', 'viagem', 'Viagem grande do ano', 'Big trip of the year'],
-  ['cat', 'brasil', 'Contas no Brasil', 'Accounts in Brazil'],
+  ['meta', 'viagens', 'Viagens pequenas', 'Short breaks'],
+  ['meta', 'viagem', 'Viagem grande do ano', 'Main holiday of the year'],
+  ['cat', 'brasil', 'Contas no Brasil', 'Bills in Brazil'],
 ];
 
 test('travamento: os textos de fábrica continuam reconhecidos como padrão', () => {
@@ -75,13 +75,13 @@ test('gravação: campo com um padrão de qualquer dicionário grava o texto pt-
 });
 
 test('troca de idioma com o formulário aberto: o texto do outro idioma ainda grava o padrão pt-BR', () => {
-  // formulário aberto em en-GB (campo "Short trips"), idioma trocado para pt-BR antes de salvar, e o contrário
+  // formulário aberto em en-GB (campo "Short breaks"), idioma trocado para pt-BR antes de salvar, e o contrário
   const aberto = N.nomeExibido('meta', 'viagens', 'Viagens pequenas', tEn);
-  assert.equal(aberto, 'Short trips');
+  assert.equal(aberto, 'Short breaks');
   assert.equal(N.nomeParaGravar('meta', 'viagens', aberto), 'Viagens pequenas');
   const abertoPt = N.nomeExibido('cat', 'brasil', 'Contas no Brasil', tPt);
   assert.equal(N.nomeParaGravar('cat', 'brasil', abertoPt), 'Contas no Brasil');
-  assert.equal(N.nomeExibido('cat', 'brasil', N.nomeParaGravar('cat', 'brasil', 'Accounts in Brazil'), tEn), 'Accounts in Brazil');
+  assert.equal(N.nomeExibido('cat', 'brasil', N.nomeParaGravar('cat', 'brasil', 'Bills in Brazil'), tEn), 'Bills in Brazil');
 });
 
 // ---------- backups e dados salvos (inventados) ----------
@@ -105,11 +105,11 @@ const exibir = (x, t) => {
 test('backups v1 a v4 importados e exibidos nos dois idiomas', () => {
   const esperado = {
     v1: { pt: ['Contas no Brasil', ['Reserva de emergência', 'Investimentos', 'Viagens pequenas', 'Viagem grande do ano']],
-          en: ['Accounts in Brazil', ['Emergency fund', 'Investments', 'Short trips', 'Big trip of the year']] },
+          en: ['Bills in Brazil', ['Emergency fund', 'Investments', 'Short breaks', 'Main holiday of the year']] },
     v2: { pt: ['Contas no Brasil', ['Reserva de emergência', 'Ações e fundos', 'Viagens pequenas', 'Viagem grande do ano']],
-          en: ['Accounts in Brazil', ['Emergency fund', 'Ações e fundos', 'Short trips', 'Viagem grande do ano']] },
+          en: ['Bills in Brazil', ['Emergency fund', 'Ações e fundos', 'Short breaks', 'Viagem grande do ano']] },
     v3: { pt: ['Envios à família', ['Reserva de emergência', 'Ações e fundos', 'Viagens pequenas', 'Viagem grande do ano']],
-          en: ['Envios à família', ['Emergency fund', 'Ações e fundos', 'Short trips', 'Viagem grande do ano']] },
+          en: ['Envios à família', ['Emergency fund', 'Ações e fundos', 'Short breaks', 'Viagem grande do ano']] },
   };
   esperado.v4 = esperado.v2;
   for (const [v, args] of Object.entries(BACKUPS)) {

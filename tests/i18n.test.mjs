@@ -38,7 +38,7 @@ test('APLICAR_LANG desligada (até o passo f): t() fica em pt-BR, mas a preferê
 test('t() devolve o texto do idioma efetivo e troca as variáveis (APLICAR_LANG ligada)', () => {
   const pt = abrir({ languages: ['pt-BR'], aplicarLang: true }), en = abrir({ languages: ['en-US'], aplicarLang: true });
   assert.equal(pt.NORA_I18N.idioma(), 'pt-BR'); assert.equal(en.NORA_I18N.idioma(), 'en-GB');
-  assert.equal(pt.t('abas.resumo'), 'Resumo'); assert.equal(en.t('abas.resumo'), 'Summary');
+  assert.equal(pt.t('abas.resumo'), 'Resumo'); assert.equal(en.t('abas.resumo'), 'Overview');
   assert.equal(pt.t('comum.removerNome', { nome: 'Revolut' }), 'Remover Revolut');
   assert.equal(en.t('tema.escuro'), 'Dark');
   // nora.prefs vence o navegador
@@ -58,7 +58,7 @@ test('plural com vars.n: "{n} mês/meses" em 0, 1 e 2 (pt-BR: só 1 é singular)
   assert.deepEqual([0, 1, 2, 1.5, -1].map(n => meses(pt, n)), ['0 meses', '1 mês', '2 meses', '1.5 meses', '-1 meses']);
   assert.deepEqual([0, 1, 2].map(n => meses(en, n)), ['0 months', '1 month', '2 months']);
   assert.equal(pt.t('importar.adicionou', { n: 56, meses: meses(pt, 4) }), 'Adicionei 56 movimentações em 4 meses');
-  assert.equal(en.t('importar.adicionou', { n: 1, meses: meses(en, 1) }), 'Added 1 transaction across 1 month');
+  assert.equal(en.t('importar.adicionou', { n: 1, meses: meses(en, 1) }), 'Added 1 transaction in 1 month');
   // sem n, vale "other"
   assert.equal(pt.t('importar.meses'), '{n} meses');
 });
