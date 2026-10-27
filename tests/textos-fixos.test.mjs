@@ -20,6 +20,7 @@ const AREAS_FEITAS = {
   'revisão de categorias e Pix': ['merchants', 'entradas', 'nomeEntrada', 'optionsEntrada', 'effNome', 'optionsFor', 'revList', 'pixTitularBloco', 'salvarPixTitular', 'review'],
   // (eventos) = o código de topo depois das funções (cliques, envios de formulário), como o analisador o chama
   'mensagens': ['(eventos)', 'localSave', 'enqueue'],
+  'painel': ['kpis', 'niceStep', 'chart', 'catPanel', 'tagOf', 'filterMatch', 'movPanel', 'table', 'dl', 'fraseMovido', 'notaEnvios'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -29,6 +30,7 @@ const PERMITIDOS = {
   'Pix': 'nome do sistema de pagamento do Brasil',
   'março': 'nome do mês na lista MES do app.js: os formatos de data mudam no passo e (formato.js)',
   'Escape': 'nome da tecla (e.key), não é texto da tela',
+  '0 0;background:': 'CSS do gráfico (flex: … 0 0;background: …), não é texto da tela',
 };
 // chaves que ainda não têm uso no código, com o motivo
 const RESERVADAS = {

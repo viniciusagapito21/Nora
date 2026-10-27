@@ -1570,11 +1570,13 @@
     var s = 0; ks.forEach(function (k) { s += fn(M.by[k]); });
     return s / ks.length;
   }
-  function dl(v, ref, goodHigh, unit) {
-    var d = v - ref;
-    if (Math.abs(d) < 0.5) return '<span class="d ok">= igual ' + unit + '</span>';
+  /* base: 'media', 'orcamento' (meta de gasto) ou 'objetivo' (meta de poupança); em pt-BR as duas metas dizem "da meta" */
+  function dl(v, ref, goodHigh, base) {
+    var k = { media: ['painel.igualMedia', 'painel.acimaMedia', 'painel.abaixoMedia'], orcamento: ['painel.igualOrcamento', 'painel.acimaOrcamento', 'painel.abaixoOrcamento'],
+      objetivo: ['painel.igualObjetivo', 'painel.acimaObjetivo', 'painel.abaixoObjetivo'] }[base], d = v - ref;
+    if (Math.abs(d) < 0.5) return '<span class="d ok">' + tth(k[0]) + '</span>';
     var up = d > 0;
-    return '<span class="d ' + (up === goodHigh ? 'good' : 'bad') + '">' + (up ? '▲' : '▼') + ' ' + f0(Math.abs(d)) + (up ? ' acima ' : ' abaixo ') + unit + '</span>';
+    return '<span class="d ' + (up === goodHigh ? 'good' : 'bad') + '">' + tth(up ? k[1] : k[2], { valor: f0(Math.abs(d)) }) + '</span>';
   }
 
   /* ---------- armazenamento ---------- */
@@ -1888,8 +1890,8 @@
     return nome === 'Envios para outra conta sua' ? 'envios para outra conta sua' : '"' + nome + '"';
   }
   /* movido > 0: saiu mais para outras contas suas do que entrou delas (mesma convenção do "Guardou") */
-  function fraseMovido(v, fmt) { return v > 0 ? 'saíram ' + fmt(v) + ' para outras contas suas' : 'entraram ' + fmt(-v) + ' de outras contas suas'; }
-  function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend">inclui ' + (media ? 'em média ' : '') + fmt(v) + ' de ' + esc(nomeEnvios()) + '</p>'; }
+  function fraseMovido(v, fmt) { return v > 0 ? tth('painel.saiuMovido', { valor: fmt(v) }) : tth('painel.entrouMovido', { valor: fmt(-v) }); }
+  function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend">' + tth(media ? 'painel.incluiMedia' : 'painel.inclui', { valor: fmt(v), nome: nomeEnvios() }) + '</p>'; }
   function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">inclui ' + fmt(pend) + ' a confirmar</p>'; }
   function pendFrase(pend, n, fmt) {
     return pend < 0.5 ? '' : ', mas inclui ' + fmt(pend) + (n === 1 ? ' de uma transferência sugerida ainda não confirmada' : ' de ' + n + ' transferências sugeridas ainda não confirmadas');
@@ -2524,17 +2526,18 @@
     var aG = avgOf(function (g) { return g.gasto; }, function (g) { return g.gasto > 0; });
     var aS = avgOf(function (g) { return g.saved; });
     var pt = planTotal(), pp = planPoupar();
-    var lab = all ? 'Média por mês' : mLabel(S.sel) + (M.partial === S.sel ? ' · até dia ' + +M.lastDate.slice(8) : '');
+    var lab = all ? tt('painel.mediaPorMes') : M.partial === S.sel ? tt('painel.mesAteDia', { mes: mLabel(S.sel), dia: +M.lastDate.slice(8) }) : mLabel(S.sel);
     var tiles = [
-      ['Entrou', s.entrou, all ? (aE == null ? '' : 'só meses com renda') : (aE == null ? '' : dl(s.entrou, aE, true, 'da média') + '<br>média ' + f0(aE)), ''],
-      ['Gastou', s.gasto, (all ? '' : (aG == null ? '' : dl(s.gasto, aG, false, 'da média') + '<br>')) + dl(s.gasto, pt, false, 'da meta') + ' de ' + f0(pt), ''],
-      ['Guardou', s.saved, dl(s.saved, pp, true, 'da meta') + ' de ' + f0(pp) + '<br>reserva e investimentos', ''],
-      ['Saldo do mês', s.saldo, Math.abs(s.movido) >= 0.5 ? 'entrou − gastou − guardou − movido<br>' + fraseMovido(s.movido, f0) : 'entrou − gastou − guardou', 'sg']
+      /* o 5º campo identifica o cartão (o rótulo muda com o idioma) */
+      [tth('comum.entrou'), s.entrou, all ? (aE == null ? '' : tth('painel.soMesesRenda')) : (aE == null ? '' : dl(s.entrou, aE, true, 'media') + '<br>' + tth('painel.mediaValor', { valor: f0(aE) })), '', 'entrou'],
+      [tth('comum.gastou'), s.gasto, (all ? '' : (aG == null ? '' : dl(s.gasto, aG, false, 'media') + '<br>')) + dl(s.gasto, pt, false, 'orcamento') + ' ' + tth('painel.deValor', { valor: f0(pt) }), '', 'gastou'],
+      [tth('comum.guardou'), s.saved, dl(s.saved, pp, true, 'objetivo') + ' ' + tth('painel.deValor', { valor: f0(pp) }) + '<br>' + tth('painel.reservaInvest'), '', 'guardou'],
+      [tth('comum.saldoMes'), s.saldo, Math.abs(s.movido) >= 0.5 ? tth('painel.formulaMovido') + '<br>' + fraseMovido(s.movido, f0) : tth('painel.formula'), 'sg', 'saldo']
     ];
-    var h = '<section class="sec"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2><button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + (all ? 'Voltar ao mês' : 'Ver média de todos os meses') + '</button></div><div class="kpis">';
+    var h = '<section class="sec"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2><button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + tth(all ? 'painel.voltarMes' : 'painel.verMedia') + '</button></div><div class="kpis">';
     tiles.forEach(function (t) {
       var v = t[3] ? sgn(t[1]) : f0(t[1]);
-      h += '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span>' + (t[0] === 'Gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
+      h += '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span>' + (t[4] === 'gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
     });
     return h + '</div></section>';
   }
@@ -2557,15 +2560,15 @@
         if (v > top * .003) { tot += v; segs += '<i style="flex:' + v.toFixed(2) + ' 0 0;background:' + colorOf(c) + '"></i>'; }
       });
       var yr = k.slice(0, 4), showYr = idx === 0 || ks[idx - 1].slice(0, 4) !== yr;
-      cols += '<button type="button" class="mcol' + (M.partial === k ? ' parc' : '') + '" data-sel="' + k + '" data-tip="' + k + '" aria-pressed="' + (S.sel === k) + '" aria-label="' + esc(mLabel(k)) + (M.partial === k ? ' (parcial)' : '') + ': gastou ' + f0(g.gasto) + ', entrou ' + f0(g.entrou) + '">' +
+      cols += '<button type="button" class="mcol' + (M.partial === k ? ' parc' : '') + '" data-sel="' + k + '" data-tip="' + k + '" aria-pressed="' + (S.sel === k) + '" aria-label="' + tth(M.partial === k ? 'painel.barraAriaParcial' : 'painel.barraAria', { mes: mLabel(k), gasto: f0(g.gasto), entrou: f0(g.entrou) }) + '">' +
         '<span class="bars"><span class="stack" style="height:' + (tot / top * 100).toFixed(2) + '%">' + segs + '</span>' +
         (g.entrou > 0 ? '<b class="inc" style="bottom:' + Math.min(100, g.entrou / top * 100).toFixed(2) + '%"></b>' : '') + '</span>' +
         '<span class="xl"><b>' + mShort(k) + (M.partial === k ? '*' : '') + '</b>' + (showYr ? '<span>' + yr + '</span>' : '') + '</span></button>';
     });
     var leg = '';
     CATSV.forEach(function (c) { leg += '<span><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)) + '</span>'; });
-    leg += '<span><i class="sw line"></i>Entrou no mês</span>';
-    return '<section class="sec"><div class="sec-top"><h2>Gastos por mês</h2><span class="hint">Toque numa barra para ver o mês' + (M.partial ? ' · * mês em andamento' : '') + '</span></div><div class="card">' +
+    leg += '<span><i class="sw line"></i>' + tth('painel.entrouNoMes') + '</span>';
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('painel.gastosPorMes') + '</h2><span class="hint">' + tth(M.partial ? 'painel.toqueBarraParcial' : 'painel.toqueBarra') + '</span></div><div class="card">' +
       '<div class="chart"><div class="yax" aria-hidden="true"><div class="in">' + yl + '</div></div><div class="cscroll"><div class="plot" style="--n:' + ks.length + '"><div class="gl" aria-hidden="true">' + gl + '</div><div class="cols">' + cols + '</div></div></div></div>' +
       '<div class="legend">' + leg + '</div></div></section>';
   }
@@ -2576,24 +2579,24 @@
       if (Math.abs(v) >= 0.5 || g > 0) { list.push({ c: c, v: v, g: g }); mx = Math.max(mx, v, g); }
     });
     list.sort(function (a, b) { return b.v - a.v; });
-    var h = '<div><div class="sec-top"><h2>Categorias</h2><span class="hint">' + (all ? 'média por mês' : 'no mês') + ' · o traço é a meta</span></div><div class="card" style="margin-top:12px">';
-    if (!list.length) h += '<p class="vazio">Sem gastos neste período.</p>';
+    var h = '<div><div class="sec-top"><h2>' + tth('painel.categorias') + '</h2><span class="hint">' + tth(all ? 'painel.dicaCategoriasMedia' : 'painel.dicaCategoriasMes') + '</span></div><div class="card" style="margin-top:12px">';
+    if (!list.length) h += '<p class="vazio">' + tth('painel.semGastos') + '</p>';
     list.forEach(function (x) {
       var over = x.v - x.g, w = mx ? Math.max(0, x.v) / mx * 100 : 0, gp = mx ? x.g / mx * 100 : 0, st;
-      if (x.g <= 0) st = x.v > 0.5 ? 'sem meta' : '';
-      else if (Math.abs(over) <= 0.5) st = '<span class="d ok">= na meta</span> de ' + f0(x.g);
-      else if (over > 0.5) st ='<span class="d bad">▲ ' + f0(over) + ' acima</span> da meta de ' + f0(x.g);
-      else st = '<span class="d good">▼ ' + f0(-over) + ' abaixo</span> da meta de ' + f0(x.g);
+      if (x.g <= 0) st = x.v > 0.5 ? tth('painel.semMeta') : '';
+      else if (Math.abs(over) <= 0.5) st = tth('painel.naMeta', { destaque: cru('<span class="d ok">' + tth('painel.naMetaDestaque') + '</span>'), meta: f0(x.g) });
+      else if (over > 0.5) st = tth('painel.daMeta', { destaque: cru('<span class="d bad">' + tth('painel.acimaDestaque', { valor: f0(over) }) + '</span>'), meta: f0(x.g) });
+      else st = tth('painel.daMeta', { destaque: cru('<span class="d good">' + tth('painel.abaixoDestaque', { valor: f0(-over) }) + '</span>'), meta: f0(x.g) });
       h += '<button type="button" class="cat" data-f="' + x.c.id + '" aria-pressed="' + (S.f.indexOf(x.c.id) >= 0) + '"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(catNome(x.c)) + '</span><span class="val">' + f0(x.v) + '</span>' +
         '<span class="track"><i style="width:' + w.toFixed(1) + '%;background:' + colorOf(x.c) + '"></i>' + (x.g > 0 ? '<b class="goal" style="left:calc(' + gp.toFixed(1) + '% - 1px)"></b>' : '') + '</span><span class="st">' + st + '</span></button>';
     });
-    h += '<details class="metas" id="fin-metas"' + (S.metasOpen ? ' open' : '') + '><summary>Editar metas</summary><form id="fin-fmetas"><div class="mgrid">' +
-      metasCampos('m') + '</div><button class="btn sm pri" type="submit">Salvar metas</button></form></details></div></div>';
+    h += '<details class="metas" id="fin-metas"' + (S.metasOpen ? ' open' : '') + '><summary>' + tth('painel.editarMetas') + '</summary><form id="fin-fmetas"><div class="mgrid">' +
+      metasCampos('m') + '</div><button class="btn sm pri" type="submit">' + tth('painel.salvarMetas') + '</button></form></details></div></div>';
     return h;
   }
   function tagOf(r) {
     if (r.kind === 'gasto') { var c = catPor(r.cat); return '<i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)); }
-    var t = { renda: 'Renda', outras: 'Outra entrada', flex: 'Reserva (Flexible)', invest: 'Investimento', interno: 'Entre contas suas', movido: 'Movido para outra conta sua' }[r.kind];
+    var t = tth({ renda: 'revisar.entradaRenda', outras: 'painel.outraEntrada', flex: 'painel.reservaFlexible', invest: 'revisar.investimento', interno: 'comum.entreContas', movido: 'painel.movidoOutraConta' }[r.kind]);
     return '<i class="sw" style="background:var(--muted)"></i>' + t;
   }
   /* filtro de várias escolhas: sem nada marcado mostra tudo; com marcas, mostra o que casa com qualquer uma */
@@ -2608,31 +2611,31 @@
   function movPanel() {
     var all = S.sel === 'all';
     var rows = M.rows.filter(function (r) { return all || r.m === S.sel; });
-    var fl = [['_in', 'Entradas', 'var(--muted)'], ['_sav', 'Reserva e investimento', 'var(--muted)']];
+    var fl = [['_in', tt('painel.filtroEntradas'), 'var(--muted)'], ['_sav', tt('painel.filtroReserva'), 'var(--muted)']];
     CATSV.forEach(function (c) { fl.push([c.id, catNome(c), colorOf(c)]); });
-    var hdr = '<div class="sec-top"><h2>Movimentos</h2><span class="rt"><span class="hint">' + rows.length + ' ' + (all ? 'em todos os meses' : 'no mês') + '</span><button type="button" class="btn sm" data-movtoggle aria-expanded="' + S.movOpen + '">' + (S.movOpen ? 'Minimizar' : 'Mostrar') + '</button></span></div>';
+    var hdr = '<div class="sec-top"><h2>' + tth('painel.movimentos') + '</h2><span class="rt"><span class="hint">' + tth(all ? 'painel.nMovTodos' : 'painel.nMovMes', { n: rows.length }) + '</span><button type="button" class="btn sm" data-movtoggle aria-expanded="' + S.movOpen + '">' + tth(S.movOpen ? 'painel.minimizar' : 'painel.mostrar') + '</button></span></div>';
     if (!S.movOpen) return '<div>' + hdr + '</div>';
     var ns = S.f.length, nomes = fl.filter(function (x) { return S.f.indexOf(x[0]) >= 0; }).map(function (x) { return x[1]; });
-    var h = '<div>' + hdr + '<div class="card" style="margin-top:12px"><div class="fmenu"><button type="button" class="btn sm fbtn" data-fopen aria-expanded="' + S.fOpen + '" aria-controls="fin-fpanel"><span>Filtrar</span>' + (ns ? '<b class="fn">' + ns + '</b>' : '') + '</button>' +
-      (ns ? '<button type="button" class="btn sm" data-fclear>Limpar</button><span class="fres">' + esc(nomes.join(', ')) + '</span>' : '');
-    if (S.fOpen) h += '<div class="fpanel" id="fin-fpanel" role="group" aria-label="Filtrar movimentos por categoria">' + fl.map(function (x) {
+    var h = '<div>' + hdr + '<div class="card" style="margin-top:12px"><div class="fmenu"><button type="button" class="btn sm fbtn" data-fopen aria-expanded="' + S.fOpen + '" aria-controls="fin-fpanel"><span>' + tth('painel.filtrar') + '</span>' + (ns ? '<b class="fn">' + ns + '</b>' : '') + '</button>' +
+      (ns ? '<button type="button" class="btn sm" data-fclear>' + tth('comum.limpar') + '</button><span class="fres">' + esc(nomes.join(', ')) + '</span>' : '');
+    if (S.fOpen) h += '<div class="fpanel" id="fin-fpanel" role="group" aria-label="' + tth('painel.filtrarAria') + '">' + fl.map(function (x) {
       var on = S.f.indexOf(x[0]) >= 0;
       return '<button type="button" class="fopt" role="checkbox" aria-checked="' + on + '" data-f="' + x[0] + '"><i class="bx"></i><i class="sw" style="background:' + x[2] + '"></i><span>' + esc(x[1]) + '</span></button>';
     }).join('') + '</div>';
     h += '</div>';
     var sh = rows.filter(filterMatch).reverse();
-    if (!sh.length) h += '<p class="vazio">Nada neste filtro.</p>';
+    if (!sh.length) h += '<p class="vazio">' + tth('painel.nadaFiltro') + '</p>';
     sh.slice(0, S.more).forEach(function (r) {
       var d = r.kind === 'renda' ? r.desc.replace(/^Payment from /i, '') : r.desc;
       h += '<div class="mov"><span class="dt">' + dFmt(r.date) + '</span><span class="ds">' + esc(d) + '</span><span class="am num' + (r.a > 0 ? ' in' : '') + '">' + (r.a > 0 ? '+' : '−') + f2(Math.abs(r.a)) + '</span><span class="tg">' + tagOf(r) + '</span></div>';
     });
-    if (sh.length > S.more) h += '<div style="padding-top:12px"><button class="btn sm" type="button" data-more>Mostrar mais ' + Math.min(30, sh.length - S.more) + ' de ' + (sh.length - S.more) + '</button></div>';
+    if (sh.length > S.more) h += '<div style="padding-top:12px"><button class="btn sm" type="button" data-more>' + tth('painel.mostrarMais', { n: Math.min(30, sh.length - S.more), total: sh.length - S.more }) + '</button></div>';
     return h + '</div></div>';
   }
   function table() {
-    var ks = M.keys, comp = avgKeys(), n = comp.length || 1, h = '<section class="sec"><div class="sec-top"><h2>Mês a mês, por categoria</h2><span class="hint">A média usa só meses completos</span></div><div class="tw"><table><thead><tr><th>Categoria</th>';
+    var ks = M.keys, comp = avgKeys(), n = comp.length || 1, h = '<section class="sec"><div class="sec-top"><h2>' + tth('painel.mesAMes') + '</h2><span class="hint">' + tth('painel.mediaCompletos') + '</span></div><div class="tw"><table><thead><tr><th>' + tth('painel.categoria') + '</th>';
     ks.forEach(function (k) { h += '<th class="' + (S.sel === k ? 'selc' : '') + '">' + mShort(k) + (M.partial === k ? '*' : '') + '</th>'; });
-    h += '<th class="avg">Média</th></tr></thead><tbody>';
+    h += '<th class="avg">' + tth('painel.media') + '</th></tr></thead><tbody>';
     CATSV.forEach(function (c) {
       var vals = ks.map(function (k) { return M.by[k].spend[c.id] || 0; }), mxv = Math.max.apply(null, vals.concat([1]));
       if (!vals.some(function (v) { return Math.abs(v) >= .5; })) return;
@@ -2647,12 +2650,12 @@
       ks.forEach(function (k) { r += '<td class="' + (S.sel === k ? 'selc' : '') + '">' + nn.format(fn(M.by[k])) + '</td>'; });
       return r + '<td class="avg">' + nn.format(a / n) + '</td></tr>';
     }
-    h += line('Gastou', function (g) { return g.gasto; });
-    if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line('dos quais ' + esc(nomeEnvios()), function (g) { return g.spend.brasil || 0; }, ' sub');
-    h += line('Entrou', function (g) { return g.entrou; });
-    h += line('Guardou', function (g) { return g.saved; });
-    if (ks.some(function (k) { return Math.abs(M.by[k].movido) >= 0.5; })) h += line('Movido para outras contas suas', function (g) { return g.movido; });
-    h += line('Saldo do mês', function (g) { return g.saldo; });
+    h += line(tth('comum.gastou'), function (g) { return g.gasto; });
+    if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line(tth('painel.dosQuais', { nome: nomeEnvios() }), function (g) { return g.spend.brasil || 0; }, ' sub');
+    h += line(tth('comum.entrou'), function (g) { return g.entrou; });
+    h += line(tth('comum.guardou'), function (g) { return g.saved; });
+    if (ks.some(function (k) { return Math.abs(M.by[k].movido) >= 0.5; })) h += line(tth('painel.movidoOutras'), function (g) { return g.movido; });
+    h += line(tth('comum.saldoMes'), function (g) { return g.saldo; });
     return h + '</tbody></table></div></section>';
   }
   function merchants() {
