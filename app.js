@@ -1700,10 +1700,10 @@
       });
     }).then(function () {
       recompute(); render();
-      if (added) toast('Adicionei ' + added + (added === 1 ? ' movimentação' : ' movimentações') + ' em ' + months + (months === 1 ? ' mês' : ' meses') + (dup ? '. ' + dup + (dup === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.') + (bad.length ? ' Não li: ' + bad.join(', ') + '.' : ''));
+      if (added) toast(tt('importar.adicionou', { n: added, meses: tt('importar.meses', { n: months }) }) + '.' + (dup ? ' ' + tt('importar.jaSalvas', { n: dup }) : '') + (bad.length ? ' ' + tt('importar.naoLi', { arquivos: bad.join(', ') }) : ''));
       else if (bad.length && Object.keys(outras).length) toast('Não há conta em ' + moeda() + ' em ' + bad.join(', ') + ': o extrato tem ' + Object.keys(outras).join(', ') + '. Troque a moeda em Configurações ou baixe o extrato da conta em ' + moeda() + '.', true);
       else if (bad.length) toast('Não encontrei movimentações em ' + bad.join(', ') + '. Use o extrato consolidado em CSV do Revolut.', true);
-      else toast(dup === 1 ? 'Nada novo: a movimentação desse arquivo já estava salva.' : 'Nada novo: as ' + dup + ' movimentações desse arquivo já estavam salvas.');
+      else toast(tt('importar.nadaNovo', { n: dup }));
     });
   }
 
@@ -2135,8 +2135,8 @@
   function podeSalvar(I) { var p = I.previa; return !!(p && (p.novos || p.ancora != null || p.saldoNovo)); }
   function previaSaldo(I, r) {
     var ks = Object.keys(r.saldos);
-    return '<div id="fin-i-conf">' + confSaldo(I, r) + '</div><div class="mgrid"><label>Saldo atual segundo o banco, em ' + esc(dFull(r.ate)) + ' (opcional)<input id="fin-i-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="ex.: 1.234,56" value="' + esc(I.ancoraTxt || '') + '">' +
-      '<small>' + (ks.length ? 'Serve para conferir o saldo do extrato.' : 'Com ele, o painel estima o saldo de cada dia a partir dos movimentos.') + '</small></label></div>';
+    return '<div id="fin-i-conf">' + confSaldo(I, r) + '</div><div class="mgrid"><label>' + tth('importar.saldoBanco', { data: dFull(r.ate) }) + '<input id="fin-i-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="' + tth('comum.exemplo', { exemplo: '1.234,56' }) + '" value="' + esc(I.ancoraTxt || '') + '">' +
+      '<small>' + tth(ks.length ? 'importar.saldoConferir' : 'importar.saldoEstimar') + '</small></label></div>';
   }
   /* o saldo digitado só refaz esta parte e o botão (refazer a tela inteira faria perder o clique em Importar) */
   function digitouAncora(t) {
@@ -2149,7 +2149,7 @@
   }
   function textoBotao(I) {
     var p = I.previa;
-    return !p ? 'Importar' : p.novos ? 'Importar ' + p.novos + (p.novos === 1 ? ' movimento' : ' movimentos') : podeSalvar(I) ? 'Salvar só o saldo' : 'Nada novo para importar';
+    return !p ? tt('importar.importar') : p.novos ? tt('importar.importarN', { n: p.novos }) : podeSalvar(I) ? tt('importar.soSaldo') : tt('importar.nadaParaImportar');
   }
   function confSaldo(I, r) {
     var h = '', an = ancoraDigitada(I), ks = Object.keys(r.saldos).sort(), m = I.mapa;
@@ -2198,8 +2198,8 @@
     S.importar = null;
     return enqueue(function () { usarDados(x); localSave(); }).then(function () {
       recompute(); render(); window.scrollTo(0, 0);
-      toast(!novos && rep === 0 ? 'Saldo salvo.' : novos ? 'Adicionei ' + novos + (novos === 1 ? ' movimentação' : ' movimentações') + ' em ' + meses + (meses === 1 ? ' mês' : ' meses') + (rep ? '. ' + rep + (rep === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.')
-        : 'Nada novo: ' + (rep === 1 ? 'a movimentação desse arquivo já estava salva.' : 'as ' + rep + ' movimentações desse arquivo já estavam salvas.'));
+      toast(!novos && rep === 0 ? tt('importar.saldoSalvo') : novos ? tt('importar.adicionou', { n: novos, meses: tt('importar.meses', { n: meses }) }) + '.' + (rep ? ' ' + tt('importar.jaSalvas', { n: rep }) : '')
+        : tt('importar.nadaNovo', { n: rep }));
     });
   }
   function abrirGenerico(files) {
@@ -2297,7 +2297,7 @@
     /* Pix cujo nome cortado é o começo do nome do titular: só sugestão, a pessoa marca se quiser */
     if (L.sugestoes && L.sugestoes.length) {
       var ns = L.sugestoes.length;
-      h += '<div class="radios"><label class="chk"><input type="checkbox" id="fin-i-titular"' + (I.sugTitular ? ' checked' : '') + '><span>' + ns + (ns === 1 ? ' Pix parece ser' : ' Pix parecem ser') + ' entre contas suas: o nome no Pix começa como o seu (' + esc(S.plan.titular) + '). Marcar as entradas como "Entre contas suas" e as saídas como "Envios para outra conta sua".</span></label></div>';
+      h += '<div class="radios"><label class="chk"><input type="checkbox" id="fin-i-titular"' + (I.sugTitular ? ' checked' : '') + '><span>' + tth('importar.pixTitular', { n: ns, titular: S.plan.titular }) + '</span></label></div>';
     }
     /* saldo atual com data depois do período (Itaú): só informação, a diferença vem de movimentos depois dele */
     if (L.saldoAtual != null && ult && L.saldoAtualData && L.saldoAtualData > ult) {
@@ -2360,27 +2360,27 @@
       r.tx.forEach(function (t) { (porMes[t[0].slice(0, 7)] = porMes[t[0].slice(0, 7)] || []).push(t); });
       Object.keys(porMes).forEach(function (k) { var j = juntarMovimentos(S.months[k] || [], porMes[k]); novos += j.novos; rep += j.repetidos; });
       I.previa = { r: r, novos: novos, ancora: ancoraDigitada(I), saldoNovo: saldoNovo(r) };
-      h += '<fieldset><legend>Prévia</legend>' + (r.tx.length
+      h += '<fieldset><legend>' + tth('importar.previa') + '</legend>' + (r.tx.length
         ? '<p class="passo">Lido como: datas ' + NOME_FMT_DATA[m.fmtData] + (m.fmtNum ? ', números ' + NOME_FMT_NUM[m.fmtNum] : '') + ', valores em ' + esc(nomeMoeda()) + '. Confira com o app do banco: o período e os totais devem bater.</p>' +
-          '<div class="imp-tot"><div><span>Período do extrato</span><b>' + esc(dFull(r.periodo.de)) + ' a ' + esc(dFull(r.periodo.ate)) + '</b>' +
-          (r.periodo.fonte === 'arquivo' ? '<small>como o arquivo informa' + (r.periodo.de !== r.de || r.periodo.ate !== r.ate ? '; movimentos de ' + esc(dFmt(r.de)) + ' a ' + esc(dFmt(r.ate)) : '') + '</small>' : '<small>da primeira à última data do arquivo</small>') + '</div><div><span>Movimentos</span><b>' + r.tx.length + '</b></div>' +
-          '<div><span>Entradas</span><b class="num pos">+' + f2(r.entradas / 100) + '</b></div><div><span>Saídas</span><b class="num neg">−' + f2(-r.saidas / 100) + '</b></div></div>' +
-          '<div class="tw"><table class="imp"><thead><tr><th>Linha</th><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>' +
+          '<div class="imp-tot"><div><span>' + tth('importar.periodoExtrato') + '</span><b>' + tth('comum.periodo', { de: dFull(r.periodo.de), ate: dFull(r.periodo.ate) }) + '</b>' +
+          (r.periodo.fonte === 'arquivo' ? '<small>' + (r.periodo.de !== r.de || r.periodo.ate !== r.ate ? tth('importar.comoArquivoMov', { de: dFmt(r.de), ate: dFmt(r.ate) }) : tth('importar.comoArquivo')) + '</small>' : '<small>' + tth('importar.primeiraUltima') + '</small>') + '</div><div><span>' + tth('importar.movimentos') + '</span><b>' + r.tx.length + '</b></div>' +
+          '<div><span>' + tth('importar.entradas') + '</span><b class="num pos">+' + f2(r.entradas / 100) + '</b></div><div><span>' + tth('importar.saidas') + '</span><b class="num neg">−' + f2(-r.saidas / 100) + '</b></div></div>' +
+          '<div class="tw"><table class="imp"><thead><tr><th>' + tth('importar.colLinha') + '</th><th>' + tth('importar.colData') + '</th><th>' + tth('importar.colDescricao') + '</th><th>' + tth('comum.valor') + '</th></tr></thead><tbody>' +
           r.tx.slice(0, 5).map(function (t, i) {
             var n = r.linhas[i];
-            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>no arquivo: ' + esc(celulas(I.rows[n - 1])) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td></tr>';
+            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>' + tth('importar.noArquivo', { celulas: celulas(I.rows[n - 1]) }) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
-          (r.ignoradas.length ? '<details class="metas"><summary>' + r.ignoradas.length + (r.ignoradas.length === 1 ? ' linha ignorada' : ' linhas ignoradas') + ' (rodapé, totais ou sem valor)</summary><ul class="imp-ign">' +
-            r.ignoradas.slice(0, 20).map(function (x) { return '<li>Linha ' + x.n + ', ' + x.motivo + ': ' + esc(celulas(x.celulas)) + '</li>'; }).join('') + '</ul></details>' : '') +
-          (rep ? '<p class="aviso">' + rep + (rep === 1 ? ' movimento já estava salvo e vai ser ignorado' : ' movimentos já estavam salvos e vão ser ignorados') + ' (mesma data, descrição e valor).</p>' : '') +
+          (r.ignoradas.length ? '<details class="metas"><summary>' + tth('importar.ignoradas', { n: r.ignoradas.length }) + '</summary><ul class="imp-ign">' +
+            r.ignoradas.slice(0, 20).map(function (x) { return '<li>' + tth('importar.linhaIgnorada', { n: x.n, motivo: x.motivo, celulas: celulas(x.celulas) }) + '</li>'; }).join('') + '</ul></details>' : '') +
+          (rep ? '<p class="aviso">' + tth('importar.repetidos', { n: rep }) + '</p>' : '') +
           previaSaldo(I, r)
         : '<p class="aviso erro">Nenhum movimento entendido com essas colunas. Confira a linha do cabeçalho e as colunas.</p>') + '</fieldset>';
     }
-    return '<section class="sec" id="fin-imp"><div class="sec-top"><h2>Importar extrato</h2><span class="hint">' + esc(I.nome) + ' · ' + esc(c ? c.nome : '') + '</span></div>' +
+    return '<section class="sec" id="fin-imp"><div class="sec-top"><h2>' + tth('importar.titulo') + '</h2><span class="hint">' + esc(I.nome) + ' · ' + esc(c ? c.nome : '') + '</span></div>' +
       '<div class="card"><form id="fin-fimp" class="ggrid">' + h +
       '<div class="grupo"><button class="btn pri" type="submit"' + (pend || !r || !podeSalvar(I) ? ' disabled aria-describedby="fin-i-falta"' : '') + '>' +
-      (pend || !r ? 'Importar' : textoBotao(I)) + '</button>' +
-      '<button class="btn" type="button" data-imp="cancelar">Cancelar</button></div>' +
+      (pend || !r ? tth('importar.importar') : esc(textoBotao(I))) + '</button>' +
+      '<button class="btn" type="button" data-imp="cancelar">' + tth('comum.cancelar') + '</button></div>' +
       (pend ? '<p class="passo" id="fin-i-falta">Responda o que falta acima para ver a prévia.</p>' : '') + '</form></div></section>';
   }
   function telaExcluirCarteira() {

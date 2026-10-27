@@ -594,7 +594,65 @@ const CONFIG_B = [
   ['tth', 'bloqueio.apagar', undefined, 'Apagar e começar do zero'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B }))
+// área 10a: importação (prévia, o que vai entrar, repetidos, resultado); valores, datas, descrições e nomes de arquivo
+// vêm do extrato ou da pessoa: só como variável, escapados no HTML (os toasts usam textContent, o texto entra cru)
+const DESC_IMP = 'PIX <MARIA> & "FILHOS"', ARQ_X = 'extrato <out> & "1".csv';
+const IMPORTAR_A = [
+  ['tth', 'comum.exemplo', { exemplo: '1.234,56' }, 'ex.: 1.234,56'],
+  ['tth', 'importar.titulo', undefined, 'Importar extrato'],
+  ['tth', 'importar.importar', undefined, 'Importar'],
+  ['tt', 'importar.importarN', { n: 1 }, 'Importar 1 movimento'],
+  ['tt', 'importar.importarN', { n: 24 }, 'Importar 24 movimentos'],
+  ['tt', 'importar.soSaldo', undefined, 'Salvar só o saldo'],
+  ['tt', 'importar.nadaParaImportar', undefined, 'Nada novo para importar'],
+  ['tth', 'importar.previa', undefined, 'Prévia'],
+  ['tth', 'importar.periodoExtrato', undefined, 'Período do extrato'],
+  ['tth', 'comum.periodo', { de: '1 de agosto de 2026', ate: '15 de outubro de 2026' }, '1 de agosto de 2026 a 15 de outubro de 2026'],
+  ['tth', 'importar.comoArquivo', undefined, 'como o arquivo informa'],
+  ['tth', 'importar.comoArquivoMov', { de: '03/08', ate: '14/10' }, 'como o arquivo informa; movimentos de 03/08 a 14/10'],
+  ['tth', 'importar.primeiraUltima', undefined, 'da primeira à última data do arquivo'],
+  ['tth', 'importar.movimentos', undefined, 'Movimentos'],
+  ['tth', 'importar.entradas', undefined, 'Entradas'],
+  ['tth', 'importar.saidas', undefined, 'Saídas'],
+  ['tth', 'importar.colLinha', undefined, 'Linha'],
+  ['tth', 'importar.colData', undefined, 'Data'],
+  ['tth', 'importar.colDescricao', undefined, 'Descrição'],
+  ['tth', 'comum.valor', undefined, 'Valor'],
+  ['tth', 'importar.noArquivo', { celulas: '03/08/2026 · PADARIA BOM PÃO · -12,50' }, 'no arquivo: 03/08/2026 · PADARIA BOM PÃO · -12,50'],
+  ['tth', 'importar.noArquivo', { celulas: '03/08/2026 · ' + DESC_IMP + ' · -12,50' }, 'no arquivo: 03/08/2026 · PIX &lt;MARIA&gt; &amp; &quot;FILHOS&quot; · -12,50'],
+  ['tth', 'importar.ignoradas', { n: 1 }, '1 linha ignorada (rodapé, totais ou sem valor)'],
+  ['tth', 'importar.ignoradas', { n: 3 }, '3 linhas ignoradas (rodapé, totais ou sem valor)'],
+  ['tth', 'importar.linhaIgnorada', { n: 41, motivo: 'valor não entendido', celulas: 'Total · 1.234,56' }, 'Linha 41, valor não entendido: Total · 1.234,56'],
+  ['tth', 'importar.linhaIgnorada', { n: 7, motivo: 'sem data válida', celulas: DESC_IMP }, 'Linha 7, sem data válida: PIX &lt;MARIA&gt; &amp; &quot;FILHOS&quot;'],
+  ['tth', 'importar.repetidos', { n: 1 }, '1 movimento já estava salvo e vai ser ignorado (mesma data, descrição e valor).'],
+  ['tth', 'importar.repetidos', { n: 24 }, '24 movimentos já estavam salvos e vão ser ignorados (mesma data, descrição e valor).'],
+  ['tth', 'importar.saldoBanco', { data: '15 de outubro de 2026' }, 'Saldo atual segundo o banco, em 15 de outubro de 2026 (opcional)'],
+  ['tth', 'importar.saldoConferir', undefined, 'Serve para conferir o saldo do extrato.'],
+  ['tth', 'importar.saldoEstimar', undefined, 'Com ele, o painel estima o saldo de cada dia a partir dos movimentos.'],
+  ['tth', 'importar.pixTitular', { n: 1, titular: 'Maria Exemplo' }, '1 Pix parece ser entre contas suas: o nome no Pix começa como o seu (Maria Exemplo). Marcar as entradas como &quot;Entre contas suas&quot; e as saídas como &quot;Envios para outra conta sua&quot;.'],
+  ['tt', 'importar.pixTitular', { n: 4, titular: 'Maria Exemplo' }, '4 Pix parecem ser entre contas suas: o nome no Pix começa como o seu (Maria Exemplo). Marcar as entradas como "Entre contas suas" e as saídas como "Envios para outra conta sua".'],
+  ['tth', 'importar.pixTitular', { n: 2, titular: TIT_X }, '2 Pix parecem ser entre contas suas: o nome no Pix começa como o seu (MARIA &lt;b&gt; &amp; &quot;SILVA&quot;). Marcar as entradas como &quot;Entre contas suas&quot; e as saídas como &quot;Envios para outra conta sua&quot;.'],
+  // toasts do resultado: o texto de antes, montado com as mesmas partes
+  ['tt', 'importar.adicionou', { n: 56, meses: '4 meses' }, 'Adicionei 56 movimentações em 4 meses'],
+  ['tt', 'importar.adicionou', { n: 1, meses: '1 mês' }, 'Adicionei 1 movimentação em 1 mês'],
+  ['tt', 'importar.jaSalvas', { n: 1 }, '1 já estava salva.'],
+  ['tt', 'importar.jaSalvas', { n: 3 }, '3 já estavam salvas.'],
+  ['tt', 'importar.naoLi', { arquivos: 'a.csv, ' + ARQ_X }, 'Não li: a.csv, extrato <out> & "1".csv.'],
+  ['tt', 'importar.nadaNovo', { n: 1 }, 'Nada novo: a movimentação desse arquivo já estava salva.'],
+  ['tt', 'importar.nadaNovo', { n: 56 }, 'Nada novo: as 56 movimentações desse arquivo já estavam salvas.'],
+  ['tt', 'importar.nadaNovo', { n: 0 }, 'Nada novo: as 0 movimentações desse arquivo já estavam salvas.'],
+  ['tt', 'importar.saldoSalvo', undefined, 'Saldo salvo.'],
+];
+
+test('frases de referência em pt-BR: toasts da importação montados como antes', () => {
+  const antes = (added, months, dup, bad) => 'Adicionei ' + added + (added === 1 ? ' movimentação' : ' movimentações') + ' em ' + months + (months === 1 ? ' mês' : ' meses') +
+    (dup ? '. ' + dup + (dup === 1 ? ' já estava salva.' : ' já estavam salvas.') : '.') + (bad.length ? ' Não li: ' + bad.join(', ') + '.' : '');
+  const agora = (added, months, dup, bad) => I.t('importar.adicionou', { n: added, meses: I.t('importar.meses', { n: months }) }) + '.' +
+    (dup ? ' ' + I.t('importar.jaSalvas', { n: dup }) : '') + (bad.length ? ' ' + I.t('importar.naoLi', { arquivos: bad.join(', ') }) : '');
+  for (const [a, m, d, b] of [[1, 1, 0, []], [56, 4, 0, []], [5, 2, 1, []], [5, 2, 3, ['x.csv']], [1, 1, 1, [ARQ_X, 'b.csv']]]) assert.equal(agora(a, m, d, b), antes(a, m, d, b));
+});
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

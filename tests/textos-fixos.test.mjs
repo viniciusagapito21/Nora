@@ -28,6 +28,8 @@ const AREAS_FEITAS = {
     'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
   'configurações: formulário, categorias e seus dados': ['setup', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
     'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
+  // importação em três partes (10a, 10b, 10c): handleFiles, avisoLeitor e telaImportar entram quando a última parte delas for feita
+  'importação: prévia e resultado': ['previaSaldo', 'textoBotao', 'confirmarImportacao'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -44,7 +46,6 @@ const PERMITIDOS = {
 const RESERVADAS = {
   'tema.rotulo': 'seletor de tema (passo g)', 'tema.auto': 'seletor de tema (passo g)', 'tema.claro': 'seletor de tema (passo g)', 'tema.escuro': 'seletor de tema (passo g)',
   'idioma.rotulo': 'seletor de idioma (passo f)', 'idioma.auto': 'seletor de idioma (passo f)', 'idioma.pt-BR': 'seletor de idioma (passo f)', 'idioma.en-GB': 'seletor de idioma (passo f)',
-  'importar.adicionou': 'área importação',
 };
 
 test('o analisador separa texto de tela de código', () => {
