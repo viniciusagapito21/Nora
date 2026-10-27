@@ -1785,58 +1785,58 @@
   /* ---------- Resumo ---------- */
   /* valor na moeda de uma carteira (sem casas) */
   function fW(v, cod) { return fmtDe(cod, 0).format(Math.round(v)).replace('-', '−'); }
-  function nomes(l) { return l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1]; }
-  function trecho(f) { return f.de === f.ate ? dFull(f.de) : f.de.slice(0, 7) === f.ate.slice(0, 7) ? +f.de.slice(8) + ' a ' + dFull(f.ate) : dFull(f.de) + ' a ' + dFull(f.ate); }
+  function trecho(f) { return f.de === f.ate ? dFull(f.de) : tt('comum.periodo', { de: f.de.slice(0, 7) === f.ate.slice(0, 7) ? +f.de.slice(8) : dFull(f.de), ate: dFull(f.ate) }); }
   /* as moedas das carteiras com extrato que entram nas somas por câmbio */
   function moedasConvertidas(R) { var o = {}; R.ws.forEach(function (w) { if (w.temDados && w.moeda !== R.mp) o[w.moeda] = 1; }); return Object.keys(o).sort(); }
   function avisoCambioResumo(R) {
     if (R.faltaCambio.length) return '<div class="aviso pergunta" id="fin-rfalta"><p>' + R.faltaCambio.map(function (f) {
-      return 'Falta o câmbio de <b>' + esc(f.moeda) + '</b> para somar ' + (f.nomes.length === 1 ? 'a carteira ' : 'as carteiras ') + '<b>' + esc(nomes(f.nomes)) + '</b>.';
-    }).join(' ') + ' Sem ' + (R.faltaCambio.length === 1 ? 'ele' : 'eles') + ', o Resumo não mostra nenhum total (cada carteira aparece na moeda dela) nem sugere transferências com outra moeda.</p><div class="grupo">' +
-      R.faltaCambio.map(function (f) { return '<button class="btn sm pri" type="button" data-rcamb="' + esc(f.moeda) + '">Definir câmbio de ' + esc(f.moeda) + '</button>'; }).join('') + '</div></div>';
+      return tth('resumo.faltaCambio', { n: f.nomes.length, moeda: cru('<b>' + esc(f.moeda) + '</b>'), nomes: cru('<b>' + esc(listaE(f.nomes)) + '</b>') });
+    }).join(' ') + ' ' + tth('resumo.semCambio', { n: R.faltaCambio.length }) + '</p><div class="grupo">' +
+      R.faltaCambio.map(function (f) { return '<button class="btn sm pri" type="button" data-rcamb="' + esc(f.moeda) + '">' + tth('resumo.definirCambio', { moeda: f.moeda }) + '</button>'; }).join('') + '</div></div>';
     var ms = moedasConvertidas(R), C = divState().cambios, hoje = todayIso();
     if (!ms.length) return '';
-    return '<div class="aviso pergunta" id="fin-restima"><p>Somas em ' + esc(nomeMoeda(R.mp)) + ', estimadas com o câmbio que você informou: ' + ms.map(function (c) {
+    return '<div class="aviso pergunta" id="fin-restima"><p>' + tth('resumo.somasEstimadas', { moeda: nomeMoeda(R.mp), taxas: cru(ms.map(function (c) {
       var cb = C[c], id = cb.data ? diasDesde(cb.data, hoje) : null;
-      return '<b>1 ' + esc(simbolo(R.mp)) + ' = ' + esc(nr.format(+cb.rate)) + ' ' + esc(simbolo(c)) + '</b>' + (id == null ? '' : id > CAMBIO_ANTIGO ? ' <span class="velho">(de ' + esc(dFull(cb.data)) + ', há ' + id + ' dias: confira)</span>' : ' (de ' + esc(dFull(cb.data)) + ')');
-    }).join(' · ') + '. Não é a cotação de hoje.</p><button class="btn sm" type="button" data-rcamb="">Atualizar câmbio</button></div>';
+      return '<b>1 ' + esc(simbolo(R.mp)) + ' = ' + esc(nr.format(+cb.rate)) + ' ' + esc(simbolo(c)) + '</b>' + (id == null ? '' : id > CAMBIO_ANTIGO ? ' <span class="velho">' + tth('resumo.taxaDeHa', { data: dFull(cb.data), n: id }) + '</span>' : ' ' + tth('resumo.taxaDe', { data: dFull(cb.data) }));
+    }).join(' · ')) }) + '</p><button class="btn sm" type="button" data-rcamb="">' + tth('resumo.atualizarCambio') + '</button></div>';
   }
   function saldoCarteiras(R) {
     var x = S.dados, tot = 0, fora = [], semExtrato = [], h = '';
     R.ws.forEach(function (w) {
       var v = '';
-      if (!w.temDados) { v = '<small>sem extrato</small>'; semExtrato.push(w.nome); }
-      else if (!w.saldo) { v = '<small>sem saldo no extrato: fora do total</small>'; fora.push(w.nome); }
+      if (!w.temDados) { v = '<small>' + tth('carteiras.semExtrato') + '</small>'; semExtrato.push(w.nome); }
+      else if (!w.saldo) { v = '<small>' + tth('resumo.semSaldoFora') + '</small>'; fora.push(w.nome); }
       else {
         var p = w.moeda === R.mp ? w.saldo.v : paraPrincipal(w.saldo.v, w.moeda, x);
         if (p != null) tot += p;
-        v = '<b class="num">' + fW(w.saldo.v, w.moeda) + '</b>' + (w.moeda !== R.mp && p != null && !R.faltaCambio.length ? '<small>≈ ' + fP0(p) + '</small>' : '') + (w.saldo.fonte === 'estimado' ? '<small>estimado a partir dos movimentos</small>' : '');
+        v = '<b class="num">' + fW(w.saldo.v, w.moeda) + '</b>' + (w.moeda !== R.mp && p != null && !R.faltaCambio.length ? '<small>≈ ' + fP0(p) + '</small>' : '') + (w.saldo.fonte === 'estimado' ? '<small>' + tth('resumo.estimado') + '</small>' : '');
       }
-      h += '<div class="rs"><span class="rn">' + esc(w.nome) + '<small>' + (w.ate ? 'dados até ' + esc(dFull(w.ate)) : 'nenhum extrato importado') + '</small></span><span class="rv">' + v + '</span></div>';
+      h += '<div class="rs"><span class="rn">' + esc(w.nome) + '<small>' + (w.ate ? tth('casca.dadosAte', { data: dFull(w.ate) }) : tth('resumo.nenhumImportado')) + '</small></span><span class="rv">' + v + '</span></div>';
     });
     var conv = R.ws.some(function (w) { return w.saldo && w.moeda !== R.mp; }), nenhum = !R.ws.some(function (w) { return w.saldo; });
-    var semTot = (fora.length ? [nomes(fora) + ' (o extrato não traz saldo)'] : []).concat(semExtrato.length ? [nomes(semExtrato) + ' (sem extrato)'] : []), tl = R.faltaCambio.length ? '<small>sem total: falta o câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '</small>'
-      : nenhum ? '<small>nenhuma carteira traz saldo</small>' : '<b class="num">' + (conv ? '≈ ' : '') + fP0(tot) + '</b>';
-    h += '<div class="rs tot"><span class="rn">' + (semTot.length && !nenhum ? 'Total parcial' : 'Total') + (semTot.length && !nenhum ? '<small>sem ' + esc(semTot.join(' e ')) + '</small>' : '') + '</span><span class="rv">' + tl + '</span></div>';
-    return '<section class="sec"><div class="sec-top"><h2>Saldo nas carteiras</h2><span class="hint">o saldo de cada conta; reservas e investimentos ficam nas metas de poupança</span></div><div class="card rsal">' + h + '</div></section>';
+    var semTot = (fora.length ? [tt('resumo.semSaldoItem', { nomes: listaE(fora) })] : []).concat(semExtrato.length ? [tt('resumo.semExtratoItem', { nomes: listaE(semExtrato) })] : []), tl = R.faltaCambio.length ? '<small>' + tth('resumo.semTotal', { moedas: listaE(R.faltaCambio.map(function (f) { return f.moeda; })) }) + '</small>'
+      : nenhum ? '<small>' + tth('resumo.nenhumSaldo') + '</small>' : '<b class="num">' + (conv ? '≈ ' : '') + fP0(tot) + '</b>';
+    h += '<div class="rs tot"><span class="rn">' + tth(semTot.length && !nenhum ? 'resumo.totalParcial' : 'comum.total') + (semTot.length && !nenhum ? '<small>' + tth('resumo.sem', { lista: listaE(semTot) }) + '</small>' : '') + '</span><span class="rv">' + tl + '</span></div>';
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('resumo.saldoTitulo') + '</h2><span class="hint">' + tth('resumo.saldoDica') + '</span></div><div class="card rsal">' + h + '</div></section>';
   }
   function mesesResumo(R) {
-    return '<div class="rmeses" role="group" aria-label="Escolher o mês">' + R.meses.map(function (k) {
-      return '<button type="button" class="btn sm" data-rmes="' + k + '" aria-pressed="' + (S.rMes === k) + '" aria-label="' + esc(mLabel(k)) + (R.partial === k ? ' (em andamento)' : '') + '">' + mShort(k) + ' ' + k.slice(2, 4) + (R.partial === k ? '*' : '') + '</button>';
+    return '<div class="rmeses" role="group" aria-label="' + tth('resumo.escolherMes') + '">' + R.meses.map(function (k) {
+      return '<button type="button" class="btn sm" data-rmes="' + k + '" aria-pressed="' + (S.rMes === k) + '" aria-label="' + (R.partial === k ? tth('resumo.mesAndamentoAria', { mes: mLabel(k) }) : esc(mLabel(k))) + '">' + mShort(k) + ' ' + k.slice(2, 4) + (R.partial === k ? '*' : '') + '</button>';
     }).join('') + '</div>';
   }
   function avisoCobertura(R, Q) {
     if (!Q.semCobertura.length) return '';
     var nm = MES[+Q.m.slice(5) - 1];
-    return '<div class="aviso" id="fin-rcob"><p>Nem todas as carteiras cobrem ' + esc(nm) + (R.partial === Q.m ? ' até ' + esc(dFull(R.ref)) : '') + ': os números deste mês não são a soma de todas.</p><ul class="imp-ign">' + Q.semCobertura.map(function (p) {
-      return '<li><b>' + esc(p.w.nome) + '</b>: ' + (p.cob.nada ? 'nenhum extrato de ' + esc(nm) : 'sem dados de ' + p.cob.faltas.map(function (f) { return esc(trecho(f)); }).join(' e de ')) + '.</li>';
+    return '<div class="aviso" id="fin-rcob"><p>' + tth(R.partial === Q.m ? 'resumo.coberturaAte' : 'resumo.cobertura', { mes: nm, data: dFull(R.ref) }) + '</p><ul class="imp-ign">' + Q.semCobertura.map(function (p) {
+      var nome = cru('<b>' + esc(p.w.nome) + '</b>');
+      return '<li>' + (p.cob.nada ? tth('resumo.coberturaNada', { nome: nome, mes: nm }) : tth('resumo.coberturaFaltas', { nome: nome, trechos: p.cob.faltas.map(trecho).reduce(function (a, b) { return tt('resumo.trechoEDe', { a: a, b: b }); }) })) + '</li>';
     }).join('') + '</ul></div>';
   }
   function tabelaPorCarteira(Q) {
-    var h = '<div class="tw"><table class="rpor"><thead><tr><th>Carteira</th><th>Entrou</th><th>Gastou</th><th>Guardou</th><th>Saldo do mês</th></tr></thead><tbody>';
+    var h = '<div class="tw"><table class="rpor"><thead><tr><th>' + tth('carteiras.titulo') + '</th><th>' + tth('comum.entrou') + '</th><th>' + tth('comum.gastou') + '</th><th>' + tth('comum.guardou') + '</th><th>' + tth('comum.saldoMes') + '</th></tr></thead><tbody>';
     Q.por.forEach(function (p) {
       var g = p.g, c = p.w.moeda;
-      h += '<tr><td>' + esc(p.w.nome) + ' <small>' + esc(c) + '</small></td>' + (g ? '<td>' + fW(g.entrou, c) + '</td><td>' + fW(g.gasto, c) + '</td><td>' + fW(g.saved, c) + '</td><td>' + sgn(g.saldo, function (v) { return fW(v, c); }) + '</td>' : '<td colspan="4" class="sem">' + (p.w.temDados ? 'sem movimentos no mês' : 'sem extrato') + '</td>') + '</tr>';
+      h += '<tr><td>' + esc(p.w.nome) + ' <small>' + esc(c) + '</small></td>' + (g ? '<td>' + fW(g.entrou, c) + '</td><td>' + fW(g.gasto, c) + '</td><td>' + fW(g.saved, c) + '</td><td>' + sgn(g.saldo, function (v) { return fW(v, c); }) + '</td>' : '<td colspan="4" class="sem">' + tth(p.w.temDados ? 'resumo.semMovMes' : 'carteiras.semExtrato') + '</td>') + '</tr>';
     });
     return h + '</tbody></table></div>';
   }
@@ -1858,26 +1858,26 @@
     var list = [], mx = 0, h = '';
     CATSV.forEach(function (c) { var v = Q.total.spend[c.id] || 0; if (Math.abs(v) >= 0.5) { list.push({ c: c, v: v }); mx = Math.max(mx, v); } });
     list.sort(function (a, b) { return b.v - a.v; });
-    if (!list.length) h = '<p class="vazio">Sem gastos neste mês.</p>';
+    if (!list.length) h = '<p class="vazio">' + tth('resumo.semGastos') + '</p>';
     list.forEach(function (x) {
       h += '<div class="cat"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(catNome(x.c)) + '</span><span class="val">' + (conv ? '≈ ' : '') + fP0(x.v) + '</span>' +
         '<span class="track"><i style="width:' + (mx ? Math.max(0, x.v) / mx * 100 : 0).toFixed(1) + '%;background:' + colorOf(x.c) + '"></i></span></div>';
     });
-    return '<div class="sec-top"><h3>Gasto por categoria</h3><span class="hint">a soma das carteiras</span></div><div class="rcats">' + h + '</div>';
+    return '<div class="sec-top"><h3>' + tth('resumo.gastoCategoria') + '</h3><span class="hint">' + tth('resumo.somaCarteiras') + '</span></div><div class="rcats">' + h + '</div>';
   }
   function mesResumoTela(R) {
     var x = S.dados, Q = mesResumo(R, x, S.rMes), T = Q.total, conv = Q.por.some(function (p) { return p.g && p.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
-    var lab = mLabel(S.rMes), h = '<section class="sec" id="fin-rmes"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + (R.partial === S.rMes ? ' <small class="hint">até ' + esc(dFull(R.ref)) + '</small>' : '') + '</h2>' +
-      '<span class="hint">a soma das carteiras' + (R.partial ? ' · * mês em andamento' : '') + '</span></div>' + mesesResumo(R) + avisoCobertura(R, Q);
+    var lab = mLabel(S.rMes), h = '<section class="sec" id="fin-rmes"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + (R.partial === S.rMes ? ' <small class="hint">' + tth('resumo.ate', { data: dFull(R.ref) }) + '</small>' : '') + '</h2>' +
+      '<span class="hint">' + tth('resumo.somaCarteiras') + (R.partial ? ' · ' + tth('plano.mesEmAndamento') : '') + '</span></div>' + mesesResumo(R) + avisoCobertura(R, Q);
     if (T) {
-      var n = Q.por.filter(function (p) { return p.g; }).length, sub = n === 1 ? 'só ' + esc(Q.por.filter(function (p) { return p.g; })[0].w.nome) : 'soma de ' + n + ' carteiras';
-      h += '<div class="kpis">' + [['Entrou', T.entrou, 0], ['Gastou', T.gasto, 0], ['Guardou', T.saved, 0], ['Saldo do mês', T.saldo, 1]].map(function (t) {
-        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[0] === 'Gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? (Math.abs(T.movido) >= 0.5 ? 'entrou − gastou − guardou − movido<br>' + fraseMovido(T.movido, function (v) { return ap + fP0(v); }) : 'entrou − gastou − guardou') : sub) + '</span></div>';
+      var n = Q.por.filter(function (p) { return p.g; }).length, sub = n === 1 ? tth('resumo.so', { nome: Q.por.filter(function (p) { return p.g; })[0].w.nome }) : tth('resumo.somaDe', { n: n });
+      h += '<div class="kpis">' + [[tth('comum.entrou'), T.entrou, 0, 'entrou'], [tth('comum.gastou'), T.gasto, 0, 'gastou'], [tth('comum.guardou'), T.saved, 0, 'guardou'], [tth('comum.saldoMes'), T.saldo, 1, 'saldo']].map(function (t) {
+        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[3] === 'gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? (Math.abs(T.movido) >= 0.5 ? tth('painel.formulaMovido') + '<br>' + fraseMovido(T.movido, function (v) { return ap + fP0(v); }) : tth('painel.formula')) : sub) + '</span></div>';
       }).join('') + '</div>' +
-        '<details class="metas" id="fin-rpor"' + (S.rPor ? ' open' : '') + '><summary>Por carteira, cada uma na moeda dela</summary>' + tabelaPorCarteira(Q) + '</details>';
-    } else h += '<p class="passo">Sem total enquanto falta câmbio. Cada carteira, na moeda dela:</p>' + tabelaPorCarteira(Q);
+        '<details class="metas" id="fin-rpor"' + (S.rPor ? ' open' : '') + '><summary>' + tth('resumo.porCarteira') + '</summary>' + tabelaPorCarteira(Q) + '</details>';
+    } else h += '<p class="passo">' + tth('resumo.semTotalCambio') + '</p>' + tabelaPorCarteira(Q);
     h += foraDasSomas(Q);
-    h += '<div class="card">' + (T ? categoriasResumo(Q, conv) : '<h3>Gasto por categoria</h3><p class="passo">Aparece depois do câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '.</p>') + '</div>';
+    h += '<div class="card">' + (T ? categoriasResumo(Q, conv) : '<h3>' + tth('resumo.gastoCategoria') + '</h3><p class="passo">' + tth('resumo.depoisCambio', { moedas: listaE(R.faltaCambio.map(function (f) { return f.moeda; })) }) + '</p>') + '</div>';
     return h + '</section>';
   }
   /* o aviso de transferência a confirmar aparece no número da previsão e na linha de status */
@@ -1902,28 +1902,28 @@
   /* envios para outra conta sua no mês em andamento, somando as carteiras, na moeda principal */
   function envResumo(R) { var Q = mesResumo(R, S.dados, R.partial); return Q.total && Q.total.spend ? Q.total.spend.brasil || 0 : 0; }
   function previsaoResumoTela(R) {
-    var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>Previsão ' + (R.partial ? 'de ' + esc(MES[+R.partial.slice(5) - 1]) : 'do mês') + '</h2>';
-    if (!R.partial) return h + '</div><div class="card"><p class="passo">O último extrato fecha ' + esc(mLabel(R.meses[R.meses.length - 1])) + '. Adicione o extrato do mês atual para ver a previsão.</p></div></section>';
-    if (R.faltaCambio.length) return h + '</div><div class="card"><p class="passo">Aparece depois do câmbio de ' + esc(nomes(R.faltaCambio.map(function (f) { return f.moeda; }))) + '.</p></div></section>';
+    var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>' + (R.partial ? tth('resumo.previsaoDe', { mes: MES[+R.partial.slice(5) - 1] }) : tth('previsao.titulo')) + '</h2>';
+    if (!R.partial) return h + '</div><div class="card"><p class="passo">' + tth('resumo.ultimoFecha', { mes: mLabel(R.meses[R.meses.length - 1]) }) + '</p></div></section>';
+    if (R.faltaCambio.length) return h + '</div><div class="card"><p class="passo">' + tth('resumo.depoisCambio', { moedas: listaE(R.faltaCambio.map(function (f) { return f.moeda; })) }) + '</p></div></section>';
     var P = previsaoResumo(R, S.dados, TR && TR.S), conv = P.por.some(function (q) { return q.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
-    if (!P.por.length) return h + '</div><div class="card"><p class="passo">Nenhuma carteira tem movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ' ainda.</p></div></section>';
+    if (!P.por.length) return h + '</div><div class="card"><p class="passo">' + tth('resumo.nenhumaMov', { mes: MES[+R.partial.slice(5) - 1] }) + '</p></div></section>';
     var dif = P.proj - P.meta, mx = Math.max(P.proj, P.meta, P.gasto, 1), fp = function (v) { return ap + fP0(v); }, st = statusPrevisao(dif, P.pend, fp), over = passaMesmo(dif, P.pend);
     var cedo = P.por.filter(function (q) { return q.cedo; });
-    return h + '<span class="hint">até ' + esc(dFull(R.ref)) + ' · a soma das previsões de cada carteira</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">Gasto até agora</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">Previsão para ' + esc(MES[+R.partial.slice(5) - 1]) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">Meta de gasto</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
-      '<div class="ptrack" role="img" aria-label="Gasto ' + fP0(P.gasto) + ', previsão ' + fP0(P.proj) + ', meta ' + fP0(P.meta) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+    return h + '<span class="hint">' + tth('resumo.ate', { data: dFull(R.ref) }) + ' · ' + tth('resumo.somaPrevisoes') + '</span></div><div class="card prv">' +
+      '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: MES[+R.partial.slice(5) - 1] }) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
+      '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', { gasto: fP0(P.gasto), proj: fP0(P.proj), meta: fP0(P.meta) }) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
-      '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return esc(q.w.nome) + ': previsão ' + a + fP0(q.proj) + ', meta ' + a + fP0(q.meta); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
-      (cedo.length ? '<p class="aviso">' + cedo.map(function (q) { return '<b>' + esc(q.w.nome) + '</b> tem dados só até ' + esc(dFull(q.w.ate || q.w.M.lastDate)); }).join('; ') + ': a previsão ' + (cedo.length === 1 ? 'dela' : 'delas') + ' segue o ritmo até ali.</p>' : '') +
-      (P.fora.length ? '<p class="aviso">' + esc(nomes(P.fora.map(function (w) { return w.nome; }))) + (P.fora.length === 1 ? ' não tem' : ' não têm') + ' movimentos de ' + esc(MES[+R.partial.slice(5) - 1]) + ': fora da previsão.</p>' : '') + '</div></section>';
+      '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return tth('resumo.previsaoCarteira', { nome: q.w.nome, proj: a + fP0(q.proj), meta: a + fP0(q.meta) }); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
+      (cedo.length ? '<p class="aviso">' + tth('resumo.cedo', { n: cedo.length, lista: cru(cedo.map(function (q) { return tth('resumo.cedoItem', { nome: cru('<b>' + esc(q.w.nome) + '</b>'), data: dFull(q.w.ate || q.w.M.lastDate) }); }).join('; ')) }) + '</p>' : '') +
+      (P.fora.length ? '<p class="aviso">' + tth('resumo.foraPrevisao', { n: P.fora.length, nomes: listaE(P.fora.map(function (w) { return w.nome; })), mes: MES[+R.partial.slice(5) - 1] }) + '</p>' : '') + '</div></section>';
   }
   function cambioResumo(R) {
     var ms = {}; R.ws.forEach(function (w) { if (w.moeda !== R.mp) ms[w.moeda] = 1; });
     ms = Object.keys(ms).sort();
     if (!ms.length) return '';
-    return '<section class="sec"><details class="metas" id="fin-rcamb"' + (S.rCamb ? ' open' : '') + '><summary>Câmbio das carteiras (' + esc(ms.join(', ')) + ')</summary><form id="fin-frcamb">' +
-      '<p class="passo">Digitado por você, nunca buscado na internet. As somas com câmbio são estimativas.</p><div class="mgrid">' + camposCambio(ms, 'cambr') + '</div>' +
-      '<button class="btn sm pri" type="submit">Salvar câmbio</button></form></details></section>';
+    return '<section class="sec"><details class="metas" id="fin-rcamb"' + (S.rCamb ? ' open' : '') + '><summary>' + tth('resumo.cambioCarteiras', { moedas: ms.join(', ') }) + '</summary><form id="fin-frcamb">' +
+      '<p class="passo">' + tth('resumo.cambioDigitado') + '</p><div class="mgrid">' + camposCambio(ms, 'cambr') + '</div>' +
+      '<button class="btn sm pri" type="submit">' + tth('resumo.salvarCambio') + '</button></form></details></section>';
   }
   /* "Adicionar extrato" no Resumo: cada importação vai para uma carteira só; a última usada (a ativa) vem marcada,
      ou a do banco reconhecido no arquivo arrastado */
@@ -1948,8 +1948,8 @@
   }
   function telaResumo(R) {
     var h = S.escolher ? escolherTela() : '';
-    if (!R.meses.length) return h + '<section class="vazio-grande"><p class="eyebrow">Resumo</p><h2>Nenhuma carteira tem extrato ainda</h2><p class="passo">Toque em Adicionar extrato e escolha a carteira. O Resumo soma todas, na moeda principal.</p>' +
-      '<button class="btn pri" type="button" data-fin-add>Adicionar extrato</button></section>' + dividas() + metasPoup() + cambioResumo(R);
+    if (!R.meses.length) return h + '<section class="vazio-grande"><p class="eyebrow">' + tth('abas.resumo') + '</p><h2>' + tth('resumo.vazioTitulo') + '</h2><p class="passo">' + tth('resumo.vazioDica') + '</p>' +
+      '<button class="btn pri" type="button" data-fin-add>' + tth('comum.adicionarExtrato') + '</button></section>' + dividas() + metasPoup() + cambioResumo(R);
     return h + avisoCambioResumo(R) + transfSecao() + saldoCarteiras(R) + mesResumoTela(R) + previsaoResumoTela(R) + dividas() + metasPoup() + cambioResumo(R);
   }
   /* ---------- transferências entre carteiras (Resumo e Revisar categorias) ---------- */

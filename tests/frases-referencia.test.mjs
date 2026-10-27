@@ -754,7 +754,79 @@ const IMPORTAR_C = [
   ['tth', 'importar.lidoComoNum', { datas: 'dia/mês/ano', numeros: '1.234,56', moeda: 'real' }, 'Lido como: datas dia/mês/ano, números 1.234,56, valores em real. Confira com o app do banco: o período e os totais devem bater.'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C }))
+// área 11a: o Resumo; nomes de carteira digitados sempre escapados, valores em várias moedas só formatados pelo código
+const RESUMO = [
+  ['tth', 'resumo.faltaCambio', { n: 1, moeda: I.cru('<b>GBP</b>'), nomes: I.cru('<b>Wise</b>') }, 'Falta o câmbio de <b>GBP</b> para somar a carteira <b>Wise</b>.'],
+  ['tth', 'resumo.faltaCambio', { n: 2, moeda: I.cru('<b>BRL</b>'), nomes: I.cru('<b>Itaú e BTG</b>') }, 'Falta o câmbio de <b>BRL</b> para somar as carteiras <b>Itaú e BTG</b>.'],
+  ['tth', 'resumo.semCambio', { n: 1 }, 'Sem ele, o Resumo não mostra nenhum total (cada carteira aparece na moeda dela) nem sugere transferências com outra moeda.'],
+  ['tth', 'resumo.semCambio', { n: 2 }, 'Sem eles, o Resumo não mostra nenhum total (cada carteira aparece na moeda dela) nem sugere transferências com outra moeda.'],
+  ['tth', 'resumo.definirCambio', { moeda: 'BRL' }, 'Definir câmbio de BRL'],
+  ['tth', 'resumo.somasEstimadas', { moeda: 'euro', taxas: I.cru('<b>1 € = 6,1 R$</b> <span class="velho">(de 10 de setembro de 2026, há 42 dias: confira)</span>') }, 'Somas em euro, estimadas com o câmbio que você informou: <b>1 € = 6,1 R$</b> <span class="velho">(de 10 de setembro de 2026, há 42 dias: confira)</span>. Não é a cotação de hoje.'],
+  ['tth', 'resumo.taxaDe', { data: '1 de outubro de 2026' }, '(de 1 de outubro de 2026)'],
+  ['tth', 'resumo.taxaDeHa', { data: '10 de setembro de 2026', n: 42 }, '(de 10 de setembro de 2026, há 42 dias: confira)'],
+  ['tth', 'resumo.atualizarCambio', undefined, 'Atualizar câmbio'],
+  ['tth', 'resumo.cambioCarteiras', { moedas: 'BRL, GBP' }, 'Câmbio das carteiras (BRL, GBP)'],
+  ['tth', 'resumo.cambioDigitado', undefined, 'Digitado por você, nunca buscado na internet. As somas com câmbio são estimativas.'],
+  ['tth', 'resumo.salvarCambio', undefined, 'Salvar câmbio'],
+  ['tth', 'resumo.saldoTitulo', undefined, 'Saldo nas carteiras'],
+  ['tth', 'resumo.saldoDica', undefined, 'o saldo de cada conta; reservas e investimentos ficam nas metas de poupança'],
+  ['tth', 'resumo.semSaldoFora', undefined, 'sem saldo no extrato: fora do total'],
+  ['tth', 'resumo.estimado', undefined, 'estimado a partir dos movimentos'],
+  ['tth', 'casca.dadosAte', { data: '15 de outubro de 2026' }, 'dados até 15 de outubro de 2026'],
+  ['tth', 'resumo.nenhumImportado', undefined, 'nenhum extrato importado'],
+  ['tt', 'resumo.semSaldoItem', { nomes: 'Banco Exemplo' }, 'Banco Exemplo (o extrato não traz saldo)'],
+  ['tt', 'resumo.semExtratoItem', { nomes: 'Wise e ' + CART_X }, 'Wise e Conta <b> & "cia" (sem extrato)'],
+  ['tth', 'resumo.semTotal', { moedas: 'BRL e GBP' }, 'sem total: falta o câmbio de BRL e GBP'],
+  ['tth', 'resumo.nenhumSaldo', undefined, 'nenhuma carteira traz saldo'],
+  ['tth', 'resumo.totalParcial', undefined, 'Total parcial'],
+  ['tth', 'resumo.sem', { lista: 'Banco Exemplo (o extrato não traz saldo) e Wise (sem extrato)' }, 'sem Banco Exemplo (o extrato não traz saldo) e Wise (sem extrato)'],
+  ['tth', 'resumo.sem', { lista: CART_X + ' (sem extrato)' }, 'sem Conta &lt;b&gt; &amp; &quot;cia&quot; (sem extrato)'],
+  ['tth', 'resumo.escolherMes', undefined, 'Escolher o mês'],
+  ['tth', 'resumo.mesAndamentoAria', { mes: 'outubro de 2026' }, 'outubro de 2026 (em andamento)'],
+  ['tth', 'resumo.cobertura', { mes: 'setembro' }, 'Nem todas as carteiras cobrem setembro: os números deste mês não são a soma de todas.'],
+  ['tth', 'resumo.coberturaAte', { mes: 'outubro', data: '15 de outubro de 2026' }, 'Nem todas as carteiras cobrem outubro até 15 de outubro de 2026: os números deste mês não são a soma de todas.'],
+  ['tth', 'resumo.coberturaNada', { nome: I.cru('<b>Wise</b>'), mes: 'setembro' }, '<b>Wise</b>: nenhum extrato de setembro.'],
+  ['tth', 'resumo.coberturaFaltas', { nome: I.cru('<b>Conta &lt;b&gt;</b>'), trechos: '1 a 14 de setembro de 2026 e de 30 de setembro de 2026' }, '<b>Conta &lt;b&gt;</b>: sem dados de 1 a 14 de setembro de 2026 e de 30 de setembro de 2026.'],
+  ['tt', 'resumo.trechoEDe', { a: '1 a 14 de setembro de 2026', b: '30 de setembro de 2026' }, '1 a 14 de setembro de 2026 e de 30 de setembro de 2026'],
+  ['tt', 'comum.periodo', { de: 1, ate: '14 de setembro de 2026' }, '1 a 14 de setembro de 2026'],
+  ['tth', 'resumo.semMovMes', undefined, 'sem movimentos no mês'],
+  ['tth', 'resumo.semGastos', undefined, 'Sem gastos neste mês.'],
+  ['tth', 'resumo.gastoCategoria', undefined, 'Gasto por categoria'],
+  ['tth', 'resumo.somaCarteiras', undefined, 'a soma das carteiras'],
+  ['tth', 'resumo.ate', { data: '15 de outubro de 2026' }, 'até 15 de outubro de 2026'],
+  ['tth', 'resumo.so', { nome: 'Revolut' }, 'só Revolut'],
+  ['tth', 'resumo.so', { nome: CART_X }, 'só Conta &lt;b&gt; &amp; &quot;cia&quot;'],
+  ['tth', 'resumo.somaDe', { n: 3 }, 'soma de 3 carteiras'],
+  ['tth', 'resumo.porCarteira', undefined, 'Por carteira, cada uma na moeda dela'],
+  ['tth', 'resumo.semTotalCambio', undefined, 'Sem total enquanto falta câmbio. Cada carteira, na moeda dela:'],
+  ['tth', 'resumo.depoisCambio', { moedas: 'BRL' }, 'Aparece depois do câmbio de BRL.'],
+  ['tth', 'resumo.previsaoDe', { mes: 'outubro' }, 'Previsão de outubro'],
+  ['tth', 'previsao.titulo', undefined, 'Previsão do mês'],
+  ['tth', 'resumo.ultimoFecha', { mes: 'setembro de 2026' }, 'O último extrato fecha setembro de 2026. Adicione o extrato do mês atual para ver a previsão.'],
+  ['tth', 'resumo.nenhumaMov', { mes: 'outubro' }, 'Nenhuma carteira tem movimentos de outubro ainda.'],
+  ['tth', 'resumo.somaPrevisoes', undefined, 'a soma das previsões de cada carteira'],
+  ['tth', 'resumo.previsaoCarteira', { nome: 'Revolut', proj: '€ 999', meta: '€ 1.005' }, 'Revolut: previsão € 999, meta € 1.005'],
+  ['tth', 'resumo.previsaoCarteira', { nome: CART_X, proj: '≈ € 120', meta: '≈ € 90' }, 'Conta &lt;b&gt; &amp; &quot;cia&quot;: previsão ≈ € 120, meta ≈ € 90'],
+  ['tth', 'resumo.cedoItem', { nome: I.cru('<b>Wise</b>'), data: '10 de outubro de 2026' }, '<b>Wise</b> tem dados só até 10 de outubro de 2026'],
+  ['tth', 'resumo.cedo', { n: 1, lista: I.cru('<b>Wise</b> tem dados só até 10 de outubro de 2026') }, '<b>Wise</b> tem dados só até 10 de outubro de 2026: a previsão dela segue o ritmo até ali.'],
+  ['tth', 'resumo.cedo', { n: 2, lista: I.cru('<b>A</b> tem dados só até 1; <b>B</b> tem dados só até 2') }, '<b>A</b> tem dados só até 1; <b>B</b> tem dados só até 2: a previsão delas segue o ritmo até ali.'],
+  ['tth', 'resumo.foraPrevisao', { n: 1, nomes: 'Wise', mes: 'outubro' }, 'Wise não tem movimentos de outubro: fora da previsão.'],
+  ['tth', 'resumo.foraPrevisao', { n: 2, nomes: 'Wise e ' + CART_X, mes: 'outubro' }, 'Wise e Conta &lt;b&gt; &amp; &quot;cia&quot; não têm movimentos de outubro: fora da previsão.'],
+  ['tth', 'abas.resumo', undefined, 'Resumo'],
+  ['tth', 'resumo.vazioTitulo', undefined, 'Nenhuma carteira tem extrato ainda'],
+  ['tth', 'resumo.vazioDica', undefined, 'Toque em Adicionar extrato e escolha a carteira. O Resumo soma todas, na moeda principal.'],
+  ['tth', 'painel.formula', undefined, 'entrou − gastou − guardou'],
+  ['tth', 'painel.formulaMovido', undefined, 'entrou − gastou − guardou − movido'],
+  ['tth', 'plano.mesEmAndamento', undefined, '* mês em andamento'],
+];
+
+test('frases de referência em pt-BR: listaE no lugar de nomes() (mesmo texto)', () => {
+  const nomes = l => l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1];
+  const listaE = l => l.length < 2 ? l.join('') : I.t('comum.listaE', { inicio: l.slice(0, -1).join(', '), fim: l[l.length - 1] });
+  for (const l of [[], ['Wise'], ['Wise', 'Itaú'], ['A', 'B', CART_X]]) assert.equal(listaE(l), nomes(l));
+});
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

@@ -32,6 +32,9 @@ const AREAS_FEITAS = {
   'importação: leitura, erros e avisos': ['handleFiles', 'mudarImportacao', 'abrirGenerico', 'comLeitor', 'linhasDoArquivo', 'abrirPdf', 'carregarPdfjs', 'confSaldo', 'avisoLeitor'],
   'importação: escolha de colunas': ['telaImportar', 'carregarLeitorPlanilhas', 'opSaldo', 'nomeFmtData', 'nomeFmtNum', 'separadoresTela', 'nomeColuna', 'opColunas', 'radios', 'celulas',
     'ancoraDigitada', 'saldoNovo', 'podeSalvar', 'digitouAncora'],
+  // Resumo e transferências em três partes (11a, 11b, 11c)
+  'Resumo': ['fW', 'trecho', 'moedasConvertidas', 'avisoCambioResumo', 'saldoCarteiras', 'mesesResumo', 'avisoCobertura', 'tabelaPorCarteira', 'categoriasResumo',
+    'mesResumoTela', 'envResumo', 'previsaoResumoTela', 'cambioResumo', 'telaResumo'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
