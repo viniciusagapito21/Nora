@@ -441,7 +441,69 @@ const METAS = [
   ['tth', 'plano.metaGuardar', { valor: '€ 500' }, 'o que a meta de guardar € 500 representa'],
 ];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS }))
+// área 9a: configurações (carteiras, bancos, países, moedas e câmbio); nome de carteira digitado sempre escapado
+const CART_X = 'Conta <b> & "cia"';
+const CONFIG_A = [
+  ['tth', 'comum.cancelar', undefined, 'Cancelar'],
+  ['tth', 'cambio.semTaxa', { moeda: 'GBP' }, 'Sem taxa: GBP fica fora das somas.'],
+  ['tth', 'cambio.semTaxa', { moeda: 'X<&>"' }, 'Sem taxa: X&lt;&amp;&gt;&quot; fica fora das somas.'],
+  ['tth', 'cambio.informadoHa', { n: 42, data: '10 de setembro de 2026' }, 'informado há 42 dias (10 de setembro de 2026): confira'],
+  ['tth', 'cambio.informadoEm', { data: '1 de outubro de 2026' }, 'informado em 1 de outubro de 2026'],
+  ['tth', 'cambio.taxa', undefined, 'taxa'],
+  ['tth', 'cambio.quantosAria', { moeda: 'GBP', principal: 'EUR' }, 'Quantos GBP valem 1 EUR'],
+  ['tth', 'cambio.resumo', { taxas: I.cru('1 € = 0,86 GBP · 1 € = 6,1 BRL') }, 'Câmbio: 1 € = 0,86 GBP · 1 € = 6,1 BRL · informado por você'],
+  ['tth', 'cambio.velho', { n: 30 }, 'taxa com mais de 30 dias'],
+  ['tth', 'cambio.digitado', undefined, 'Câmbio, digitado por você e nunca buscado na internet. As somas com câmbio são estimativas.'],
+  ['tth', 'pais.usamMoeda', { moeda: 'euro (€)' }, 'Usam euro (€)'],
+  ['tth', 'pais.outros', undefined, 'Outros países'],
+  ['tth', 'pais.notaRegras', { paises: 'Irlanda e Brasil' }, 'Regras que reconhecem lojas e serviços só existem para Irlanda e Brasil. Nos outros países, só marcas internacionais (Netflix, Spotify, Uber…).'],
+  ['tth', 'pais.avisoSuporte', { pais: I.cru('<b>Portugal</b>'), paises: 'Irlanda, Brasil' }, 'Sem regras de comerciantes de <b>Portugal</b>: categorize manualmente em Revisar categorias. Só marcas internacionais (Netflix, Spotify, Uber…) são reconhecidas sozinhas. Regras completas por enquanto: Irlanda, Brasil.'],
+  ['tth', 'carteiras.titulo', undefined, 'Carteira'],
+  ['tth', 'carteiras.titulos', undefined, 'Carteiras'],
+  ['tth', 'carteiras.principal', undefined, 'principal'],
+  ['tth', 'importar.meses', { n: 1 }, '1 mês'],
+  ['tth', 'importar.meses', { n: 4 }, '4 meses'],
+  ['tth', 'carteiras.nMov', { n: 1 }, '1 movimentações'],
+  ['tth', 'carteiras.nMov', { n: 120 }, '120 movimentações'],
+  ['tth', 'carteiras.semExtrato', undefined, 'sem extrato'],
+  ['tth', 'carteiras.excluir', undefined, 'Excluir carteira'],
+  ['tth', 'carteiras.nome', undefined, 'Nome da carteira'],
+  ['tth', 'carteiras.extrato', undefined, 'Extrato'],
+  ['tt', 'carteiras.outroBanco', undefined, 'Outro banco'],
+  ['tth', 'carteiras.moedaConta', undefined, 'Moeda da conta'],
+  ['tth', 'carteiras.moedaDica', undefined, 'O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.'],
+  ['tth', 'carteiras.pais', undefined, 'País'],
+  ['tt', 'carteiras.enviosGasto', undefined, 'Contam como gasto'],
+  ['tt', 'carteiras.enviosMovido', undefined, 'Dinheiro movido, não gasto'],
+  ['tt', 'carteiras.enviosDica', undefined, 'Enviar dinheiro para pagar contas em outro país é gasto; se ele só mudou de conta, escolha "dinheiro movido". Muda quando quiser.'],
+  ['tth', 'carteiras.enviosDica', undefined, 'Enviar dinheiro para pagar contas em outro país é gasto; se ele só mudou de conta, escolha &quot;dinheiro movido&quot;. Muda quando quiser.'],
+  ['tth', 'carteiras.trava', { moeda: 'euro' }, 'Extrato e moeda não mudam depois que há extratos salvos nesta carteira: os valores estão em euro e não seriam convertidos. Para outro banco ou outra moeda, crie outra carteira.'],
+  ['tth', 'carteiras.maximo', { n: 5 }, 'Já há 5 carteiras, o máximo. Para criar outra, exclua uma.'],
+  ['tth', 'carteiras.adicionar', undefined, 'Adicionar carteira'],
+  ['tth', 'carteiras.novaDica', { n: 5 }, 'Uma carteira para cada conta: um banco e uma moeda. Até 5. Cada uma tem a sua aba, com o extrato dela. Ao salvar, a carteira nova é criada e aberta.'],
+  ['tth', 'carteiras.nomeExemplo', undefined, 'ex.: Wise libras'],
+  ['tth', 'carteiras.moedaPrincipal', undefined, 'Moeda principal (a soma do Resumo)'],
+  ['tth', 'carteiras.moedaPrincipalDica', undefined, 'Ao trocar, o câmbio informado é apagado e pedido de novo. As metas de poupança não são convertidas: os números ficam os mesmos, na moeda nova.'],
+  ['tth', 'carteiras.trocaPrincipal', undefined, 'Ao salvar, a moeda principal muda e o câmbio acima é apagado. Depois, informe as taxas de novo.'],
+  // excluir carteira: confirmação de risco, com o texto exato de antes
+  ['tth', 'excluir.titulo', { nome: 'Revolut' }, 'Excluir a carteira Revolut'],
+  ['tth', 'excluir.titulo', { nome: CART_X }, 'Excluir a carteira Conta &lt;b&gt; &amp; &quot;cia&quot;'],
+  ['tt', 'excluir.oQue', { meses: '1 mês', mov: '1 movimentações', periodo: 'out. 2026' }, '1 mês e 1 movimentações (out. 2026)'],
+  ['tt', 'excluir.oQue', { meses: '4 meses', mov: '120 movimentações', periodo: 'jul. 2026 a out. 2026' }, '4 meses e 120 movimentações (jul. 2026 a out. 2026)'],
+  ['tt', 'comum.periodo', { de: 'jul. 2026', ate: 'out. 2026' }, 'jul. 2026 a out. 2026'],
+  ['tt', 'excluir.semExtrato', undefined, 'a carteira, que ainda não tem extrato'],
+  ['tth', 'excluir.aviso', { oQue: '4 meses e 120 movimentações (jul. 2026 a out. 2026)' }, 'Isso apaga deste navegador 4 meses e 120 movimentações (jul. 2026 a out. 2026), com as escolhas de categoria e as metas por mês dessa carteira. Não dá para desfazer.'],
+  ['tth', 'excluir.aviso', { oQue: 'a carteira, que ainda não tem extrato' }, 'Isso apaga deste navegador a carteira, que ainda não tem extrato, com as escolhas de categoria e as metas por mês dessa carteira. Não dá para desfazer.'],
+  ['tth', 'excluir.ficam', undefined, 'As outras carteiras, a configuração, Em observação e as metas de poupança ficam.'],
+  ['tth', 'excluir.transf', { n: 1 }, 'A transferência confirmada com outras carteiras se desfaz: a outra ponta volta ao que era.'],
+  ['tth', 'excluir.transf', { n: 3 }, 'As 3 transferências confirmadas com outras carteiras se desfazem: a outra ponta volta ao que era.'],
+  ['tth', 'excluir.proxPrincipal', { nome: 'Banco Exemplo', moeda: 'euro' }, 'Banco Exemplo passa a ser a carteira principal.'],
+  ['tth', 'excluir.proxPrincipal', { nome: CART_X, moeda: 'euro' }, 'Conta &lt;b&gt; &amp; &quot;cia&quot; passa a ser a carteira principal.'],
+  ['tth', 'excluir.proxPrincipalMoeda', { nome: CART_X, moeda: 'real' }, 'Conta &lt;b&gt; &amp; &quot;cia&quot; passa a ser a carteira principal, em real: o câmbio de Em observação terá de ser informado de novo, e os valores das metas de poupança não são convertidos.'],
+  ['tth', 'excluir.backupAntes', undefined, 'Baixar backup antes'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

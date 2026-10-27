@@ -1733,7 +1733,9 @@
   function genericoTxt() { return tth('config.semLeitor'); }
   function cartAtual() { return S.dados ? carteiraAtiva(S.dados) : null; }
   function bancoAtual() { var c = cartAtual(); return c ? c.banco : 'revolut'; }
-  function nomeBanco(b) { var o = BANCOS.filter(function (x) { return x[0] === b; })[0]; return o ? o[1] : b; }
+  function nomeBanco(b) { var o = BANCOS.filter(function (x) { return x[0] === b; })[0]; return !o ? b : b === 'outro' ? tt('carteiras.outroBanco') : o[1]; }
+  /* a lista de bancos dos seletores, com os nomes de nomeBanco */
+  function bancosTela() { return BANCOS.map(function (o) { return [o[0], nomeBanco(o[0])]; }); }
   /* de onde vem o extrato: o banco, ou o nome da carteira quando o banco é "Outro banco" */
   function origem() { var c = cartAtual(); return c && c.banco === 'outro' ? c.nome : nomeBanco(bancoAtual()); }
   function variasCarteiras() { return !!(S.dados && S.dados.carteiras.length > 1); }
@@ -1745,10 +1747,10 @@
     var mp = moedaP(), C = divState().cambios, hoje = todayIso();
     return moedas.map(function (c) {
       var cb = C[c], rt = cb && +cb.rate > 0 ? +cb.rate : 0, idade = rt && cb.data ? diasDesde(cb.data, hoje) : null, info;
-      if (!rt) info = 'Sem taxa: ' + esc(c) + ' fica fora das somas.';
+      if (!rt) info = tth('cambio.semTaxa', { moeda: c });
       else info = '1 ' + esc(simbolo(c)) + ' ≈ ' + esc(simbolo(mp)) + ' ' + esc(nr.format(1 / rt)) + (idade == null ? '' : idade > CAMBIO_ANTIGO
-        ? ' · <span class="velho">informado há ' + idade + ' dias (' + esc(dFull(cb.data)) + '): confira</span>' : ' · informado em ' + esc(dFull(cb.data)));
-      return '<label class="camb"><span class="cr"><span>1 ' + esc(simbolo(mp)) + ' =</span><input id="fin-' + attr + '-' + esc(c) + '" data-' + attr + '="' + esc(c) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="taxa" value="' + (rt ? esc(nr.format(rt)) : '') + '" aria-label="Quantos ' + esc(c) + ' valem 1 ' + esc(mp) + '"><span>' + esc(c) + '</span></span><small>' + info + '</small></label>';
+        ? ' · <span class="velho">' + tth('cambio.informadoHa', { n: idade, data: dFull(cb.data) }) + '</span>' : ' · ' + tth('cambio.informadoEm', { data: dFull(cb.data) }));
+      return '<label class="camb"><span class="cr"><span>1 ' + esc(simbolo(mp)) + ' =</span><input id="fin-' + attr + '-' + esc(c) + '" data-' + attr + '="' + esc(c) + '" type="text" inputmode="decimal" autocomplete="off" placeholder="' + tth('cambio.taxa') + '" value="' + (rt ? esc(nr.format(rt)) : '') + '" aria-label="' + tth('cambio.quantosAria', { moeda: c, principal: mp }) + '"><span>' + esc(c) + '</span></span><small>' + info + '</small></label>';
     }).join('');
   }
   /* lê os campos de câmbio: { novos: { M: { rate, data } }, ruim: moeda com valor inválido } */
@@ -1765,7 +1767,7 @@
   function resumoCambio(moedas) {
     var mp = moedaP(), C = divState().cambios, velho = false;
     var t = moedas.map(function (c) { var cb = C[c]; if (cb && cb.data && diasDesde(cb.data, todayIso()) > CAMBIO_ANTIGO) velho = true; return '1 ' + esc(simbolo(mp)) + ' = ' + esc(nr.format(+cb.rate)) + ' ' + esc(c); }).join(' · ');
-    return 'Câmbio: ' + t + ' · informado por você' + (velho ? ' · <span class="velho">taxa com mais de ' + CAMBIO_ANTIGO + ' dias</span>' : '');
+    return tth('cambio.resumo', { taxas: cru(t) }) + (velho ? ' · <span class="velho">' + tth('cambio.velho', { n: CAMBIO_ANTIGO }) + '</span>' : '');
   }
   /* com duas ou mais carteiras, a primeira aba é o Resumo (abre nele); Em observação e as metas de poupança, que
      valem para todas, ficam lá. Com uma carteira, nada de abas e tudo fica no painel. */
@@ -2030,19 +2032,17 @@
     var par = function (p) { return [p[0], p[1]]; }, extra = sel && !PAISES_MOEDA.some(function (p) { return p[0] === sel; }) ? [[sel, sel]] : [];
     if (!da.length) return opcoes(PAISES.concat(extra), sel);
     var nomeM = (MOEDAS.filter(function (m) { return m[0] === moedaSel; })[0] || [0, moedaSel])[1];
-    return '<optgroup label="' + esc('Usam ' + nomeM.charAt(0).toLowerCase() + nomeM.slice(1)) + '">' + opcoes(da.map(par), sel) + '</optgroup>' +
-      '<optgroup label="Outros países">' + opcoes(resto.map(par).concat(extra), sel) + '</optgroup>';
+    return '<optgroup label="' + tth('pais.usamMoeda', { moeda: nomeM.charAt(0).toLowerCase() + nomeM.slice(1) }) + '">' + opcoes(da.map(par), sel) + '</optgroup>' +
+      '<optgroup label="' + tth('pais.outros') + '">' + opcoes(resto.map(par).concat(extra), sel) + '</optgroup>';
   }
-  function notaRegrasPais() { return 'Regras que reconhecem lojas e serviços só existem para ' + PAISES_COM_REGRAS.map(nomePais).join(' e ') + '. Nos outros países, só marcas internacionais (Netflix, Spotify, Uber…).'; }
+  function notaRegrasPais() { return tth('pais.notaRegras', { paises: listaE(PAISES_COM_REGRAS.map(nomePais)) }); }
   function configurado() { return !!(S.plan && S.plan.configurado); }
   function temRegras(pais) { return PAISES_COM_REGRAS.indexOf(pais || 'IE') >= 0; }
   function suportado() { return !S.plan || temRegras(S.plan.pais); }
   function nomePais(cod) { var p = PAISES.filter(function (x) { return x[0] === cod; })[0]; return p ? p[1] : cod; }
   function avisoSuporte(pais) {
     pais = pais || (S.plan && S.plan.pais);
-    return 'Sem regras de comerciantes de <b>' + esc(nomePais(pais)) + '</b>: categorize manualmente em Revisar categorias. ' +
-      'Só marcas internacionais (Netflix, Spotify, Uber…) são reconhecidas sozinhas. Regras completas por enquanto: ' +
-      PAISES_COM_REGRAS.map(nomePais).join(', ') + '.';
+    return tth('pais.avisoSuporte', { pais: cru('<b>' + esc(nomePais(pais)) + '</b>'), paises: PAISES_COM_REGRAS.map(nomePais).join(', ') });
   }
   function opcoes(lista, sel) {
     return lista.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === sel ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
@@ -2068,37 +2068,37 @@
     var x = dadosAtuais(), h = '', varias = x.carteiras.length > 1;
     x.carteiras.forEach(function (c, i) {
       var k = 'fin-w-' + c.id, trava = moedaTravada(c.months), r = resumoDados(c), desc = trava ? ' disabled aria-describedby="' + k + '-trava"' : '';
-      h += '<div class="wcart">' + (varias ? '<div class="wtop"><b>' + esc(c.nome) + '</b><small>' + (i === 0 ? 'principal · ' : '') +
-        (r.meses ? r.meses + (r.meses === 1 ? ' mês' : ' meses') + ', ' + r.mov + ' movimentações' : 'sem extrato') + '</small>' +
-        '<button class="btn sm" type="button" data-wexcluir="' + esc(c.id) + '">Excluir carteira</button></div>' : '') +
-        '<div class="mgrid"><label>Nome da carteira<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(c.nome) + '"></label>' +
-        '<label>Extrato<select id="' + k + '-banco"' + desc + '>' + opcoes(BANCOS, c.banco) + '</select>' +
+      h += '<div class="wcart">' + (varias ? '<div class="wtop"><b>' + esc(c.nome) + '</b><small>' + (i === 0 ? tth('carteiras.principal') + ' · ' : '') +
+        (r.meses ? tth('importar.meses', { n: r.meses }) + ', ' + tth('carteiras.nMov', { n: r.mov }) : tth('carteiras.semExtrato')) + '</small>' +
+        '<button class="btn sm" type="button" data-wexcluir="' + esc(c.id) + '">' + tth('carteiras.excluir') + '</button></div>' : '') +
+        '<div class="mgrid"><label>' + tth('carteiras.nome') + '<input id="' + k + '-nome" type="text" autocomplete="off" maxlength="40" value="' + esc(c.nome) + '"></label>' +
+        '<label>' + tth('carteiras.extrato') + '<select id="' + k + '-banco"' + desc + '>' + opcoes(bancosTela(), c.banco) + '</select>' +
         '<small id="' + k + '-leitor"' + (temLeitor(c.banco) ? ' hidden' : '') + '>' + genericoTxt() + '</small></label>' +
-        '<label>Moeda da conta<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
-        (trava ? '' : '<small>O painel lê a conta nessa moeda do extrato e mostra tudo nela. Depois do primeiro extrato, não muda mais.</small>') + '</label>' +
-        '<label>País<select id="' + k + '-pais">' + opcoesPais(c.moeda, c.pais) + '</select></label>' +
-        '<label>' + esc(catNome(catPor('brasil'))) + '<select id="' + k + '-envios">' + opcoes([['gasto', 'Contam como gasto'], ['movido', 'Dinheiro movido, não gasto']], c.envios === 'movido' ? 'movido' : 'gasto') + '</select><small>Enviar dinheiro para pagar contas em outro país é gasto; se ele só mudou de conta, escolha "dinheiro movido". Muda quando quiser.</small></label></div>' +
-        (trava ? '<p class="passo" id="' + k + '-trava">Extrato e moeda não mudam depois que há extratos salvos nesta carteira: os valores estão em ' + esc(nomeMoeda(c.moeda)) + ' e não seriam convertidos. Para outro banco ou outra moeda, crie outra carteira.</p>' : '') +
+        '<label>' + tth('carteiras.moedaConta') + '<select id="' + k + '-moeda"' + desc + '>' + opcoesMoeda(c.moeda) + '</select>' +
+        (trava ? '' : '<small>' + tth('carteiras.moedaDica') + '</small>') + '</label>' +
+        '<label>' + tth('carteiras.pais') + '<select id="' + k + '-pais">' + opcoesPais(c.moeda, c.pais) + '</select></label>' +
+        '<label>' + esc(catNome(catPor('brasil'))) + '<select id="' + k + '-envios">' + opcoes([['gasto', tt('carteiras.enviosGasto')], ['movido', tt('carteiras.enviosMovido')]], c.envios === 'movido' ? 'movido' : 'gasto') + '</select><small>' + tth('carteiras.enviosDica') + '</small></label></div>' +
+        (trava ? '<p class="passo" id="' + k + '-trava">' + tth('carteiras.trava', { moeda: nomeMoeda(c.moeda) }) + '</p>' : '') +
         '<p class="aviso" id="' + k + '-aviso"' + (temRegras(c.pais) ? ' hidden' : '') + '>' + avisoSuporte(c.pais) + '</p></div>';
     });
     var nova = x.carteiras.length >= MAX_CARTEIRAS
-      ? '<p class="passo">Já há ' + MAX_CARTEIRAS + ' carteiras, o máximo. Para criar outra, exclua uma.</p>'
-      : '<details class="metas" id="fin-wnova"' + (S.wOpen ? ' open' : '') + '><summary>Adicionar carteira</summary>' +
-        '<p class="passo">Uma carteira para cada conta: um banco e uma moeda. Até ' + MAX_CARTEIRAS + '. Cada uma tem a sua aba, com o extrato dela. Ao salvar, a carteira nova é criada e aberta.</p>' +
-        '<div class="mgrid"><label>Nome da carteira<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="ex.: Wise libras"></label>' +
-        '<label>Extrato<select id="fin-wn-banco">' + opcoes(BANCOS, 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + genericoTxt() + '</small></label>' +
-        '<label>Moeda da conta<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
-        '<label>País<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small>' + notaRegrasPais() + '</small></label></div>' +
+      ? '<p class="passo">' + tth('carteiras.maximo', { n: MAX_CARTEIRAS }) + '</p>'
+      : '<details class="metas" id="fin-wnova"' + (S.wOpen ? ' open' : '') + '><summary>' + tth('carteiras.adicionar') + '</summary>' +
+        '<p class="passo">' + tth('carteiras.novaDica', { n: MAX_CARTEIRAS }) + '</p>' +
+        '<div class="mgrid"><label>' + tth('carteiras.nome') + '<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="' + tth('carteiras.nomeExemplo') + '"></label>' +
+        '<label>' + tth('carteiras.extrato') + '<select id="fin-wn-banco">' + opcoes(bancosTela(), 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + genericoTxt() + '</small></label>' +
+        '<label>' + tth('carteiras.moedaConta') + '<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
+        '<label>' + tth('carteiras.pais') + '<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small>' + notaRegrasPais() + '</small></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
     var mp = '';
     if (varias) {
       var mpv = x.config.moedaPrincipal, precisa = moedasSemPrincipal(x);
-      mp = '<div class="wcart"><div class="mgrid"><label>Moeda principal (a soma do Resumo)<select id="fin-w-mp">' + opcoesMoeda(mpv) + '</select>' +
-        '<small>Ao trocar, o câmbio informado é apagado e pedido de novo. As metas de poupança não são convertidas: os números ficam os mesmos, na moeda nova.</small></label></div>' +
-        (precisa.length ? '<div id="fin-cambc-w"><p class="passo">Câmbio, digitado por você e nunca buscado na internet. As somas com câmbio são estimativas.</p><div class="mgrid">' + camposCambio(precisa, 'cambc') + '</div></div>' +
-          '<p class="aviso" id="fin-cambc-troca" hidden>Ao salvar, a moeda principal muda e o câmbio acima é apagado. Depois, informe as taxas de novo.</p>' : '') + '</div>';
+      mp = '<div class="wcart"><div class="mgrid"><label>' + tth('carteiras.moedaPrincipal') + '<select id="fin-w-mp">' + opcoesMoeda(mpv) + '</select>' +
+        '<small>' + tth('carteiras.moedaPrincipalDica') + '</small></label></div>' +
+        (precisa.length ? '<div id="fin-cambc-w"><p class="passo">' + tth('cambio.digitado') + '</p><div class="mgrid">' + camposCambio(precisa, 'cambc') + '</div></div>' +
+          '<p class="aviso" id="fin-cambc-troca" hidden>' + tth('carteiras.trocaPrincipal') + '</p>' : '') + '</div>';
     }
-    return '<fieldset><legend>' + (varias ? 'Carteiras' : 'Carteira') + '</legend>' + h + mp + nova + '</fieldset>';
+    return '<fieldset><legend>' + tth(varias ? 'carteiras.titulos' : 'carteiras.titulo') + '</legend>' + h + mp + nova + '</fieldset>';
   }
   function lerCarteira(id) {
     var k = '#fin-w-' + id, mo = $(k + '-moeda'), bc = $(k + '-banco');
@@ -2386,15 +2386,15 @@
   function telaExcluirCarteira() {
     var x = dadosAtuais(), c = x.carteiras.filter(function (w) { return w.id === S.excluir; })[0], r = resumoDados(c);
     var prox = x.carteiras[0].id === c.id ? x.carteiras[1] : null;
-    var oQue = r.meses ? r.meses + (r.meses === 1 ? ' mês' : ' meses') + ' e ' + r.mov + ' movimentações (' + (r.meses === 1 ? mLabel(r.de) : mLabel(r.de) + ' a ' + mLabel(r.ate)) + ')' : 'a carteira, que ainda não tem extrato';
-    return '<section class="sec"><div class="sec-top"><h2>Excluir a carteira ' + esc(c.nome) + '</h2></div><div class="card ggrid">' +
-      '<p class="aviso erro">Isso apaga deste navegador ' + esc(oQue) + ', com as escolhas de categoria e as metas por mês dessa carteira. Não dá para desfazer.</p>' +
-      '<p>As outras carteiras, a configuração, Em observação e as metas de poupança ficam.</p>' +
-      (contarTransferencias(c) ? '<p class="aviso">' + (contarTransferencias(c) === 1 ? 'A transferência confirmada' : 'As ' + contarTransferencias(c) + ' transferências confirmadas') + ' com outras carteiras se desfaz' + (contarTransferencias(c) === 1 ? '' : 'em') + ': a outra ponta volta ao que era.</p>' : '') +
-      (prox ? '<p class="aviso">' + esc(prox.nome) + ' passa a ser a carteira principal' + (prox.moeda !== c.moeda ? ', em ' + esc(nomeMoeda(prox.moeda)) + ': o câmbio de Em observação terá de ser informado de novo, e os valores das metas de poupança não são convertidos.' : '.') + '</p>' : '') +
-      '<div class="grupo"><button class="pill perigo" type="button" data-excluir="confirmar">Excluir carteira</button>' +
-      '<button class="btn" type="button" data-backup="baixar">Baixar backup antes</button>' +
-      '<button class="btn" type="button" data-excluir="cancelar">Cancelar</button></div></div></section>';
+    var oQue = r.meses ? tt('excluir.oQue', { meses: tt('importar.meses', { n: r.meses }), mov: tt('carteiras.nMov', { n: r.mov }), periodo: r.meses === 1 ? mLabel(r.de) : tt('comum.periodo', { de: mLabel(r.de), ate: mLabel(r.ate) }) }) : tt('excluir.semExtrato');
+    return '<section class="sec"><div class="sec-top"><h2>' + tth('excluir.titulo', { nome: c.nome }) + '</h2></div><div class="card ggrid">' +
+      '<p class="aviso erro">' + tth('excluir.aviso', { oQue: oQue }) + '</p>' +
+      '<p>' + tth('excluir.ficam') + '</p>' +
+      (contarTransferencias(c) ? '<p class="aviso">' + tth('excluir.transf', { n: contarTransferencias(c) }) + '</p>' : '') +
+      (prox ? '<p class="aviso">' + tth(prox.moeda !== c.moeda ? 'excluir.proxPrincipalMoeda' : 'excluir.proxPrincipal', { nome: prox.nome, moeda: nomeMoeda(prox.moeda) }) + '</p>' : '') +
+      '<div class="grupo"><button class="pill perigo" type="button" data-excluir="confirmar">' + tth('carteiras.excluir') + '</button>' +
+      '<button class="btn" type="button" data-backup="baixar">' + tth('excluir.backupAntes') + '</button>' +
+      '<button class="btn" type="button" data-excluir="cancelar">' + tth('comum.cancelar') + '</button></div></div></section>';
   }
   /* renomear, marcar como conta fixa, esconder, excluir (só as criadas) e criar categorias */
   function categoriasCampos() {

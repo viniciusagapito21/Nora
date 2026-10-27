@@ -24,6 +24,8 @@ const AREAS_FEITAS = {
   'metas, previsão e poupança': ['metaDefinida', 'pouparDefinido', 'enviosMovidos', 'planCat', 'planPoupar', 'catPor', 'catNome', 'planTotal', 'metaCampo', 'metasCampos', 'lerMeta', 'lerMetas',
     'metasPoupanca', 'nomeMeta', 'pct', 'listaE', 'goalCfg', 'goalHas', 'refMonth', 'mesesAte', 'mesAno', 'addMonth', 'metasPoup', 'previsao', 'aluguelSugerido', 'perguntaAluguel', 'perguntaEnvios',
     'recorrentes', 'vbars', 'enviosBrasil', 'taxaPoup', 'statusPrevisao', 'pendNum', 'pendFrase', 'pendBotao'],
+  'configurações: carteiras, países, moedas e câmbio': ['camposCambio', 'lerCambios', 'resumoCambio', 'opcoesPais', 'notaRegrasPais', 'configurado', 'temRegras', 'suportado',
+    'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -34,12 +36,13 @@ const PERMITIDOS = {
   'março': 'nome do mês na lista MES do app.js: os formatos de data mudam no passo e (formato.js)',
   'Escape': 'nome da tecla (e.key), não é texto da tela',
   '0 0;background:': 'CSS do gráfico (flex: … 0 0;background: …), não é texto da tela',
+  'informado por você': 'valor gravado nos dados (cambios[moeda].fonte, em lerCambios), não é texto da tela',
 };
 // chaves que ainda não têm uso no código, com o motivo
 const RESERVADAS = {
   'tema.rotulo': 'seletor de tema (passo g)', 'tema.auto': 'seletor de tema (passo g)', 'tema.claro': 'seletor de tema (passo g)', 'tema.escuro': 'seletor de tema (passo g)',
   'idioma.rotulo': 'seletor de idioma (passo f)', 'idioma.auto': 'seletor de idioma (passo f)', 'idioma.pt-BR': 'seletor de idioma (passo f)', 'idioma.en-GB': 'seletor de idioma (passo f)',
-  'importar.adicionou': 'área importação', 'importar.meses': 'área importação',
+  'importar.adicionou': 'área importação',
 };
 
 test('o analisador separa texto de tela de código', () => {
