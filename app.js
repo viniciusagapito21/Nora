@@ -1956,33 +1956,33 @@
   function valorMov(r, cod) { return (r.a < 0 ? '−' : '+') + fmtDe(cod, 2).format(Math.abs(r.a)); }
   var n1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
   function difPar(p) {
-    var d = p.dias === 0 ? 'mesmo dia' : p.dias + (p.dias === 1 ? ' dia' : ' dias') + ' de diferença', v;
-    if (p.dif < 0.0005) v = p.moedas.length ? 'valores iguais' : 'mesmo valor';
-    else v = 'valor ' + n1.format(p.dif * 100) + '% diferente';
+    var d = p.dias === 0 ? tt('transf.mesmoDia') : tt('transf.diasDif', { n: p.dias }), v;
+    if (p.dif < 0.0005) v = p.moedas.length ? tt('transf.valoresIguais') : tt('transf.mesmoValor');
+    else v = tt('transf.valorDif', { pct: n1.format(p.dif * 100) });
     if (p.moedas.length === 1) {
       var cb = (S.dados.cambios || {})[p.moedas[0]] || {};
-      v += ' pela taxa que você informou' + (cb.data ? ' em ' + dFmt(cb.data) : '') + ' (usada em todos os meses)';
-    } else if (p.moedas.length) v += ' pelas taxas que você informou (usadas em todos os meses)';
+      v = cb.data ? tt('transf.pelaTaxaEm', { valor: v, data: dFmt(cb.data) }) : tt('transf.pelaTaxa', { valor: v });
+    } else if (p.moedas.length) v = tt('transf.pelasTaxas', { valor: v });
     return d + ' · ' + v;
   }
   function ladoPar(rot, w, r) {
-    return '<div class="tl"><span class="tlr">' + rot + ' · ' + esc(w.nome) + '</span>' + (r ? '<span class="td">' + esc(dFmt(r.date)) + ' · ' + esc(r.desc) + '</span><b class="num">' + valorMov(r, w.moeda) + '</b>'
-      : '<span class="td">movimento que não está mais no extrato</span>') + '</div>';
+    return '<div class="tl"><span class="tlr">' + tth(rot) + ' · ' + esc(w.nome) + '</span>' + (r ? '<span class="td">' + esc(dFmt(r.date)) + ' · ' + esc(r.desc) + '</span><b class="num">' + valorMov(r, w.moeda) + '</b>'
+      : '<span class="td">' + tth('transf.movSumiu') + '</span>') + '</div>';
   }
   function parTela(p) {
-    var nome = esc(p.s.w.nome + ' ' + dFmt(p.s.r.date) + ' ' + valorMov(p.s.r, p.s.w.moeda) + ' e ' + p.e.w.nome + ' ' + dFmt(p.e.r.date) + ' ' + valorMov(p.e.r, p.e.w.moeda));
-    var ja = p.ja === 's' ? 'A saída no ' + esc(p.s.w.nome) + ' já está marcada como entre contas suas: confirmar marca só a entrada.'
-      : p.ja === 'e' ? 'A entrada no ' + esc(p.e.w.nome) + ' já está marcada como entre contas suas: confirmar marca só a saída.' : '';
-    return '<div class="tpar" role="group" aria-label="' + nome + '">' + ladoPar('Saiu', p.s.w, p.s.r) + '<span class="tseta" aria-hidden="true">→</span>' + ladoPar('Entrou', p.e.w, p.e.r) +
+    var nome = tth('transf.parAria', { nomeSaida: p.s.w.nome, dataSaida: dFmt(p.s.r.date), valorSaida: valorMov(p.s.r, p.s.w.moeda), nomeEntrada: p.e.w.nome, dataEntrada: dFmt(p.e.r.date), valorEntrada: valorMov(p.e.r, p.e.w.moeda) });
+    var ja = p.ja === 's' ? tth('transf.jaSaida', { nome: p.s.w.nome })
+      : p.ja === 'e' ? tth('transf.jaEntrada', { nome: p.e.w.nome }) : '';
+    return '<div class="tpar" role="group" aria-label="' + nome + '">' + ladoPar('transf.saiu', p.s.w, p.s.r) + '<span class="tseta" aria-hidden="true">→</span>' + ladoPar('transf.entrou', p.e.w, p.e.r) +
       '<p class="tm">' + esc(difPar(p)) + (ja ? '<span class="tja">' + ja + '</span>' : '') + '</p>' +
-      '<div class="grupo"><button class="btn sm pri" type="button" data-tconf="' + esc(p.chave) + '">São a mesma transferência</button><button class="btn sm" type="button" data-tdisp="' + esc(p.chave) + '">Não são</button></div></div>';
+      '<div class="grupo"><button class="btn sm pri" type="button" data-tconf="' + esc(p.chave) + '">' + tth('transf.mesma') + '</button><button class="btn sm" type="button" data-tdisp="' + esc(p.chave) + '">' + tth('transf.naoSao') + '</button></div></div>';
   }
   function confirmadasTela(C) {
     if (!C.length) return '';
-    return '<details class="metas" id="fin-tconf"' + (S.tConf ? ' open' : '') + '><summary>Transferências confirmadas (' + C.length + ')</summary><ul class="tconf">' + C.map(function (t) {
-      var lado = function (l) { return l.r ? esc(dFmt(l.r.date)) + ' · ' + esc(l.w.nome) + ' · ' + esc(l.r.desc) + ' <b class="num">' + valorMov(l.r, l.w.moeda) + '</b>' : esc(l.w.nome) + ' · movimento que não está mais no extrato'; };
-      return '<li><span>' + lado(t.s) + ' → ' + lado(t.e) + '</span><button class="btn sm" type="button" data-tdesf="' + esc(t.s.w.id) + '" data-tmov="' + esc(t.s.id) + '">Desfazer</button></li>';
-    }).join('') + '</ul><p class="passo">Desfazer devolve as duas pontas ao que eram: a escolha por descrição em Revisar categorias, ou o automático.</p></details>';
+    return '<details class="metas" id="fin-tconf"' + (S.tConf ? ' open' : '') + '><summary>' + tth('transf.confirmadas', { n: C.length }) + '</summary><ul class="tconf">' + C.map(function (t) {
+      var lado = function (l) { return l.r ? esc(dFmt(l.r.date)) + ' · ' + esc(l.w.nome) + ' · ' + esc(l.r.desc) + ' <b class="num">' + valorMov(l.r, l.w.moeda) + '</b>' : esc(l.w.nome) + ' · ' + tth('transf.movSumiu'); };
+      return '<li><span>' + lado(t.s) + ' → ' + lado(t.e) + '</span><button class="btn sm" type="button" data-tdesf="' + esc(t.s.w.id) + '" data-tmov="' + esc(t.s.id) + '">' + tth('comum.desfazer') + '</button></li>';
+    }).join('') + '</ul><p class="passo">' + tth('transf.desfazerDica') + '</p></details>';
   }
   /* carteiras sem câmbio que deixam de ter sugestões com carteiras de outra moeda (wid: só as que envolvem ela) */
   function semCambioTransf(wid) {
@@ -1996,8 +1996,8 @@
   function transfSecao() {
     if (!TR || (!TR.S.pares.length && !TR.C.length)) return '';
     var n = TR.S.pares.length;
-    return '<section class="sec" id="fin-transf"><div class="sec-top"><h2 tabindex="-1">' + (n ? 'Transferências sugeridas' : 'Transferências entre carteiras') + '</h2><span class="hint">' +
-      (n ? n + (n === 1 ? ' par' : ' pares') + ' · confirme o que for dinheiro seu indo de uma conta para outra' : 'nenhuma sugestão nova') + '</span></div>' +
+    return '<section class="sec" id="fin-transf"><div class="sec-top"><h2 tabindex="-1">' + tth(n ? 'transf.sugeridas' : 'transf.entreCarteiras') + '</h2><span class="hint">' +
+      tth(n ? 'transf.pares' : 'transf.nenhumaNova', { n: n }) + '</span></div>' +
       (n ? '<div class="card tlist">' + TR.S.pares.map(parTela).join('') + '</div>' : '') + confirmadasTela(TR.C) + '</section>';
   }
   /* em Revisar categorias: os pares que envolvem a carteira */
@@ -2005,9 +2005,9 @@
     if (!TR) return '';
     var ps = TR.S.pares.filter(function (p) { return p.s.w.id === wid || p.e.w.id === wid; }), C = TR.C.filter(function (t) { return t.s.w.id === wid || t.e.w.id === wid; }), sc = semCambioTransf(wid);
     if (!ps.length && !C.length && !sc.length) return '';
-    return '<div class="rtransf" id="fin-transf"><h3 class="rvt" tabindex="-1">' + (ps.length ? 'Transferências sugeridas' : 'Transferências entre carteiras') + '</h3>' +
-      (ps.length ? '<p class="passo">Uma saída numa carteira e uma entrada em outra, com valor e data parecidos. Confirme o que for dinheiro seu indo de uma conta para outra: as duas pontas saem do Entrou e do Gastou. As mesmas sugestões aparecem no Resumo.</p><div class="tlist">' + ps.map(parTela).join('') + '</div>' : '') +
-      (sc.length ? '<p class="passo">' + sc.map(function (w) { return 'Defina o câmbio de ' + esc(w.moeda) + ' no Resumo para ver sugestões com ' + esc(w.nome) + '.'; }).join(' ') + '</p>' : '') + confirmadasTela(C) + '</div>';
+    return '<div class="rtransf" id="fin-transf"><h3 class="rvt" tabindex="-1">' + tth(ps.length ? 'transf.sugeridas' : 'transf.entreCarteiras') + '</h3>' +
+      (ps.length ? '<p class="passo">' + tth('transf.blocoDica') + '</p><div class="tlist">' + ps.map(parTela).join('') + '</div>' : '') +
+      (sc.length ? '<p class="passo">' + sc.map(function (w) { return tth('transf.definaCambio', { moeda: w.moeda, nome: w.nome }); }).join(' ') + '</p>' : '') + confirmadasTela(C) + '</div>';
   }
   /* depois de confirmar, dispensar ou desfazer: grava e leva o foco para a próxima sugestão (ou o título) */
   function mudarTransf(fn, msg) {

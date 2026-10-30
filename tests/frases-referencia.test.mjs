@@ -826,7 +826,60 @@ test('frases de referência em pt-BR: listaE no lugar de nomes() (mesmo texto)',
   for (const l of [[], ['Wise'], ['Wise', 'Itaú'], ['A', 'B', CART_X]]) assert.equal(listaE(l), nomes(l));
 });
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO }))
+// área 11b: transferências entre carteiras; nomes de carteira e descrições do banco só como variável (escapados)
+const TRANSF = [
+  ['tt', 'transf.mesmoDia', undefined, 'mesmo dia'],
+  ['tt', 'transf.diasDif', { n: 1 }, '1 dia de diferença'],
+  ['tt', 'transf.diasDif', { n: 3 }, '3 dias de diferença'],
+  ['tt', 'transf.valoresIguais', undefined, 'valores iguais'],
+  ['tt', 'transf.mesmoValor', undefined, 'mesmo valor'],
+  ['tt', 'transf.valorDif', { pct: '0,5' }, 'valor 0,5% diferente'],
+  ['tt', 'transf.pelaTaxa', { valor: 'valor 4,8% diferente' }, 'valor 4,8% diferente pela taxa que você informou (usada em todos os meses)'],
+  ['tt', 'transf.pelaTaxaEm', { valor: 'valores iguais', data: '01/10' }, 'valores iguais pela taxa que você informou em 01/10 (usada em todos os meses)'],
+  ['tt', 'transf.pelasTaxas', { valor: 'valor 1% diferente' }, 'valor 1% diferente pelas taxas que você informou (usadas em todos os meses)'],
+  ['tth', 'transf.saiu', undefined, 'Saiu'],
+  ['tth', 'transf.entrou', undefined, 'Entrou'],
+  ['tth', 'transf.movSumiu', undefined, 'movimento que não está mais no extrato'],
+  ['tth', 'transf.parAria', { nomeSaida: 'Revolut', dataSaida: '03/07', valorSaida: '−€ 200,00', nomeEntrada: 'Banco Exemplo', dataEntrada: '04/07', valorEntrada: '+R$ 1.230,00' }, 'Revolut 03/07 −€ 200,00 e Banco Exemplo 04/07 +R$ 1.230,00'],
+  ['tth', 'transf.parAria', { nomeSaida: CART_X, dataSaida: '03/07', valorSaida: '−€ 200,00', nomeEntrada: 'Wise', dataEntrada: '04/07', valorEntrada: '+£ 170,00' }, 'Conta &lt;b&gt; &amp; &quot;cia&quot; 03/07 −€ 200,00 e Wise 04/07 +£ 170,00'],
+  ['tth', 'transf.jaSaida', { nome: 'Revolut' }, 'A saída no Revolut já está marcada como entre contas suas: confirmar marca só a entrada.'],
+  ['tth', 'transf.jaEntrada', { nome: CART_X }, 'A entrada no Conta &lt;b&gt; &amp; &quot;cia&quot; já está marcada como entre contas suas: confirmar marca só a saída.'],
+  ['tth', 'transf.mesma', undefined, 'São a mesma transferência'],
+  ['tth', 'transf.naoSao', undefined, 'Não são'],
+  ['tth', 'transf.confirmadas', { n: 2 }, 'Transferências confirmadas (2)'],
+  ['tth', 'comum.desfazer', undefined, 'Desfazer'],
+  ['tth', 'transf.desfazerDica', undefined, 'Desfazer devolve as duas pontas ao que eram: a escolha por descrição em Revisar categorias, ou o automático.'],
+  ['tth', 'transf.sugeridas', undefined, 'Transferências sugeridas'],
+  ['tth', 'transf.entreCarteiras', undefined, 'Transferências entre carteiras'],
+  ['tth', 'transf.pares', { n: 1 }, '1 par · confirme o que for dinheiro seu indo de uma conta para outra'],
+  ['tth', 'transf.pares', { n: 3 }, '3 pares · confirme o que for dinheiro seu indo de uma conta para outra'],
+  ['tth', 'transf.nenhumaNova', { n: 0 }, 'nenhuma sugestão nova'],
+  ['tth', 'transf.blocoDica', undefined, 'Uma saída numa carteira e uma entrada em outra, com valor e data parecidos. Confirme o que for dinheiro seu indo de uma conta para outra: as duas pontas saem do Entrou e do Gastou. As mesmas sugestões aparecem no Resumo.'],
+  ['tth', 'transf.definaCambio', { moeda: 'GBP', nome: 'Wise' }, 'Defina o câmbio de GBP no Resumo para ver sugestões com Wise.'],
+  ['tth', 'transf.definaCambio', { moeda: 'GBP', nome: CART_X }, 'Defina o câmbio de GBP no Resumo para ver sugestões com Conta &lt;b&gt; &amp; &quot;cia&quot;.'],
+];
+
+test('frases de referência em pt-BR: difPar monta o mesmo texto de antes', () => {
+  const n1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }), dFmt = d => d.slice(8) + '/' + d.slice(5, 7);
+  const antes = (p, cb) => {
+    var d = p.dias === 0 ? 'mesmo dia' : p.dias + (p.dias === 1 ? ' dia' : ' dias') + ' de diferença', v;
+    if (p.dif < 0.0005) v = p.moedas.length ? 'valores iguais' : 'mesmo valor'; else v = 'valor ' + n1.format(p.dif * 100) + '% diferente';
+    if (p.moedas.length === 1) v += ' pela taxa que você informou' + (cb.data ? ' em ' + dFmt(cb.data) : '') + ' (usada em todos os meses)';
+    else if (p.moedas.length) v += ' pelas taxas que você informou (usadas em todos os meses)';
+    return d + ' · ' + v;
+  };
+  const agora = (p, cb) => {
+    var d = p.dias === 0 ? I.t('transf.mesmoDia') : I.t('transf.diasDif', { n: p.dias }), v;
+    if (p.dif < 0.0005) v = p.moedas.length ? I.t('transf.valoresIguais') : I.t('transf.mesmoValor'); else v = I.t('transf.valorDif', { pct: n1.format(p.dif * 100) });
+    if (p.moedas.length === 1) v = cb.data ? I.t('transf.pelaTaxaEm', { valor: v, data: dFmt(cb.data) }) : I.t('transf.pelaTaxa', { valor: v });
+    else if (p.moedas.length) v = I.t('transf.pelasTaxas', { valor: v });
+    return d + ' · ' + v;
+  };
+  for (const dias of [0, 1, 2]) for (const dif of [0, 0.005, 0.048]) for (const moedas of [[], ['BRL'], ['BRL', 'GBP']]) for (const cb of [{}, { data: '2026-10-01' }])
+    assert.equal(agora({ dias, dif, moedas }, cb), antes({ dias, dif, moedas }, cb));
+});
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

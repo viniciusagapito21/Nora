@@ -35,6 +35,7 @@ const AREAS_FEITAS = {
   // Resumo e transferências em três partes (11a, 11b, 11c)
   'Resumo': ['fW', 'trecho', 'moedasConvertidas', 'avisoCambioResumo', 'saldoCarteiras', 'mesesResumo', 'avisoCobertura', 'tabelaPorCarteira', 'categoriasResumo',
     'mesResumoTela', 'envResumo', 'previsaoResumoTela', 'cambioResumo', 'telaResumo'],
+  'transferências entre carteiras': ['valorMov', 'difPar', 'ladoPar', 'parTela', 'confirmadasTela', 'semCambioTransf', 'transfSecao', 'transfBloco', 'mudarTransf', 'parPorChave'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {
@@ -120,6 +121,16 @@ test('index.html: todo texto e aria-label do <body> tem data-i18n (o <title> "No
   // o português fica no HTML e é o mesmo do dicionário
   for (const m of corpo.matchAll(/data-i18n="([^"]+)"[^>]*>([^<]*)</g)) assert.equal(m[2], D['pt-BR'][m[1]], m[1]);
   for (const m of corpo.matchAll(/aria-label="([^"]+)" data-i18n-aria-label="([^"]+)"/g)) assert.equal(m[1], D['pt-BR'][m[2]], m[2]);
+});
+
+// texto de tela em constante de módulo ((módulo) no analisador): só os formatos que o passo e troca por NORA_FORMATO
+const MODULO_PASSO_E = { 'março': 'MES', 'dólar': 'NOME_MOEDA', 'Euro (€)': 'MOEDAS', 'Real (R$)': 'MOEDAS', 'Libra (£)': 'MOEDAS', 'Dólar (US$)': 'MOEDAS' };
+test('constantes de módulo: nenhum texto de tela além dos formatos do passo e', () => {
+  const t = textosDoApp(appJs).filter(x => x.funcao === '(módulo)' && !(x.texto in MODULO_PASSO_E));
+  assert.deepEqual(t.map(x => `app.js:${x.linha} "${x.texto}"`), [], 'texto de tela numa constante de módulo: troque por uma função que chama tt() na hora');
+  // autoteste: a constante depois de uma função é do módulo, não dessa função
+  const src = '  /*CORE-END*/\n  function f() {\n    return 1;\n  }\n  var L = [\'Texto da tela\'];\n  function g() { return \'<b>Outro texto</b>\'; }';
+  assert.deepEqual(textosDoApp(src).map(x => [x.funcao, x.texto]), [['(módulo)', 'Texto da tela'], ['g', 'Outro texto']]);
 });
 
 test('nenhuma tradução no nível de módulo do app.js: o texto ficaria no idioma do carregamento', () => {

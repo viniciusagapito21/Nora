@@ -33,7 +33,8 @@ export function textosDoApp(fonte, { parte = 'tela' } = {}) {
   linhas.forEach((l, i) => {
     const m = l.match(/^ {2}function ([A-Za-z0-9_]+)\(/);
     if (m) funcao = m[1];
-    else if (/^ {2}[A-Za-z$(]/.test(l) && !/^ {2}(var|function) /.test(l)) funcao = '(eventos)';
+    else if (/^ {2}var /.test(l)) funcao = '(módulo)';  // constante de topo: não é da função de cima
+    else if (/^ {2}[A-Za-z$(]/.test(l) && !/^ {2}function /.test(l)) funcao = '(eventos)';
     if ((parte === 'tela') !== (i > fim) || /^\s*(\/\*|\*|\/\/)/.test(l)) return;
     for (const lit of l.matchAll(/'((?:[^'\\\n]|\\.)*)'/g))
       for (const p of pedacosVisiveis(lit[1])) res.push({ linha: i + 1, funcao, ...p });
