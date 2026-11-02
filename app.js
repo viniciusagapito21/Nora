@@ -1843,16 +1843,17 @@
   function foraDasSomas(Q) {
     var nm = MES[+Q.m.slice(5) - 1], com = Q.por.filter(function (p) { return p.interno.n; }), n = 0;
     com.forEach(function (p) { n += p.interno.n; });
-    if (!n) return '<p class="passo rfora">Nenhum movimento marcado como "Entre contas suas" em ' + esc(nm) + ': nada ficou fora do Entrou e do Gastou.</p>';
+    if (!n) return '<p class="passo rfora">' + tth('resumo.foraNenhum', { mes: nm }) + '</p>';
     var partes = com.map(function (p) {
-      var it = p.interno, c = p.w.moeda, v = [];
-      if (it.saiu) v.push('saíram ' + fW(it.saiu, c)); if (it.entrou) v.push('entraram ' + fW(it.entrou, c));
-      return esc(p.w.nome) + ' ' + it.n + ' (' + v.join(', ') + ')';
+      var it = p.interno, c = p.w.moeda;
+      var v = it.saiu && it.entrou ? tt('resumo.foraSaiuEntrou', { saiu: fW(it.saiu, c), entrou: fW(it.entrou, c) }) : it.saiu ? tt('resumo.foraSaiu', { valor: fW(it.saiu, c) }) : it.entrou ? tt('resumo.foraEntrou', { valor: fW(it.entrou, c) }) : '';
+      return tt('resumo.foraParte', { nome: p.w.nome, n: it.n, valores: v });
     });
     var lista = '';
     Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(r.desc) + ': ' + (r.a > 0 ? '+' : '−') + esc(fmtDe(p.w.moeda, 2).format(Math.abs(r.a))) + '</li>'; }); });
-    return '<div class="rfora"><p class="passo">Fora do Entrou e do Gastou: ' + n + (n === 1 ? ' movimento marcado' : ' movimentos marcados') + ' como "Entre contas suas" em ' + esc(nm) + ', ' + partes.join(' e ') + '.</p>' +
-      '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>Ver quais</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">Para mudar, use Revisar categorias na aba da carteira. Uma transferência confirmada se desfaz em Transferências confirmadas.</p></details></div>';
+    /* as partes ligadas por "e" uma a uma, como antes (com três carteiras: "A e B e C") */
+    return '<div class="rfora"><p class="passo">' + tth('resumo.foraTexto', { n: n, mes: nm, partes: partes.reduce(function (a, b) { return tt('resumo.foraPartesE', { a: a, b: b }); }) }) + '</p>' +
+      '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>' + tth('resumo.verQuais') + '</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">' + tth('resumo.foraAjuda') + '</p></details></div>';
   }
   function categoriasResumo(Q, conv) {
     var list = [], mx = 0, h = '';
@@ -1929,12 +1930,12 @@
      ou a do banco reconhecido no arquivo arrastado */
   function escolherTela() {
     var F = S.escolher.files, sug = S.escolher.sugerida, marcada = sug || S.dados.ativa;
-    return '<section class="sec" id="fin-escolher"><div class="card ggrid"><h2>Para qual carteira é o extrato?</h2><p class="passo">' + (F ? esc(F[0].name) + (F.length > 1 ? ' e mais ' + (F.length - 1) : '') + '. ' : '') + 'Cada importação vai para uma carteira só.</p>' +
-      (sug ? '<p class="aviso">Parece um extrato do ' + esc(LEITORES[S.escolher.banco].nome) + ': a carteira dele já vem marcada.</p>' : '') +
+    return '<section class="sec" id="fin-escolher"><div class="card ggrid"><h2>' + tth('resumo.escolherTitulo') + '</h2><p class="passo">' + (!F ? tth('resumo.escolherSo') : F.length > 1 ? tth('resumo.escolherArquivos', { arquivo: F[0].name, n: F.length - 1 }) : tth('resumo.escolherArquivo', { arquivo: F[0].name })) + '</p>' +
+      (sug ? '<p class="aviso">' + tth('resumo.pareceBanco', { banco: LEITORES[S.escolher.banco].nome }) + '</p>' : '') +
       '<div class="radios">' + S.dados.carteiras.map(function (c) {
         var r = resumoDados(c);
-        return '<label class="chk"><input type="radio" name="fin-ecart" value="' + esc(c.id) + '"' + (c.id === marcada ? ' checked' : '') + '><span>' + esc(c.nome) + ' <small class="hint">' + esc(nomeBanco(c.banco)) + ' · ' + esc(c.moeda) + (r.meses ? '' : ' · sem extrato') + '</small></span></label>';
-      }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-escolher="ok">' + (F ? 'Importar nesta carteira' : 'Escolher arquivo') + '</button><button class="btn" type="button" data-escolher="cancelar">Cancelar</button></div></div></section>';
+        return '<label class="chk"><input type="radio" name="fin-ecart" value="' + esc(c.id) + '"' + (c.id === marcada ? ' checked' : '') + '><span>' + esc(c.nome) + ' <small class="hint">' + esc(nomeBanco(c.banco)) + ' · ' + esc(c.moeda) + (r.meses ? '' : ' · ' + tth('carteiras.semExtrato')) + '</small></span></label>';
+      }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-escolher="ok">' + tth(F ? 'resumo.importarNesta' : 'casca.escolherArquivo') + '</button><button class="btn" type="button" data-escolher="cancelar">' + tth('comum.cancelar') + '</button></div></div></section>';
   }
   /* arquivo arrastado no Resumo: lê o começo dele e, se o banco for reconhecido, marca a carteira desse banco */
   function sugerirCarteira(E) {

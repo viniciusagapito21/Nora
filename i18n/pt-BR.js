@@ -693,5 +693,21 @@ NORA_DICIONARIOS['pt-BR'] = {
   'transf.pares': { one: '{n} par · confirme o que for dinheiro seu indo de uma conta para outra', other: '{n} pares · confirme o que for dinheiro seu indo de uma conta para outra' },
   'transf.nenhumaNova': 'nenhuma sugestão nova',
   'transf.blocoDica': 'Uma saída numa carteira e uma entrada em outra, com valor e data parecidos. Confirme o que for dinheiro seu indo de uma conta para outra: as duas pontas saem do Entrou e do Gastou. As mesmas sugestões aparecem no Resumo.',
-  'transf.definaCambio': 'Defina o câmbio de {moeda} no Resumo para ver sugestões com {nome}.'
+  'transf.definaCambio': 'Defina o câmbio de {moeda} no Resumo para ver sugestões com {nome}.',
+  /* passo d: Resumo, fora das somas e a escolha da carteira ao adicionar extrato */
+  'resumo.foraNenhum': 'Nenhum movimento marcado como "Entre contas suas" em {mes}: nada ficou fora do Entrou e do Gastou.',
+  'resumo.foraTexto': { one: 'Fora do Entrou e do Gastou: {n} movimento marcado como "Entre contas suas" em {mes}, {partes}.', other: 'Fora do Entrou e do Gastou: {n} movimentos marcados como "Entre contas suas" em {mes}, {partes}.' },
+  'resumo.foraParte': '{nome} {n} ({valores})',
+  'resumo.foraPartesE': '{a} e {b}',
+  'resumo.foraSaiu': 'saíram {valor}',
+  'resumo.foraEntrou': 'entraram {valor}',
+  'resumo.foraSaiuEntrou': 'saíram {saiu}, entraram {entrou}',
+  'resumo.verQuais': 'Ver quais',
+  'resumo.foraAjuda': 'Para mudar, use Revisar categorias na aba da carteira. Uma transferência confirmada se desfaz em Transferências confirmadas.',
+  'resumo.escolherTitulo': 'Para qual carteira é o extrato?',
+  'resumo.escolherSo': 'Cada importação vai para uma carteira só.',
+  'resumo.escolherArquivo': '{arquivo}. Cada importação vai para uma carteira só.',
+  'resumo.escolherArquivos': '{arquivo} e mais {n}. Cada importação vai para uma carteira só.',
+  'resumo.pareceBanco': 'Parece um extrato do {banco}: a carteira dele já vem marcada.',
+  'resumo.importarNesta': 'Importar nesta carteira'
 };

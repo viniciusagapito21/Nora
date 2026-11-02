@@ -879,7 +879,44 @@ test('frases de referência em pt-BR: difPar monta o mesmo texto de antes', () =
     assert.equal(agora({ dias, dif, moedas }, cb), antes({ dias, dif, moedas }, cb));
 });
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF }))
+// área 11c: o que sobra do Resumo (fora das somas, escolher a carteira); nomes de carteira e de arquivo escapados
+const RESUMO_C = [
+  ['tth', 'resumo.foraNenhum', { mes: 'setembro' }, 'Nenhum movimento marcado como &quot;Entre contas suas&quot; em setembro: nada ficou fora do Entrou e do Gastou.'],
+  ['tt', 'resumo.foraNenhum', { mes: 'setembro' }, 'Nenhum movimento marcado como "Entre contas suas" em setembro: nada ficou fora do Entrou e do Gastou.'],
+  ['tt', 'resumo.foraTexto', { n: 1, mes: 'julho', partes: 'Revolut 1 (saíram € 200)' }, 'Fora do Entrou e do Gastou: 1 movimento marcado como "Entre contas suas" em julho, Revolut 1 (saíram € 200).'],
+  ['tth', 'resumo.foraTexto', { n: 3, mes: 'julho', partes: CART_X + ' 2 (saíram € 200, entraram € 50) e Wise 1 (entraram £ 170)' }, 'Fora do Entrou e do Gastou: 3 movimentos marcados como &quot;Entre contas suas&quot; em julho, Conta &lt;b&gt; &amp; &quot;cia&quot; 2 (saíram € 200, entraram € 50) e Wise 1 (entraram £ 170).'],
+  ['tt', 'resumo.foraParte', { nome: 'Revolut', n: 2, valores: 'saíram € 200, entraram € 50' }, 'Revolut 2 (saíram € 200, entraram € 50)'],
+  ['tt', 'resumo.foraParte', { nome: 'Revolut', n: 1, valores: '' }, 'Revolut 1 ()'],
+  ['tt', 'resumo.foraSaiu', { valor: '€ 200' }, 'saíram € 200'],
+  ['tt', 'resumo.foraEntrou', { valor: 'R$ 1.230' }, 'entraram R$ 1.230'],
+  ['tt', 'resumo.foraSaiuEntrou', { saiu: '€ 200', entrou: '€ 50' }, 'saíram € 200, entraram € 50'],
+  ['tth', 'resumo.verQuais', undefined, 'Ver quais'],
+  ['tth', 'resumo.foraAjuda', undefined, 'Para mudar, use Revisar categorias na aba da carteira. Uma transferência confirmada se desfaz em Transferências confirmadas.'],
+  ['tth', 'resumo.escolherTitulo', undefined, 'Para qual carteira é o extrato?'],
+  ['tth', 'resumo.escolherSo', undefined, 'Cada importação vai para uma carteira só.'],
+  ['tth', 'resumo.escolherArquivo', { arquivo: 'extrato.csv' }, 'extrato.csv. Cada importação vai para uma carteira só.'],
+  ['tth', 'resumo.escolherArquivo', { arquivo: ARQ_X }, 'extrato &lt;out&gt; &amp; &quot;1&quot;.csv. Cada importação vai para uma carteira só.'],
+  ['tth', 'resumo.escolherArquivos', { arquivo: 'a.csv', n: 2 }, 'a.csv e mais 2. Cada importação vai para uma carteira só.'],
+  ['tth', 'resumo.pareceBanco', { banco: 'BTG Pactual' }, 'Parece um extrato do BTG Pactual: a carteira dele já vem marcada.'],
+  ['tth', 'resumo.importarNesta', undefined, 'Importar nesta carteira'],
+  ['tth', 'casca.escolherArquivo', undefined, 'Escolher arquivo'],
+];
+
+test('frases de referência em pt-BR: a nota "Fora do Entrou e do Gastou" monta o mesmo texto de antes', () => {
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const casos = [[['Revolut', 1, '€ 200', 0]], [['Revolut', 2, '€ 200', '€ 50'], [CART_X, 1, 0, '£ 170']], [['A', 1, '€ 1', 0], ['B', 1, 0, '€ 2'], ['C', 2, '€ 3', '€ 4']]];
+  for (const com of casos) {
+    const n = com.reduce((a, c) => a + c[1], 0);
+    const antes = 'Fora do Entrou e do Gastou: ' + n + (n === 1 ? ' movimento marcado' : ' movimentos marcados') + ' como "Entre contas suas" em julho, ' +
+      com.map(([nome, k, saiu, entrou]) => { const v = []; if (saiu) v.push('saíram ' + saiu); if (entrou) v.push('entraram ' + entrou); return esc(nome) + ' ' + k + ' (' + v.join(', ') + ')'; }).join(' e ') + '.';
+    const partes = com.map(([nome, k, saiu, entrou]) => I.t('resumo.foraParte', { nome, n: k, valores: saiu && entrou ? I.t('resumo.foraSaiuEntrou', { saiu, entrou }) : saiu ? I.t('resumo.foraSaiu', { valor: saiu }) : I.t('resumo.foraEntrou', { valor: entrou }) }));
+    const agora = I.th('resumo.foraTexto', { n, mes: 'julho', partes: partes.reduce((a, b) => I.t('resumo.foraPartesE', { a, b })) });
+    // antes, as aspas de "Entre contas suas" iam cruas no HTML; agora vão como &quot; (a mesma tela)
+    assert.equal(agora.replace(/&quot;Entre contas suas&quot;/g, '"Entre contas suas"'), antes);
+  }
+});
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

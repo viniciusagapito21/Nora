@@ -36,6 +36,7 @@ const AREAS_FEITAS = {
   'Resumo': ['fW', 'trecho', 'moedasConvertidas', 'avisoCambioResumo', 'saldoCarteiras', 'mesesResumo', 'avisoCobertura', 'tabelaPorCarteira', 'categoriasResumo',
     'mesResumoTela', 'envResumo', 'previsaoResumoTela', 'cambioResumo', 'telaResumo'],
   'transferências entre carteiras': ['valorMov', 'difPar', 'ladoPar', 'parTela', 'confirmadasTela', 'semCambioTransf', 'transfSecao', 'transfBloco', 'mudarTransf', 'parPorChave'],
+  'Resumo: fora das somas e escolha da carteira': ['foraDasSomas', 'escolherTela', 'sugerirCarteira'],
 };
 // textos que aparecem na tela e não se traduzem (ou que o analisador confunde), sempre com o motivo
 const PERMITIDOS = {

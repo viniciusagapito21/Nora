@@ -692,5 +692,21 @@ NORA_DICIONARIOS['en-GB'] = {
   'transf.pares': { one: '{n} pair · confirm what is your own money going from one account to another', other: '{n} pairs · confirm what is your own money going from one account to another' },
   'transf.nenhumaNova': 'no new suggestions',
   'transf.blocoDica': 'An outgoing transaction in one account and an incoming one in another, with a similar amount and date. Confirm what is your own money going from one account to another: both sides leave Money in and Spent. The same suggestions appear in the Overview.',
-  'transf.definaCambio': 'Set the {moeda} exchange rate in the Overview to see suggestions with {nome}.'
+  'transf.definaCambio': 'Set the {moeda} exchange rate in the Overview to see suggestions with {nome}.',
+  /* step d: Overview, left out of the totals and choosing the account when adding a statement */
+  'resumo.foraNenhum': 'No transactions marked as "Between your accounts" in {mes}: nothing was left out of Money in and Spent.',
+  'resumo.foraTexto': { one: 'Left out of Money in and Spent: {n} transaction marked as "Between your accounts" in {mes}, {partes}.', other: 'Left out of Money in and Spent: {n} transactions marked as "Between your accounts" in {mes}, {partes}.' },
+  'resumo.foraParte': '{nome} {n} ({valores})',
+  'resumo.foraPartesE': '{a} and {b}',
+  'resumo.foraSaiu': '{valor} out',
+  'resumo.foraEntrou': '{valor} in',
+  'resumo.foraSaiuEntrou': '{saiu} out, {entrou} in',
+  'resumo.verQuais': 'See which',
+  'resumo.foraAjuda': 'To change this, use Review categories on the account tab. A confirmed transfer is undone in Confirmed transfers.',
+  'resumo.escolherTitulo': 'Which account is this statement for?',
+  'resumo.escolherSo': 'Each import goes to a single account.',
+  'resumo.escolherArquivo': '{arquivo}. Each import goes to a single account.',
+  'resumo.escolherArquivos': '{arquivo} and {n} more. Each import goes to a single account.',
+  'resumo.pareceBanco': 'This looks like a {banco} statement: its account is already selected.',
+  'resumo.importarNesta': 'Import into this account'
 };
