@@ -47,6 +47,19 @@ var NORA_I18N = (function () {
     return v === undefined ? chave : forma(v, vars, idi);
   }
   function t(chave, vars) { return preencher(molde(chave, vars), vars, String); }
+  /* a chave existe no idioma efetivo ou no pt-BR (o que t() acharia), sem anotar falta */
+  function existe(chave) { return buscar(idioma, chave) !== undefined || buscar(BASE, chave) !== undefined; }
+  /* erro para mostrar: com um código do núcleo (e.codigo, e.vars, de erroCod) que tenha a chave 'erro.' + codigo, a frase
+     do dicionário; sem código, ou sem a chave, a própria mensagem do erro (a frase pt-BR do núcleo): nunca a chave crua.
+     Número em vars é quantidade e sai por numero(v), se vier, menos n (o plural); texto entra como está */
+  function textoErro(e, numero) {
+    if (e && typeof e.codigo === 'string' && existe('erro.' + e.codigo)) {
+      var vs = {}, ks = e.vars || {};
+      for (var k in ks) if (tem.call(ks, k)) vs[k] = typeof ks[k] === 'number' && k !== 'n' && numero ? numero(ks[k]) : ks[k];
+      return t('erro.' + e.codigo, vs);
+    }
+    return (e && e.message) || String(e);
+  }
 
   /* texto para dentro de HTML: o do dicionário escapado (o mesmo esc do app.js) e cada variável escapada também;
      só não escapa a variável embrulhada em cru('<b>' + esc(x) + '</b>'), a marcação montada pelo próprio código */
@@ -66,7 +79,7 @@ var NORA_I18N = (function () {
       if (a) el.setAttribute('aria-label', t(a));
     }
   }
-  return { t: t, th: th, cru: cru, esc: esc, aplicarTextosFixos: aplicarTextosFixos, faltando: faltando,
+  return { t: t, th: th, cru: cru, esc: esc, existe: existe, textoErro: textoErro, aplicarTextosFixos: aplicarTextosFixos, faltando: faltando,
     idioma: function () { return idioma; }, idiomaPreferido: function () { return preferido; }, BASE: BASE };
 })();
 function t(chave, vars) { return NORA_I18N.t(chave, vars); }

@@ -76,6 +76,15 @@ test('áreas já extraídas: nenhum texto visível fora do dicionário', () => {
     'texto visível novo: ponha numa chave dos dois dicionários e use tt()/tth(), ou explique em PERMITIDOS');
 });
 
+// erros com código: erroCod('codigo', …) no app.js (núcleo e tela) e nos leitores precisa de 'erro.codigo' nos dois dicionários
+const CODIGOS_ERRO = /\berroCod\(\s*'([^']+)'/g;
+test('todo código de erro usado existe nos dois dicionários', () => {
+  assert.deepEqual([...("erroCod('mesRuim', { m: m }, 'x'); erroCod( 'b', {})").matchAll(CODIGOS_ERRO)].map(m => m[1]), ['mesRuim', 'b'], 'autoteste da busca');
+  const fontes = ['app.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js'].map(ler).join('\n');
+  const usados = [...new Set([...fontes.matchAll(CODIGOS_ERRO)].map(m => m[1]))];
+  for (const c of usados) for (const idi of ['pt-BR', 'en-GB']) assert.ok(('erro.' + c) in D[idi], `erro.${c} falta em ${idi}`);
+});
+
 test('nada de t(\'…\') no app.js (o parâmetro t esconde a tradução): use tt ou tth', () => {
   const ruins = appJs.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => /(^|[^\w.$])t\(\s*['"]/.test(l));
   assert.deepEqual(ruins.map(([n]) => n), []);

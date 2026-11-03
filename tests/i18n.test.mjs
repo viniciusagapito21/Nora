@@ -148,3 +148,34 @@ test('aplicarTextosFixos: troca o texto e o aria-label marcados, e só eles', ()
     assert.equal(p.textContent, txt); assert.equal(sec.atrs['aria-label'], aria); assert.equal(sec.textContent, 'conteúdo');
   }
 });
+
+// passo d, núcleo (12a): erros com código (erroCod no app.js) traduzidos na tela por NORA_I18N.textoErro
+test('existe: diz se t() acharia a chave (idioma efetivo ou pt-BR), sem anotar falta', () => {
+  const c = abrir({ dicionarios: { 'pt-BR': { 'erro.x': 'x pt' }, 'en-GB': { 'erro.y': 'y en' } }, languages: ['en-US'], aplicarLang: true });
+  assert.equal(c.NORA_I18N.existe('erro.x'), true, 'só no pt-BR: t() cai no pt-BR');
+  assert.equal(c.NORA_I18N.existe('erro.y'), true);
+  assert.equal(c.NORA_I18N.existe('erro.z'), false);
+  assert.deepEqual(faltas(c), []);
+});
+
+test('textoErro: a frase do dicionário com código; senão a mensagem do erro; nunca a chave crua', () => {
+  const D = { 'pt-BR': { 'erro.mesRuim': 'mês {m} em formato errado', 'erro.limite': 'a planilha passa de {limite} linhas', 'erro.nCart': { one: '{n} carteira', other: '{n} carteiras' } },
+    'en-GB': { 'erro.mesRuim': 'month {m} in the wrong format', 'erro.limite': 'the spreadsheet has more than {limite} rows', 'erro.nCart': { one: '{n} account', other: '{n} accounts' } } };
+  const erro = (codigo, vars, texto) => Object.assign(new Error(texto), { codigo, vars });
+  const pt = abrir({ dicionarios: D }), en = abrir({ dicionarios: D, languages: ['en-US'], aplicarLang: true });
+  const num = v => new Intl.NumberFormat('pt-BR').format(v);
+  // com código e chave: a frase do idioma, com as variáveis (texto entra como está)
+  assert.equal(pt.NORA_I18N.textoErro(erro('mesRuim', { m: 'setembro <b>' }, 'mês setembro <b> em formato errado')), 'mês setembro <b> em formato errado');
+  assert.equal(en.NORA_I18N.textoErro(erro('mesRuim', { m: 'setembro' }, 'mês setembro em formato errado')), 'month setembro in the wrong format');
+  // número é quantidade: passa pelo formatador da tela; n fica cru (é o plural)
+  assert.equal(pt.NORA_I18N.textoErro(erro('limite', { limite: 20000 }, 'a planilha passa de 20.000 linhas'), num), 'a planilha passa de 20.000 linhas');
+  assert.equal(pt.NORA_I18N.textoErro(erro('nCart', { n: 1 }, '1 carteira'), num), '1 carteira');
+  assert.equal(en.NORA_I18N.textoErro(erro('nCart', { n: 3 }, '3 carteiras'), num), '3 accounts');
+  // código sem chave: a mensagem pt-BR do núcleo (reserva), nunca 'erro.semChave'
+  assert.equal(en.NORA_I18N.textoErro(erro('semChave', {}, 'frase do núcleo')), 'frase do núcleo');
+  // sem código: a mensagem; sem Error: o próprio valor como texto
+  assert.equal(pt.NORA_I18N.textoErro(new Error('o conteúdo não é JSON válido')), 'o conteúdo não é JSON válido');
+  assert.equal(pt.NORA_I18N.textoErro('texto solto'), 'texto solto');
+  assert.equal(pt.NORA_I18N.textoErro(erro('mesRuim', undefined, 'mês {m} em formato errado')), 'mês {m} em formato errado', 'sem vars, o molde fica como está, mas não vira chave');
+  for (const c of [pt, en]) assert.deepEqual(faltas(c), [], 'textoErro não chama t() com chave que não existe');
+});

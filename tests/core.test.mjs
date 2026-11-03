@@ -17,7 +17,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, resumoBackup, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, resumoBackup, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos, erroCod };')();
 }
 function months(api) {
   const m = {};
@@ -2122,4 +2122,13 @@ test('países do euro: carteiras existentes não mudam (backup, edição e combi
   let y = x; for (const c of x.carteiras) y = PM.editarCarteira(y, c.id, { nome: c.nome + ' ' });
   assert.deepEqual(y.carteiras.map(c => [c.id, c.moeda, c.pais]), antes, 'editar só o nome não mexe em moeda nem país');
   assert.equal(PM.migrate({ v: 3, months: {}, over: {}, plan: {}, summary: null, div: null }).carteiras[0].pais, 'IE', 'sem país, continua Irlanda');
+});
+
+test('erroCod: um Error com a frase pt-BR de sempre, mais o código e as variáveis (passo d, núcleo)', () => {
+  const api = load(), e = api.erroCod('mesRuim', { m: 'setembro' }, 'mês setembro em formato errado');
+  assert.ok(e instanceof Error);
+  assert.equal(e.message, 'mês setembro em formato errado');
+  assert.equal(e.codigo, 'mesRuim');
+  assert.deepEqual(e.vars, { m: 'setembro' });
+  assert.deepEqual(api.erroCod('x', undefined, 'y').vars, {});
 });

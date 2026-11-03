@@ -14,6 +14,10 @@
   'use strict';
 
   /*CORE-START*/
+  /* erro com um código estável e as variáveis, para a tela traduzir (textoErro, no i18n.js); a mensagem continua a frase em
+     pt-BR de sempre, que os testes conferem e que vale como reserva. Em vars, número é quantidade (a tela formata) e texto
+     (nome de carteira, de arquivo, id) entra como está */
+  function erroCod(codigo, vars, texto) { var e = new Error(texto); e.codigo = codigo; e.vars = vars || {}; return e; }
   /* o nome de 'brasil' é só o padrão; cada pessoa troca em Configurações (plan.nomes) */
   var CATS = [
     { id: 'aluguel', nome: 'Aluguel e contas', slot: 1 },
@@ -1471,6 +1475,8 @@
      cru('<b>' + esc(x) + '</b>'). Texto da pessoa só entra como variável. A função global t não serve aqui: muitas funções deste
      arquivo têm o parâmetro t (o movimento), que esconde a função global. */
   var tt = NORA_I18N.t, tth = NORA_I18N.th, cru = NORA_I18N.cru;
+  /* a mensagem de um erro (do núcleo, de um leitor ou da própria tela), no idioma da tela quando ele tem código */
+  function textoErro(e) { return NORA_I18N.textoErro(e, function (v) { return nn.format(v); }); }
   NORA_I18N.aplicarTextosFixos(document);
 
   var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -1622,7 +1628,7 @@
       usarDados(lerSalvo(raw, tit));
       if (velho) localSave(); else S.espaco = espacoUsado();
     } catch (e) {
-      S.bloqueado = { motivo: e.message, bruto: raw };
+      S.bloqueado = { erro: e, bruto: raw };
     }
   }
   function apagarTudo() {
@@ -1635,7 +1641,7 @@
   }
   var chain = Promise.resolve();
   function enqueue(fn) {
-    chain = chain.then(fn).catch(function (e) { toast(tt('msg.naoSalvou', { erro: (e && e.message) || e }), true); });
+    chain = chain.then(fn).catch(function (e) { toast(tt('msg.naoSalvou', { erro: textoErro(e) }), true); });
     return chain;
   }
   function saveMonth(m, tx) {
@@ -2111,10 +2117,10 @@
     var I = S.importar, m = I.mapa, k = t.getAttribute('data-imp-campo'), v = t.value, n = +v, foco = t.id;
     if (k === 'aba') {
       try { Object.assign(I, prepararPlanilha(window.XLSX, I.bytes, I.tipo, null, n)); }
-      catch (er) { toast(tt('importar.abaIlegivel', { erro: er.message }), true); }
+      catch (er) { toast(tt('importar.abaIlegivel', { erro: textoErro(er) }), true); }
     } else if (k === 'cod' || k === 'sep') {
       try { Object.assign(I, prepararImportacao(I.bytes, null, k === 'cod' ? v : I.cod, k === 'sep' ? v : I.sep)); }
-      catch (er) { toast(tt('importar.assimIlegivel', { erro: er.message }), true); }
+      catch (er) { toast(tt('importar.assimIlegivel', { erro: textoErro(er) }), true); }
     } else if (k === 'cab') {
       I.mapa = n < 0 ? { cab: -1, sep: I.sep, data: -1, desc: -1, saldo: -1, valor: { modo: 'uma', col: -1, saidas: null } } : Object.assign(sugerirColunas(I.rows[n]), { cab: n, sep: I.sep });
       if (n >= 0) perguntasImportacao(I.rows, I.mapa);
@@ -2215,7 +2221,7 @@
       return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });
     }).then(function (I) {
       S.importar = comLeitor(I); render(); window.scrollTo(0, 0);
-    }).catch(function (e) { toast(tt('importar.naoLeu', { arquivo: f.name, erro: (e && e.message) || e }), true); });
+    }).catch(function (e) { toast(tt('importar.naoLeu', { arquivo: f.name, erro: textoErro(e) }), true); });
   }
   /* banco reconhecido pelo conteúdo (hoje, o BTG): o leitor dele define colunas, formatos e o tipo de cada movimento,
      e a prévia é a mesma, sem perguntas */
@@ -2433,7 +2439,7 @@
       if ($(k + '-fixa').checked) fixas.push(c.id);
     });
     var np = Object.assign({}, p, { nomes: nomes, ocultas: ocultas, fixas: fixas, proprias: proprias }), nova = $('#fin-k-nova').value.trim(), erro = null;
-    if (nova) { try { np = criarCategoria(np, nova); } catch (e) { erro = tt('msg.naoCrieiCategoria', { nome: nova, erro: e.message }); } }
+    if (nova) { try { np = criarCategoria(np, nova); } catch (e) { erro = tt('msg.naoCrieiCategoria', { nome: nova, erro: textoErro(e) }); } }
     return { plan: np, erro: erro, tirar: tirar };
   }
   /* ---------- seus dados: backup, restaurar, apagar ---------- */
@@ -2455,7 +2461,7 @@
     if (!file) return Promise.resolve();
     return file.text().then(function (txt) {
       S.restaurar = { nome: file.name, dados: lerSalvo(txt, '') }; render();
-    }).catch(function (e) { toast(tt('msg.naoEBackup', { erro: (e && e.message) || e }), true); });
+    }).catch(function (e) { toast(tt('msg.naoEBackup', { erro: textoErro(e) }), true); });
   }
   function resumoTxt(x) {
     var r = resumoDados(x);
@@ -2505,7 +2511,7 @@
   }
   function telaBloqueio() {
     return '<section class="sec"><div class="sec-top"><h2>' + tth('bloqueio.titulo') + '</h2></div><div class="card ggrid">' +
-      '<p class="aviso erro">' + tth('bloqueio.aviso', { motivo: S.bloqueado.motivo }) + '</p>' +
+      '<p class="aviso erro">' + tth('bloqueio.aviso', { motivo: textoErro(S.bloqueado.erro) }) + '</p>' +
       '<p class="passo">' + tth('bloqueio.dica') + '</p>' +
       '<div class="grupo"><button class="btn pri" type="button" data-backup="copia">' + tth('bloqueio.copia') + '</button>' +
       '<button class="btn" type="button" data-backup="restaurar">' + tth('dados.restaurar') + '</button>' +
@@ -3432,7 +3438,7 @@
       /* 1) carteiras (nome, banco, moeda, país); 2) você, categorias e metas da carteira ativa; 3) carteira nova, que vira a ativa */
       var x = dadosAtuais(), erros = [], tinhaCambio = Object.keys(x.cambios || {}).length > 0, mp0 = x.config.moedaPrincipal;
       x.carteiras.forEach(function (c) {
-        try { x = editarCarteira(x, c.id, lerCarteira(c.id)); } catch (er) { erros.push(tt('msg.erroCarteira', { nome: c.nome, erro: er.message })); }
+        try { x = editarCarteira(x, c.id, lerCarteira(c.id)); } catch (er) { erros.push(tt('msg.erroCarteira', { nome: c.nome, erro: textoErro(er) })); }
       });
       /* moeda principal (com várias carteiras) e câmbio; trocar a moeda apaga as taxas, e as digitadas não valem */
       var mpSel = $('#fin-w-mp'), trocouMP = false;
@@ -3455,7 +3461,7 @@
       var wn = $('#fin-wn-nome'), criada = null;
       if (wn && wn.value.trim()) {
         try { x = novaCarteira(x, { nome: wn.value, banco: $('#fin-wn-banco').value, moeda: $('#fin-wn-moeda').value, pais: $('#fin-wn-pais').value }); criada = carteiraAtiva(x); }
-        catch (er) { erros.push(tt('msg.naoCrieiCarteira', { nome: wn.value.trim(), erro: er.message })); }
+        catch (er) { erros.push(tt('msg.naoCrieiCarteira', { nome: wn.value.trim(), erro: textoErro(er) })); }
       }
       S.setupOpen = false; S.wOpen = false;
       if (criada) { S.sel = null; S.f = []; S.q = ''; S.resumo = false; }
