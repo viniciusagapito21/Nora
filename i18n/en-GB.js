@@ -758,5 +758,10 @@ NORA_DICIONARIOS['en-GB'] = {
   'erro.interno.v3UmaCarteira': 'more than one account: does not fit in v3',
   'erro.interno.carteiraNaoExiste': 'account {carteira} does not exist',
   'erro.interno.unicaCarteira': 'the only account cannot be deleted: use Delete my data',
-  'erro.interno.mesmaCarteira': 'both sides are in the same account'
+  'erro.interno.mesmaCarteira': 'both sides are in the same account',
+  /* step d, core: reasons for rows skipped on import (the core sends the code; the pt-BR sentence comes along as a fallback) */
+  'importar.motivo.semData': 'no valid date',
+  'importar.motivo.saldoSemValor': 'balance row without an amount',
+  'importar.motivo.valorRuim': 'amount not understood',
+  'importar.motivo.valorZero': 'zero amount'
 };

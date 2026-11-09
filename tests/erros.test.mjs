@@ -10,7 +10,7 @@ const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const appJs = ler('app.js');
 const scriptsAntes = [...ler('index.html').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js' && f !== 'prefs.js');
 const core = scriptsAntes.map(ler).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira, decodificar, linhasDaAba, lerPlanilha, lerPdf, paraV3, excluirCarteira, confirmarTransferencia };')();
+const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira, decodificar, linhasDaAba, lerPlanilha, lerPdf, paraV3, excluirCarteira, confirmarTransferencia, interpretarCSV };')();
 
 // a tela em pt-BR e em en-GB (o prefs.js de mentira diz o idioma; APLICAR_LANG ligada só aqui, para ver o inglês)
 function tela(idioma) {
@@ -166,4 +166,20 @@ test('grupo A4 (internos): cada erro provocado, pt-BR idêntico ao de antes, en-
   const doFonte = new Set([...appJs.matchAll(/\berroCod\(\s*'(interno\.[^']+)'/g)].map(m => m[1]));
   assert.deepEqual([...doFonte].sort(), [...new Set(A4.map(c => c[0]))].sort());
   assert.equal(EN.textoErro(pega(A4[1][1])), 'account c<9> does not exist');
+});
+
+// 12c: cada motivo de linha ignorada provocado; o código tem chave importar.motivo.<cod> com a mesma frase pt-BR
+test('12c: linhas ignoradas trazem cod ao lado do motivo; pt-BR igual ao motivo, en-GB pelo dicionário', () => {
+  const rows = [['Data', 'Descrição', 'Valor'], ['xx', 'a', '1'], ['2026-09-01', 'Saldo do dia', ''], ['2026-09-02', 'b', 'abc'], ['2026-09-03', 'c', '0'], ['2026-09-04', 'd', '-5']];
+  const m = { cab: 0, data: 0, desc: 1, fmtData: 'ymd', fmtNum: 'ponto', valor: { modo: 'uma', col: 2, saidas: 'negativas' }, saldo: -1, saldoLinhas: 'Saldo do dia' };
+  const r = N.interpretarCSV(rows, m);
+  assert.deepEqual(r.ignoradas.map(x => [x.cod, x.motivo]), [['semData', 'sem data válida'], ['saldoSemValor', 'linha de saldo sem valor'], ['valorRuim', 'valor não entendido'], ['valorZero', 'valor zero']]);
+  for (const x of r.ignoradas) {
+    assert.equal(PT.I.t('importar.motivo.' + x.cod), x.motivo);
+    assert.notEqual(EN.I.t('importar.motivo.' + x.cod), x.motivo);
+  }
+  const doFonte = new Set([...appJs.matchAll(/ign\.push\(\{ n: x\.n, cod: '([^']+)'/g)].map(m => m[1]));
+  assert.deepEqual([...doFonte].sort(), ['saldoSemValor', 'semData', 'valorRuim', 'valorZero']);
+  assert.equal((appJs.match(/ign\.push\(/g) || []).length, 4, 'toda linha ignorada nasce com cod');
+  assert.deepEqual([...PT.I.faltando, ...EN.I.faltando], []);
 });

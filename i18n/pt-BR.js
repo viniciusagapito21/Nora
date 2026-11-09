@@ -759,5 +759,10 @@ NORA_DICIONARIOS['pt-BR'] = {
   'erro.interno.v3UmaCarteira': 'mais de uma carteira: não cabe na v3',
   'erro.interno.carteiraNaoExiste': 'a carteira {carteira} não existe',
   'erro.interno.unicaCarteira': 'a única carteira não se exclui: use Apagar meus dados',
-  'erro.interno.mesmaCarteira': 'as duas pontas estão na mesma carteira'
+  'erro.interno.mesmaCarteira': 'as duas pontas estão na mesma carteira',
+  /* passo d, núcleo: motivos das linhas ignoradas na importação (o núcleo manda o código; a frase pt-BR vem junto de reserva) */
+  'importar.motivo.semData': 'sem data válida',
+  'importar.motivo.saldoSemValor': 'linha de saldo sem valor',
+  'importar.motivo.valorRuim': 'valor não entendido',
+  'importar.motivo.valorZero': 'valor zero'
 };

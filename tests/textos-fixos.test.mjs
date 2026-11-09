@@ -30,7 +30,7 @@ const AREAS_FEITAS = {
     'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
   'importação: prévia e resultado': ['previaSaldo', 'textoBotao', 'confirmarImportacao'],
   'importação: leitura, erros e avisos': ['handleFiles', 'mudarImportacao', 'abrirGenerico', 'comLeitor', 'linhasDoArquivo', 'abrirPdf', 'carregarPdfjs', 'confSaldo', 'avisoLeitor'],
-  'importação: escolha de colunas': ['telaImportar', 'carregarLeitorPlanilhas', 'opSaldo', 'nomeFmtData', 'nomeFmtNum', 'separadoresTela', 'nomeColuna', 'opColunas', 'radios', 'celulas',
+  'importação: escolha de colunas': ['telaImportar', 'motivoIgnorada', 'carregarLeitorPlanilhas', 'opSaldo', 'nomeFmtData', 'nomeFmtNum', 'separadoresTela', 'nomeColuna', 'opColunas', 'radios', 'celulas',
     'ancoraDigitada', 'saldoNovo', 'podeSalvar', 'digitouAncora'],
   // Resumo e transferências em três partes (11a, 11b, 11c)
   'Resumo': ['fW', 'trecho', 'moedasConvertidas', 'avisoCambioResumo', 'saldoCarteiras', 'mesesResumo', 'avisoCobertura', 'tabelaPorCarteira', 'categoriasResumo',

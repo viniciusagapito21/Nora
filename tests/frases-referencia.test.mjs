@@ -976,8 +976,15 @@ const ERROS_INTERNOS = [
   ['tt', 'erro.interno.unicaCarteira', {}, 'a única carteira não se exclui: use Apagar meus dados'],
   ['tt', 'erro.interno.mesmaCarteira', {}, 'as duas pontas estão na mesma carteira'],
 ];
+// núcleo, 12c: motivos das linhas ignoradas (a mesma frase que o núcleo grava em motivo)
+const MOTIVOS_IGNORADAS = [
+  ['tt', 'importar.motivo.semData', {}, 'sem data válida'],
+  ['tt', 'importar.motivo.saldoSemValor', {}, 'linha de saldo sem valor'],
+  ['tt', 'importar.motivo.valorRuim', {}, 'valor não entendido'],
+  ['tt', 'importar.motivo.valorZero', {}, 'valor zero'],
+];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS, 'núcleo, leitura de arquivo': ERROS_ARQUIVO, 'núcleo, internos': ERROS_INTERNOS }))
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS, 'núcleo, leitura de arquivo': ERROS_ARQUIVO, 'núcleo, internos': ERROS_INTERNOS, 'núcleo, motivos das linhas ignoradas': MOTIVOS_IGNORADAS }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

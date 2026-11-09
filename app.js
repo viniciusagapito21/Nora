@@ -933,7 +933,7 @@
     }
     return q;
   }
-  /* aplica o mapeamento: { tx, linhas (número da linha no arquivo de cada tx), ignoradas: [{ n, motivo, celulas }],
+  /* aplica o mapeamento: { tx, linhas (número da linha no arquivo de cada tx), ignoradas: [{ n, cod, motivo, celulas }] (cod para a tela traduzir; motivo, a frase pt-BR de reserva),
      de, ate, entradas, saidas, saldos: { data: centavos }, nSaldo } (centavos).
      O saldo é do fim do dia e vale para a data, nunca para a linha: vem de uma coluna (m.saldo) ou de linhas
      próprias (m.saldoLinhas, a descrição dessas linhas, ex.: "Saldo Diário"). Ele nunca vira movimento, e o
@@ -943,11 +943,11 @@
     var tx = [], ns = [], ign = [], sal = [], v = m.valor, fmtN = m.fmtNum || 'ponto', rotulo = m.saldoLinhas ? normDesc(m.saldoLinhas) : null;
     linhasDeDados(rows, m).forEach(function (x) {
       var r = x.r, d = lerData(r[m.data], m.fmtData), a;
-      if (!d) { ign.push({ n: x.n, motivo: 'sem data válida', celulas: r }); return; }
+      if (!d) { ign.push({ n: x.n, cod: 'semData', motivo: 'sem data válida', celulas: r }); return; }
       /* linha de saldo (ex.: "Saldo Diário"): o valor dela é o saldo do fim do dia */
       if (rotulo && normDesc(r[m.desc]) === rotulo) {
         var vs = v.modo === 'duas' ? null : lerNumero(r[v.col], fmtN);
-        if (vs != null && !isNaN(vs)) sal.push([d, vs]); else ign.push({ n: x.n, motivo: 'linha de saldo sem valor', celulas: r });
+        if (vs != null && !isNaN(vs)) sal.push([d, vs]); else ign.push({ n: x.n, cod: 'saldoSemValor', motivo: 'linha de saldo sem valor', celulas: r });
         return;
       }
       var b = m.saldo >= 0 ? lerNumero(r[m.saldo], fmtN) : null;
@@ -958,8 +958,8 @@
       } else { a = lerNumero(r[v.col], fmtN); if (v.saidas === 'positivas' && a) a = -a; }
       /* só saldo, sem valor de movimento: não é movimento (o saldo já foi anotado) */
       if (a == null && b != null && !isNaN(b)) return;
-      if (a == null || isNaN(a)) { ign.push({ n: x.n, motivo: 'valor não entendido', celulas: r }); return; }
-      if (!a) { ign.push({ n: x.n, motivo: 'valor zero', celulas: r }); return; }
+      if (a == null || isNaN(a)) { ign.push({ n: x.n, cod: 'valorRuim', motivo: 'valor não entendido', celulas: r }); return; }
+      if (!a) { ign.push({ n: x.n, cod: 'valorZero', motivo: 'valor zero', celulas: r }); return; }
       tx.push([d, String(r[m.desc] || '').trim() || '(sem descrição)', 'Others', a, null]); ns.push(x.n);
     });
     /* extrato do mais novo para o mais antigo: inverte, para a ordem dentro do dia ser a do acontecido */
@@ -2323,6 +2323,11 @@
     return h;
   }
   function celulas(r) { return r.map(function (c) { return String(c).trim(); }).filter(Boolean).join(' · ').slice(0, 90); }
+  /* o motivo de uma linha ignorada pelo código do núcleo; sem código conhecido, a frase pt-BR que veio com ela */
+  function motivoIgnorada(x) {
+    var k = { semData: 'importar.motivo.semData', saldoSemValor: 'importar.motivo.saldoSemValor', valorRuim: 'importar.motivo.valorRuim', valorZero: 'importar.motivo.valorZero' }[x.cod];
+    return k ? tt(k) : x.motivo;
+  }
   function telaImportar() {
     var I = S.importar, m = I.mapa, c = cartAtual(), h = '';
     var cabs = [], ix = 0;
@@ -2381,7 +2386,7 @@
             return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>' + tth('importar.noArquivo', { celulas: celulas(I.rows[n - 1]) }) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
           (r.ignoradas.length ? '<details class="metas"><summary>' + tth('importar.ignoradas', { n: r.ignoradas.length }) + '</summary><ul class="imp-ign">' +
-            r.ignoradas.slice(0, 20).map(function (x) { return '<li>' + tth('importar.linhaIgnorada', { n: x.n, motivo: x.motivo, celulas: celulas(x.celulas) }) + '</li>'; }).join('') + '</ul></details>' : '') +
+            r.ignoradas.slice(0, 20).map(function (x) { return '<li>' + tth('importar.linhaIgnorada', { n: x.n, motivo: motivoIgnorada(x), celulas: celulas(x.celulas) }) + '</li>'; }).join('') + '</ul></details>' : '') +
           (rep ? '<p class="aviso">' + tth('importar.repetidos', { n: rep }) + '</p>' : '') +
           previaSaldo(I, r)
         : '<p class="aviso erro">' + tth('importar.nenhumEntendido') + '</p>') + '</fieldset>';
