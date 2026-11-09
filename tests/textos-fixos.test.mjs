@@ -26,7 +26,7 @@ const AREAS_FEITAS = {
     'recorrentes', 'vbars', 'enviosBrasil', 'taxaPoup', 'statusPrevisao', 'pendNum', 'pendFrase', 'pendBotao'],
   'configurações: carteiras, países, moedas e câmbio': ['camposCambio', 'lerCambios', 'resumoCambio', 'opcoesPais', 'notaRegrasPais', 'configurado', 'temRegras', 'suportado',
     'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
-  'configurações: formulário, categorias e seus dados': ['setup', 'preferenciasCampos', 'mudarPreferencia', 'descExibida', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
+  'configurações: formulário, categorias e seus dados': ['setup', 'preferenciasCampos', 'mudarPreferencia', 'descExibida', 'corDaBarra', 'seguirSistema', 'logo', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
     'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
   'importação: prévia e resultado': ['previaSaldo', 'textoBotao', 'confirmarImportacao'],
   'importação: leitura, erros e avisos': ['handleFiles', 'mudarImportacao', 'abrirGenerico', 'comLeitor', 'linhasDoArquivo', 'abrirPdf', 'carregarPdfjs', 'confSaldo', 'avisoLeitor'],
@@ -47,12 +47,11 @@ const PERMITIDOS = {
   'Escape': 'nome da tecla (e.key), não é texto da tela',
   '0 0;background:': 'CSS do gráfico (flex: … 0 0;background: …), não é texto da tela',
   'informado por você': 'valor gravado nos dados (cambios[moeda].fonte, em lerCambios), não é texto da tela',
+  '(prefers-color-scheme: dark)': 'consulta de mídia do tema automático (matchMedia), não é texto da tela',
   'Latin-1 (Windows)': 'nome técnico da codificação no seletor da importação, igual nos dois idiomas',
 };
 // chaves que ainda não têm uso no código, com o motivo
 const RESERVADAS = {
-  'tema.rotulo': 'seletor de tema (passo g)', 'tema.auto': 'seletor de tema (passo g)', 'tema.claro': 'seletor de tema (passo g)', 'tema.escuro': 'seletor de tema (passo g)',
-  'idioma.rotulo': 'seletor de idioma (passo f)', 'idioma.auto': 'seletor de idioma (passo f)', 'idioma.pt-BR': 'seletor de idioma (passo f)', 'idioma.en-GB': 'seletor de idioma (passo f)',
 };
 
 // chaves montadas no app.js por prefixo + código (passo e), com o motivo

@@ -8,12 +8,14 @@ import { carregarNucleo } from './planilhas.mjs';
 const prefsJs = readFileSync(new URL('../prefs.js', import.meta.url), 'utf8');
 
 // roda o prefs.js num contexto com navegador falso; devolve o <html> falso e o NORA_PREFS
-function abrir({ languages, language, salvo, storage, attrs = {} } = {}) {
+function abrir({ languages, language, salvo, storage, attrs = {}, escuro } = {}) {
   const html = { lang: 'pt-BR', attrs: { ...attrs },
     setAttribute(k, v) { this.attrs[k] = String(v); }, removeAttribute(k) { delete this.attrs[k]; }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; } };
   const mapa = new Map(salvo === undefined ? [] : [['nora.prefs', typeof salvo === 'string' ? salvo : JSON.stringify(salvo)]]);
   const ls = storage || { getItem: k => (mapa.has(k) ? mapa.get(k) : null) };
   const ctx = { navigator: { languages, language }, document: { documentElement: html } };
+  if (escuro !== undefined) ctx.matchMedia = q => ({ matches: q === '(prefers-color-scheme: dark)' && escuro === true, media: q });
+  if (escuro === 'lança') ctx.matchMedia = () => { throw new Error('x'); };
   if (storage === 'lança') Object.defineProperty(ctx, 'localStorage', { get() { throw new Error('SecurityError'); } });
   else ctx.localStorage = ls;
   vm.createContext(ctx);
@@ -124,4 +126,15 @@ test('index.html: prefs.js síncrono no <head>, logo depois da CSP e antes do st
   assert.ok(csp > 0 && tag > csp && css > tag, 'ordem: CSP, prefs.js, styles.css');
   assert.doesNotMatch(head.slice(csp, tag).replace(/^[^\n]*\n/, ''), /<script|<link/, 'nada entre a CSP e o prefs.js');
   assert.equal((html.match(/prefs\.js/g) || []).length, 1);
+});
+
+test('tema automático segue o sistema; o escolhido vence o sistema', () => {
+  assert.equal(tema(abrir({ salvo: { tema: 'auto' }, escuro: true }).html), 'escuro');
+  assert.equal(tema(abrir({ salvo: { tema: 'auto' }, escuro: false }).html), null);
+  assert.equal(tema(abrir({ escuro: true }).html), 'escuro', 'sem nada salvo também é automático');
+  assert.equal(tema(abrir({ salvo: { tema: 'claro' }, escuro: true }).html), 'claro');
+  assert.equal(tema(abrir({ salvo: { tema: 'escuro' }, escuro: false }).html), 'escuro');
+  assert.equal(tema(abrir({ salvo: { tema: 'auto' }, escuro: 'lança' }).html), null, 'matchMedia que falha: claro');
+  const { P } = abrir({ escuro: true });
+  assert.equal(P.temaEfetivo({ tema: 'auto' }), 'escuro'); assert.equal(P.temaEfetivo({ tema: 'claro' }), 'claro');
 });

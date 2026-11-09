@@ -1722,6 +1722,13 @@
   }
 
   /* ---------- peças da página ---------- */
+  /* o logo (o mesmo desenho do logo.svg) dentro da página, para seguir o tema: o "N" no teal (--accent) e a palavra na cor do
+     texto (currentColor = --fg) */
+  function logo() {
+    return '<svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="155 369 440 144" width="134" height="44" role="img" aria-label="Nora"><title>Nora</title>' +
+      '<path class="logo-n" d="M168 500V382c0-8 10-11 15-6l89 115c5 6 15 2 15-6V382" fill="none" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M358.1 484V400.5H371.3L411.3 460.9V400.5H424.5V484H411.3L371.3 423.5V484ZM462.2 485.7Q452.8 485.7 445.8 481.5Q438.9 477.3 435.1 469.8Q431.3 462.4 431.3 452.7Q431.3 442.8 435.2 435.4Q439.1 427.9 446 423.8Q453 419.6 462.2 419.6Q471.6 419.6 478.6 423.8Q485.6 428.1 489.4 435.5Q493.2 443 493.2 452.7Q493.2 462.4 489.4 469.9Q485.5 477.3 478.5 481.5Q471.6 485.7 462.2 485.7ZM462.2 473.5Q470.9 473.5 475.1 467.7Q479.4 461.8 479.4 452.7Q479.4 443.2 475.1 437.5Q470.8 431.9 462.2 431.9Q456.3 431.9 452.6 434.5Q448.8 437.2 447 441.8Q445.1 446.5 445.1 452.7Q445.1 462.1 449.5 467.8Q453.8 473.5 462.2 473.5ZM500 484V421.4H511.6V436.6L510.1 434.6Q511.2 431.5 513.1 429Q515 426.4 517.6 424.8Q519.9 423.1 522.8 422.2Q525.7 421.3 528.7 421.1Q531.7 420.9 534.5 421.4V433.6Q531.6 432.7 527.9 433.1Q524.3 433.4 521.2 435.3Q518.3 437 516.5 439.6Q514.8 442.2 513.9 445.4Q513.1 448.6 513.1 452.3V484ZM557.2 485.7Q550.3 485.7 545.6 483.2Q540.9 480.6 538.5 476.3Q536.1 472 536.1 466.9Q536.1 462.2 537.7 458.6Q539.3 455 542.5 452.5Q545.7 449.9 550.6 448.2Q554.6 447 559.8 446.1Q564.9 445.1 570.8 444.3Q576.7 443.5 582.9 442.6L578.2 445.2Q578.2 438.3 575.1 434.9Q572.1 431.6 564.6 431.6Q560.1 431.6 556 433.8Q552 435.9 550.4 440.9L538.4 437.2Q540.7 429.2 547.2 424.4Q553.7 419.6 564.7 419.6Q573.1 419.6 579.4 422.4Q585.6 425.2 588.6 431.4Q590.2 434.6 590.6 438Q590.9 441.5 590.9 445.5V484H579.5V470.1L581.5 472.1Q577.5 479.1 571.6 482.4Q565.8 485.7 557.2 485.7ZM559.6 475.2Q564.6 475.2 568.1 473.5Q571.7 471.7 573.8 469.1Q575.9 466.4 576.6 463.8Q577.7 461.1 577.8 457.6Q578 454.1 578 452L582.1 453.4Q576.1 454.3 571.4 455.1Q566.8 455.8 563.3 456.4Q559.8 457.1 557.1 458Q554.6 458.9 552.8 460Q551 461.2 550 462.9Q548.9 464.5 548.9 466.7Q548.9 469.1 550.1 471Q551.3 473 553.7 474.1Q556.1 475.2 559.6 475.2Z" fill="currentColor"/></svg>';
+  }
   function header() {
     var st = '';
     if (M.keys.length) {
@@ -1730,7 +1737,7 @@
     } else st = tt('casca.contaEm', { origem: origem(), moeda: nomeMoeda() });
     if (M.keys.length) st = origem() + ' · ' + st;
     if (emResumo() && RES) st = tt('casca.resumoTopo', { n: S.dados.carteiras.length, moeda: nomeMoeda(moedaP()) }) + (RES.ref ? ' · ' + tt('casca.dadosAte', { data: dFull(RES.ref) }) : '');
-    return '<div class="view-top"><div><h1 class="marca"><img src="logo.svg" alt="Nora" width="134" height="44"></h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
+    return '<div class="view-top"><div><h1 class="marca">' + logo() + '</h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
       (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">' + tth('comum.configuracoes') + '</button><button class="pill primario" type="button" data-fin-add>' + tth('comum.adicionarExtrato') + '</button></div>' : '') + '</div>' +
       avisoEspaco() +
       (configurado() && !suportado() && !S.setupOpen && !RES ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
@@ -2079,12 +2086,13 @@
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>' + tth('comum.cancelar') + '</button>') + '</div>' +
       '</form></div></section>';
   }
-  /* idioma (e, no passo g, tema): nora.prefs, fora do backup; vale na hora, sem o botão Salvar */
+  /* idioma e tema: nora.prefs, fora do backup; valem na hora, sem o botão Salvar */
   function preferenciasCampos() {
     var p = NORA_PREFS.ler();
-    return '<fieldset><legend>' + tth('idioma.rotulo') + '</legend><div class="mgrid">' +
-      '<label>' + tth('idioma.rotulo') + '<select id="fin-p-idioma">' + opcoes([['auto', tt('idioma.auto')], ['pt-BR', tt('idioma.pt-BR')], ['en-GB', tt('idioma.en-GB')]], p.idioma || 'auto') + '</select>' +
-      '<small>' + tth('config.prefsDica') + '</small></label></div></fieldset>';
+    return '<fieldset><legend>' + tth('config.preferencias') + '</legend><div class="mgrid">' +
+      '<label>' + tth('idioma.rotulo') + '<select id="fin-p-idioma">' + opcoes([['auto', tt('idioma.auto')], ['pt-BR', tt('idioma.pt-BR')], ['en-GB', tt('idioma.en-GB')]], p.idioma || 'auto') + '</select></label>' +
+      '<label>' + tth('tema.rotulo') + '<select id="fin-p-tema">' + opcoes([['auto', tt('tema.auto')], ['claro', tt('tema.claro')], ['escuro', tt('tema.escuro')]], p.tema) + '</select></label></div>' +
+      '<p class="passo">' + tth('config.prefsDica') + '</p></fieldset>';
   }
   /* troca uma preferência na hora: grava, aplica no <html>, troca o idioma e redesenha, sem perder o que já foi digitado
      no formulário (campo mudado pela pessoa volta como estava; o resto vem no idioma novo) */
@@ -2101,6 +2109,7 @@
     NORA_PREFS.aplicar(p, document.documentElement);
     NORA_I18N.usar(NORA_PREFS.idiomaEfetivo(p));
     NORA_I18N.aplicarTextosFixos(document);
+    corDaBarra();
     recompute(); render();
     Object.keys(mudados).forEach(function (id) { var el = document.getElementById(id); if (!el) return; if (typeof mudados[id] === 'boolean') el.checked = mudados[id]; else el.value = mudados[id]; });
     var foco = document.getElementById('fin-p-' + campo); if (foco) foco.focus();
@@ -3391,6 +3400,7 @@
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
     if (t.id === 'fin-p-idioma') { mudarPreferencia('idioma', t.value); return; }
+    if (t.id === 'fin-p-tema') { mudarPreferencia('tema', t.value); return; }
     var wm = /^(fin-w-.+|fin-wn)-(pais|banco|moeda)$/.exec(t.id || '');
     /* no formulário novo, quem escolheu moeda ou país já decidiu: o banco não sobrescreve mais */
     if (wm && wm[1] === 'fin-wn' && wm[2] !== 'banco') $('#fin-wnova').setAttribute('data-mexeu', '1');
@@ -3565,8 +3575,19 @@
     el.title = tt(M.partial === cur ? 'casca.cartaoTituloParcial' : 'casca.cartaoTitulo', { mes: mLabel(cur) });
     el.innerHTML = tag + '<span class="fin-l"><span class="txt">' + f0(M.by[cur].gasto || 0) + ' <small>' + tth('casca.cartaoMes', { mes: mShort(cur) }) + '</small></span><span class="mini" aria-hidden="true">' + bars + '</span></span><span class="pe">' + tth('casca.cartaoMeta', { valor: f0(planTotal()) }) + '</span>';
   }
+  /* a cor da barra do navegador no celular (meta theme-color) = o fundo do tema que vale (--bg); muda com o tema */
+  function corDaBarra() {
+    var m = document.querySelector('meta[name="theme-color"]'), c = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (m && c) m.setAttribute('content', c);
+  }
+  /* tema automático: o sistema mudou de claro para escuro (ou o contrário) com a página aberta */
+  function seguirSistema() {
+    if (NORA_PREFS.ler().tema !== 'auto') return;
+    NORA_PREFS.aplicar(NORA_PREFS.ler(), document.documentElement); corDaBarra();
+  }
   function start() {
-    localLoad(); S.ready = true; S.resumo = true; recompute(); render(); cartao();
+    localLoad(); S.ready = true; S.resumo = true; recompute(); render(); cartao(); corDaBarra();
+    try { var mq = matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', seguirSistema); } catch (e) { }
   }
   /* peças fixas: o seletor de arquivo e a dica dos gráficos */
   document.body.insertAdjacentHTML('beforeend', '<input id="fin-csv" class="vh" type="file" accept=".csv,.txt,.xls,.xlsx,.pdf,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf" multiple tabindex="-1"><input id="fin-json" class="vh" type="file" accept=".json,application/json" tabindex="-1"><div id="fin-tip" class="fin-tip" hidden></div>');

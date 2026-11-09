@@ -405,8 +405,9 @@ body { font-family: var(--ui); background: var(--bg); color: var(--fg); -webkit-
 
 /* a marca no topo: o logo é o título da página */
 .fin .view-top h1.marca { line-height: 0; }
-.fin .view-top h1.marca img { display: block; height: 44px; width: auto; }
-@media (max-width: 600px) { .fin .view-top h1.marca img { height: 36px; } }
+.fin .view-top h1.marca .logo { display: block; height: 44px; width: auto; color: var(--fg); }
+.fin .view-top h1.marca .logo-n { stroke: var(--accent); }
+@media (max-width: 600px) { .fin .view-top h1.marca .logo { height: 36px; } }
 
 /* ---------- superfícies: cartões planos, borda fina e uma sombra curta ---------- */
 .cartao, .auto, .fin .card, .fin .kpi, .fin .tw, .fin .vazio-grande { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--elev); }

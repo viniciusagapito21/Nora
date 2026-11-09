@@ -2,10 +2,13 @@ body 16zoum3 1ln8j76 1ln8j76
 body>main.wrap ln38yg 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin x4ulgu 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top hxtfdx 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>div.view-top>div qwqnmy 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca 38a70m 13gxe7u 13gxe7u
-body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>img 1cihukb 13gxe7u 13gxe7u
-body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l 6dgjz1 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div q4hl8u 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca yer3ts 13gxe7u 13gxe7u
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg 1ha1h3v 13gxe7u 13gxe7u
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>title 8zp1k6 13gxe7u 13gxe7u
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path bda6vh 16auvda 16auvda
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path lc8ir0 1cw4jb2 1cw4jb2
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l ywc843 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm flam73 1uqub23 1uqub23
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8

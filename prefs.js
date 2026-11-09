@@ -1,8 +1,8 @@
 /* Preferências do Nora (idioma e tema), na chave nora.prefs: { idioma: null | 'pt-BR' | 'en-GB', tema: 'auto' | 'claro' | 'escuro' }.
    Separada dos dados: fica fora do backup e "Apagar meus dados" não a apaga (só apaga cortex-financas.*).
    Carregado no <head>, síncrono, antes do styles.css: põe lang e data-tema no <html> antes da primeira pintura.
-   idioma null = automático (primeiro idioma do navegador começando com "pt" → pt-BR, senão en-GB); tema 'auto' não
-   define data-tema. localStorage sempre em try/catch (Safari em janela privada): se falhar, vale o automático.
+   idioma null = automático (primeiro idioma do navegador começando com "pt" → pt-BR, senão en-GB); tema 'auto' segue o
+   sistema (prefers-color-scheme): escuro põe data-tema="escuro", claro não define data-tema. localStorage sempre em try/catch (Safari em janela privada): se falhar, vale o automático.
    Script simples, só var; gravar(p) é chamado pelos seletores de Configurações (passos f e g da Fase 3). */
 var NORA_PREFS = (function () {
   var CHAVE = 'nora.prefs';
@@ -25,9 +25,14 @@ var NORA_PREFS = (function () {
   /* ligada no passo f, junto com o dicionário inglês: o lang do <html> e o t() do i18n.js seguem o idioma efetivo
      (desligada, os dois ficariam em pt-BR) */
   var APLICAR_LANG = true;
+  /* o tema que vale: o escolhido, ou no automático o do sistema (sem matchMedia, ou se falhar: claro) */
+  function sistemaEscuro() {
+    try { return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
+  }
+  function temaEfetivo(p) { return p.tema !== 'auto' ? p.tema : sistemaEscuro() ? 'escuro' : 'claro'; }
   function aplicar(p, html) {
     if (APLICAR_LANG) html.lang = idiomaEfetivo(p);
-    if (p.tema === 'auto') html.removeAttribute('data-tema'); else html.setAttribute('data-tema', p.tema);
+    if (p.tema === 'auto' && !sistemaEscuro()) html.removeAttribute('data-tema'); else html.setAttribute('data-tema', temaEfetivo(p));
   }
 
   /* grava só o que é válido (limpar) e devolve o que passou a valer; se o localStorage falhar, vale só nesta página */
@@ -38,5 +43,5 @@ var NORA_PREFS = (function () {
   }
 
   if (typeof document !== 'undefined' && document.documentElement) aplicar(ler(), document.documentElement);
-  return { CHAVE: CHAVE, limpar: limpar, ler: ler, gravar: gravar, idiomaAuto: idiomaAuto, idiomaEfetivo: idiomaEfetivo, aplicar: aplicar, APLICAR_LANG: APLICAR_LANG };
+  return { CHAVE: CHAVE, limpar: limpar, ler: ler, gravar: gravar, idiomaAuto: idiomaAuto, idiomaEfetivo: idiomaEfetivo, temaEfetivo: temaEfetivo, aplicar: aplicar, APLICAR_LANG: APLICAR_LANG };
 })();

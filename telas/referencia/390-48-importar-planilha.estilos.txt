@@ -4,7 +4,10 @@ body>main.wrap>section#fin-app.view.fin c4r35k 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top 7rmyat 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div bfjmbk 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca 19nj7yh 1af5xs7 1af5xs7
-body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>img xqo98o 1af5xs7 1af5xs7
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg 1g4go5u 1af5xs7 1af5xs7
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>title 529d37 1af5xs7 1af5xs7
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path fecjvw oq497p oq497p
+body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path 1yyizld 75rfgb 75rfgb
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l 1bkbh5l 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm n9tzk3 1uqub23 1uqub23
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
