@@ -34,6 +34,17 @@
     { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0 }
   ];
   var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
+  /* o nome de fábrica de uma categoria no idioma da tela: a chave cats.<id> pelo tr (o t do i18n.js); sem tradução, o
+     texto pt-BR de CATS (a reserva). Os ids nunca mudam; o nome de fábrica nunca é gravado */
+  function nomeFabrica(id, tr) { var k = 'cats.' + id, s = tr ? tr(k) : null; return typeof s === 'string' && s && s !== k ? s : CAT_BY[id].nome; }
+  /* o campo é o nome de fábrica (em qualquer dicionário, ou o texto de CATS)? Aí não é gravado: troca de idioma com o
+     formulário aberto não vira nome digitado (a mesma regra do nomeParaGravar) */
+  function ehNomeFabrica(id, nome) {
+    if (!CAT_BY[id] || CAT_BY[id].propria) return false;
+    if (nome === CAT_BY[id].nome) return true;
+    var dics = typeof NORA_DICIONARIOS !== 'undefined' ? NORA_DICIONARIOS : {};
+    return Object.keys(dics).some(function (i) { return dics[i]['cats.' + id] === nome; });
+  }
   /* categorias da pessoa (campos opcionais em plan, ainda na v3): nomes { id: nome }, ocultas [ids],
      fixas [ids] (sem o campo valem as de fábrica) e proprias [{ id, nome, slot }]. Só há 8 cores (slots 1 a 8)
      e "Outros" (slot 0): uma categoria nova pega a cor de uma escondida. "Outros" não se esconde. */
@@ -75,7 +86,7 @@
     (p.proprias || []).forEach(function (c) { lista.push({ id: c.id, nome: c.nome, slot: c.slot, propria: true }); });
     lista.push(Object.assign({}, CAT_BY.outros));
     return lista.map(function (c) {
-      return Object.assign(c, { padrao: c.propria ? c.nome : CAT_BY[c.id].nome, nome: (!c.propria && nomes[c.id] && nomeExibido('cat', c.id, nomes[c.id], tr)) || c.nome,
+      return Object.assign(c, { padrao: c.propria ? c.nome : nomeFabrica(c.id, tr), nome: (!c.propria && nomes[c.id] && nomeExibido('cat', c.id, nomes[c.id], tr)) || (c.propria ? c.nome : nomeFabrica(c.id, tr)),
         oculta: c.id !== 'outros' && ocultas.indexOf(c.id) >= 0, fixa: fixas.indexOf(c.id) >= 0 });
     });
   }
@@ -1481,8 +1492,9 @@
   function textoErro(e) { return NORA_I18N.textoErro(e, function (v) { return nn.format(v); }); }
   NORA_I18N.aplicarTextosFixos(document);
 
-  var MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  var MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  /* números, dinheiro, datas, meses e países no idioma da tela (formato.js, NORA_FORMATO); refeito se o idioma mudar */
+  var FMT = null;
+  function F() { var i = NORA_I18N.idioma(); if (!FMT || FMT.idioma !== i) FMT = NORA_FORMATO.para(i); return FMT; }
   var S = { dados: null, months: {}, over: {}, plan: null, summary: null, ready: false, sel: null, f: [], fOpen: false, more: 12, movOpen: true, q: '', metasOpen: false, setupOpen: false, bloqueado: null, restaurar: null, apagar: false, excluir: null, importar: null, espaco: 0, semEspaco: false, model: null, div: null, dAdd: false, dCamb: false, dPaid: false };
   var M = buildModel({}, {}), SUG = null, RECS = [], RES = null, TR = null;
   /* as categorias da configuração: CATST todas (inclusive escondidas), CATSV só as visíveis, CPOR por id */
@@ -1495,33 +1507,22 @@
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   /* todo valor aparece na moeda da configuração (a conta que o painel lê) */
-  var NOME_MOEDA = { EUR: 'euro', BRL: 'real', GBP: 'libra', USD: 'dólar' };
   function moeda() { return (S.plan && S.plan.moeda) || 'EUR'; }
-  function nomeMoeda(cod) { cod = cod || moeda(); return NOME_MOEDA[cod] || cod; }
-  var fmtCache = {};
-  function fmtDe(cod, casas) {
-    var k = cod + casas;
-    if (!fmtCache[k]) {
-      try { fmtCache[k] = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cod, minimumFractionDigits: casas, maximumFractionDigits: casas }); }
-      catch (e) { fmtCache[k] = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }); }
-    }
-    return fmtCache[k];
-  }
+  /* o nome da moeda dentro de uma frase, pelo dicionário (moeda.nome.<código>, com plural: n = quantos; sem n, o plural);
+     moeda sem chave fica com o código ISO */
+  function nomeMoeda(cod, n) { cod = cod || moeda(); var k = 'moeda.nome.' + cod; return NORA_I18N.existe(k) ? tt(k, { n: n == null ? 2 : n }) : cod; }
   /* o símbolo que o Intl usa para a moeda (€, R$, £, US$), para rótulos como "Meta (R$)" */
-  function simbolo(cod) {
-    cod = cod || moeda();
-    var p = fmtDe(cod, 0).formatToParts(1).filter(function (x) { return x.type === 'currency'; })[0];
-    return p ? p.value : cod;
-  }
-  var nn = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
-  var n2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  function f2(v) { return fmtDe(moeda(), 2).format(v); }
-  function f0(v) { return fmtDe(moeda(), 0).format(Math.round(v)).replace('-', '−'); }
-  function sgn(v, fn) { return (v < 0 ? '−' : '+') + (fn || f0)(Math.abs(v)); }
-  function mLabel(k) { var p = k.split('-'); return MES[+p[1] - 1] + ' de ' + p[0]; }
-  function mShort(k) { return MS[+k.slice(5) - 1]; }
-  function dFmt(d) { var p = d.split('-'); return +p[2] + ' ' + MS[+p[1] - 1]; }
-  function dFull(d) { return dFmt(d) + ' ' + d.slice(0, 4); }
+  function simbolo(cod) { return F().simbolo(cod || moeda()); }
+  /* nn, n2, n1, nr: números sem moeda (com .format, como os Intl.NumberFormat de antes) */
+  var nn = { format: function (v) { return F().nn(v); } }, n2 = { format: function (v) { return F().n2(v); } };
+  function f2(v) { return F().f2(v, moeda()); }
+  function f0(v) { return F().f0(v, moeda()); }
+  function sgn(v, fn) { return F().sgn(v, fn || f0); }
+  function mLabel(k) { return F().mLabel(k); }
+  function mNome(k) { return F().mNome(k); }
+  function mShort(k) { return F().mShort(k); }
+  function dFmt(d) { return F().dFmt(d); }
+  function dFull(d) { return F().dFull(d); }
   function colorOf(c) {
     if (!c.slot) return 'var(--other)';
     var v = 'var(--c' + c.slot + ')';
@@ -1733,7 +1734,7 @@
   function avisoEspaco() {
     if (S.semEspaco) return '<div class="aviso erro pergunta"><p>' + tth('casca.semEspaco') + '</p><button class="btn sm" type="button" data-backup="baixar">' + tth('comum.baixarBackup') + '</button></div>';
     if (S.espaco <= ESPACO_AVISO) return '';
-    return '<div class="aviso pergunta"><p>' + tth('casca.espacoPerto', { mb: new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(S.espaco / 1048576) }) + '</p>' +
+    return '<div class="aviso pergunta"><p>' + tth('casca.espacoPerto', { mb: F().numero(S.espaco / 1048576, 1, 1) }) + '</p>' +
       '<button class="btn sm" type="button" data-backup="baixar">' + tth('comum.baixarBackup') + '</button></div>';
   }
   /* ---------- carteiras ---------- */
@@ -1749,7 +1750,7 @@
   function variasCarteiras() { return !!(S.dados && S.dados.carteiras.length > 1); }
   /* moeda principal: a de Em observação, das metas de poupança e do Resumo; com uma carteira, a dela */
   function moedaP() { return variasCarteiras() ? S.dados.config.moedaPrincipal : moeda(); }
-  function fP0(v) { return fmtDe(moedaP(), 0).format(Math.round(v)).replace('-', '−'); }
+  function fP0(v) { return F().f0(v, moedaP()); }
   /* campos de câmbio "1 € = [ ] £", com o inverso e a data; taxa com mais de 30 dias em âmbar */
   function camposCambio(moedas, attr) {
     var mp = moedaP(), C = divState().cambios, hoje = todayIso();
@@ -1792,7 +1793,7 @@
   }
   /* ---------- Resumo ---------- */
   /* valor na moeda de uma carteira (sem casas) */
-  function fW(v, cod) { return fmtDe(cod, 0).format(Math.round(v)).replace('-', '−'); }
+  function fW(v, cod) { return F().f0(v, cod); }
   function trecho(f) { return f.de === f.ate ? dFull(f.de) : tt('comum.periodo', { de: f.de.slice(0, 7) === f.ate.slice(0, 7) ? +f.de.slice(8) : dFull(f.de), ate: dFull(f.ate) }); }
   /* as moedas das carteiras com extrato que entram nas somas por câmbio */
   function moedasConvertidas(R) { var o = {}; R.ws.forEach(function (w) { if (w.temDados && w.moeda !== R.mp) o[w.moeda] = 1; }); return Object.keys(o).sort(); }
@@ -1834,7 +1835,7 @@
   }
   function avisoCobertura(R, Q) {
     if (!Q.semCobertura.length) return '';
-    var nm = MES[+Q.m.slice(5) - 1];
+    var nm = mNome(Q.m);
     return '<div class="aviso" id="fin-rcob"><p>' + tth(R.partial === Q.m ? 'resumo.coberturaAte' : 'resumo.cobertura', { mes: nm, data: dFull(R.ref) }) + '</p><ul class="imp-ign">' + Q.semCobertura.map(function (p) {
       var nome = cru('<b>' + esc(p.w.nome) + '</b>');
       return '<li>' + (p.cob.nada ? tth('resumo.coberturaNada', { nome: nome, mes: nm }) : tth('resumo.coberturaFaltas', { nome: nome, trechos: p.cob.faltas.map(trecho).reduce(function (a, b) { return tt('resumo.trechoEDe', { a: a, b: b }); }) })) + '</li>';
@@ -1849,7 +1850,7 @@
     return h + '</tbody></table></div>';
   }
   function foraDasSomas(Q) {
-    var nm = MES[+Q.m.slice(5) - 1], com = Q.por.filter(function (p) { return p.interno.n; }), n = 0;
+    var nm = mNome(Q.m), com = Q.por.filter(function (p) { return p.interno.n; }), n = 0;
     com.forEach(function (p) { n += p.interno.n; });
     if (!n) return '<p class="passo rfora">' + tth('resumo.foraNenhum', { mes: nm }) + '</p>';
     var partes = com.map(function (p) {
@@ -1858,7 +1859,7 @@
       return tt('resumo.foraParte', { nome: p.w.nome, n: it.n, valores: v });
     });
     var lista = '';
-    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(r.desc) + ': ' + (r.a > 0 ? '+' : '−') + esc(fmtDe(p.w.moeda, 2).format(Math.abs(r.a))) + '</li>'; }); });
+    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(r.desc) + ': ' + (r.a > 0 ? '+' : '−') + esc(F().dinheiro(Math.abs(r.a), p.w.moeda, 2)) + '</li>'; }); });
     /* as partes ligadas por "e" uma a uma, como antes (com três carteiras: "A e B e C") */
     return '<div class="rfora"><p class="passo">' + tth('resumo.foraTexto', { n: n, mes: nm, partes: partes.reduce(function (a, b) { return tt('resumo.foraPartesE', { a: a, b: b }); }) }) + '</p>' +
       '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>' + tth('resumo.verQuais') + '</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">' + tth('resumo.foraAjuda') + '</p></details></div>';
@@ -1897,8 +1898,8 @@
   }
   /* quanto do Gastou é "Envios para outra conta sua": só mostra, não muda nenhum cálculo */
   function nomeEnvios() {
-    var c = CATST.filter(function (x) { return x.id === 'brasil'; })[0], nome = c ? catNome(c) : 'Envios para outra conta sua';
-    return nome === 'Envios para outra conta sua' ? 'envios para outra conta sua' : '"' + nome + '"';
+    var c = CPOR.brasil || CATST.filter(function (x) { return x.id === 'brasil'; })[0];
+    return !c || c.nome === c.padrao ? tt('painel.enviosPadrao') : '"' + catNome(c) + '"';
   }
   /* movido > 0: saiu mais para outras contas suas do que entrou delas (mesma convenção do "Guardou") */
   function fraseMovido(v, fmt) { return v > 0 ? tth('painel.saiuMovido', { valor: fmt(v) }) : tth('painel.entrouMovido', { valor: fmt(-v) }); }
@@ -1911,20 +1912,20 @@
   /* envios para outra conta sua no mês em andamento, somando as carteiras, na moeda principal */
   function envResumo(R) { var Q = mesResumo(R, S.dados, R.partial); return Q.total && Q.total.spend ? Q.total.spend.brasil || 0 : 0; }
   function previsaoResumoTela(R) {
-    var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>' + (R.partial ? tth('resumo.previsaoDe', { mes: MES[+R.partial.slice(5) - 1] }) : tth('previsao.titulo')) + '</h2>';
+    var h = '<section class="sec" id="fin-rprev"><div class="sec-top"><h2>' + (R.partial ? tth('resumo.previsaoDe', { mes: mNome(R.partial) }) : tth('previsao.titulo')) + '</h2>';
     if (!R.partial) return h + '</div><div class="card"><p class="passo">' + tth('resumo.ultimoFecha', { mes: mLabel(R.meses[R.meses.length - 1]) }) + '</p></div></section>';
     if (R.faltaCambio.length) return h + '</div><div class="card"><p class="passo">' + tth('resumo.depoisCambio', { moedas: listaE(R.faltaCambio.map(function (f) { return f.moeda; })) }) + '</p></div></section>';
     var P = previsaoResumo(R, S.dados, TR && TR.S), conv = P.por.some(function (q) { return q.w.moeda !== R.mp; }), ap = conv ? '≈ ' : '';
-    if (!P.por.length) return h + '</div><div class="card"><p class="passo">' + tth('resumo.nenhumaMov', { mes: MES[+R.partial.slice(5) - 1] }) + '</p></div></section>';
+    if (!P.por.length) return h + '</div><div class="card"><p class="passo">' + tth('resumo.nenhumaMov', { mes: mNome(R.partial) }) + '</p></div></section>';
     var dif = P.proj - P.meta, mx = Math.max(P.proj, P.meta, P.gasto, 1), fp = function (v) { return ap + fP0(v); }, st = statusPrevisao(dif, P.pend, fp), over = passaMesmo(dif, P.pend);
     var cedo = P.por.filter(function (q) { return q.cedo; });
     return h + '<span class="hint">' + tth('resumo.ate', { data: dFull(R.ref) }) + ' · ' + tth('resumo.somaPrevisoes') + '</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: MES[+R.partial.slice(5) - 1] }) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
+      '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: mNome(R.partial) }) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
       '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', { gasto: fP0(P.gasto), proj: fP0(P.proj), meta: fP0(P.meta) }) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
       '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return tth('resumo.previsaoCarteira', { nome: q.w.nome, proj: a + fP0(q.proj), meta: a + fP0(q.meta) }); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
       (cedo.length ? '<p class="aviso">' + tth('resumo.cedo', { n: cedo.length, lista: cru(cedo.map(function (q) { return tth('resumo.cedoItem', { nome: cru('<b>' + esc(q.w.nome) + '</b>'), data: dFull(q.w.ate || q.w.M.lastDate) }); }).join('; ')) }) + '</p>' : '') +
-      (P.fora.length ? '<p class="aviso">' + tth('resumo.foraPrevisao', { n: P.fora.length, nomes: listaE(P.fora.map(function (w) { return w.nome; })), mes: MES[+R.partial.slice(5) - 1] }) + '</p>' : '') + '</div></section>';
+      (P.fora.length ? '<p class="aviso">' + tth('resumo.foraPrevisao', { n: P.fora.length, nomes: listaE(P.fora.map(function (w) { return w.nome; })), mes: mNome(R.partial) }) + '</p>' : '') + '</div></section>';
   }
   function cambioResumo(R) {
     var ms = {}; R.ws.forEach(function (w) { if (w.moeda !== R.mp) ms[w.moeda] = 1; });
@@ -1962,8 +1963,8 @@
     return h + avisoCambioResumo(R) + transfSecao() + saldoCarteiras(R) + mesResumoTela(R) + previsaoResumoTela(R) + dividas() + metasPoup() + cambioResumo(R);
   }
   /* ---------- transferências entre carteiras (Resumo e Revisar categorias) ---------- */
-  function valorMov(r, cod) { return (r.a < 0 ? '−' : '+') + fmtDe(cod, 2).format(Math.abs(r.a)); }
-  var n1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+  function valorMov(r, cod) { return F().valorMov(r, cod); }
+  var n1 = { format: function (v) { return F().n1(v); } };
   function difPar(p) {
     var d = p.dias === 0 ? tt('transf.mesmoDia') : tt('transf.diasDif', { n: p.dias }), v;
     if (p.dif < 0.0005) v = p.moedas.length ? tt('transf.valoresIguais') : tt('transf.mesmoValor');
@@ -2032,23 +2033,26 @@
   }
   /* ---------- configuração guiada ---------- */
   /* a moeda escolhe a conta que o painel lê no extrato; o país escolhe as regras de comerciantes */
-  var MOEDAS = [['EUR', 'Euro (€)'], ['BRL', 'Real (R$)'], ['GBP', 'Libra (£)'], ['USD', 'Dólar (US$)']];
-  var PAISES = PAISES_MOEDA.map(function (p) { return [p[0], p[1]]; });
+  /* as moedas da lista, com o rótulo no idioma da tela (moeda.opcao.<código>) */
+  function moedas() { return ['EUR', 'BRL', 'GBP', 'USD'].map(function (c) { return [c, tt('moeda.opcao.' + c)]; }); }
   /* todos os países, em dois grupos: primeiro os que usam a moeda escolhida, depois os outros (para escolher o país
      antes e a moeda vir junto). País fora da lista (veio de um backup) continua na escolha: nada muda sozinho */
   function opcoesPais(moedaSel, sel) {
     var da = PAISES_MOEDA.filter(function (p) { return p[2] === moedaSel; }), resto = PAISES_MOEDA.filter(function (p) { return p[2] !== moedaSel; });
-    var par = function (p) { return [p[0], p[1]]; }, extra = sel && !PAISES_MOEDA.some(function (p) { return p[0] === sel; }) ? [[sel, sel]] : [];
-    if (!da.length) return opcoes(PAISES.concat(extra), sel);
-    var nomeM = (MOEDAS.filter(function (m) { return m[0] === moedaSel; })[0] || [0, moedaSel])[1];
-    return '<optgroup label="' + tth('pais.usamMoeda', { moeda: nomeM.charAt(0).toLowerCase() + nomeM.slice(1) }) + '">' + opcoes(da.map(par), sel) + '</optgroup>' +
-      '<optgroup label="' + tth('pais.outros') + '">' + opcoes(resto.map(par).concat(extra), sel) + '</optgroup>';
+    /* em pt-BR, a ordem da tabela (já alfabética em português); nos outros idiomas, pelo nome traduzido */
+    var ord = function (l) { return F().idioma === 'pt-BR' ? l : l.slice().sort(function (a, b) { return a[1].localeCompare(b[1], F().idioma); }); };
+    var par = function (p) { return [p[0], nomePais(p[0])]; }, extra = sel && !PAISES_MOEDA.some(function (p) { return p[0] === sel; }) ? [[sel, sel]] : [];
+    if (!da.length) return opcoes(ord(PAISES_MOEDA.map(par)).concat(extra), sel);
+    var nomeM = NORA_I18N.existe('moeda.grupo.' + moedaSel) ? tt('moeda.grupo.' + moedaSel) : moedaSel;
+    return '<optgroup label="' + tth('pais.usamMoeda', { moeda: nomeM }) + '">' + opcoes(ord(da.map(par)), sel) + '</optgroup>' +
+      '<optgroup label="' + tth('pais.outros') + '">' + opcoes(ord(resto.map(par)).concat(extra), sel) + '</optgroup>';
   }
   function notaRegrasPais() { return tth('pais.notaRegras', { paises: listaE(PAISES_COM_REGRAS.map(nomePais)) }); }
   function configurado() { return !!(S.plan && S.plan.configurado); }
   function temRegras(pais) { return PAISES_COM_REGRAS.indexOf(pais || 'IE') >= 0; }
   function suportado() { return !S.plan || temRegras(S.plan.pais); }
-  function nomePais(cod) { var p = PAISES.filter(function (x) { return x[0] === cod; })[0]; return p ? p[1] : cod; }
+  /* nome do país no idioma da tela (Intl.DisplayNames pelo formato.js); sem nome, o da tabela; fora da tabela, o código */
+  function nomePais(cod) { var n = F().nomePais(cod), p = PAISES_MOEDA.filter(function (x) { return x[0] === cod; })[0]; return n !== F().neutro ? n : p ? p[1] : cod; }
   function avisoSuporte(pais) {
     pais = pais || (S.plan && S.plan.pais);
     return tth('pais.avisoSuporte', { pais: cru('<b>' + esc(nomePais(pais)) + '</b>'), paises: PAISES_COM_REGRAS.map(nomePais).join(', ') });
@@ -2071,7 +2075,7 @@
       '</form></div></section>';
   }
   /* as moedas da lista, mais a da carteira se ela não estiver na lista (veio de um backup) */
-  function opcoesMoeda(sel) { return opcoes(MOEDAS.some(function (o) { return o[0] === sel; }) ? MOEDAS : MOEDAS.concat([[sel, sel]]), sel); }
+  function opcoesMoeda(sel) { return opcoes(moedas().some(function (o) { return o[0] === sel; }) ? moedas() : moedas().concat([[sel, sel]]), sel); }
   /* cada carteira: nome, tipo de extrato (banco), moeda e país; com extrato salvo, banco e moeda travam */
   function carteirasCampos() {
     var x = dadosAtuais(), h = '', varias = x.carteiras.length > 1;
@@ -2096,7 +2100,7 @@
         '<p class="passo">' + tth('carteiras.novaDica', { n: MAX_CARTEIRAS }) + '</p>' +
         '<div class="mgrid"><label>' + tth('carteiras.nome') + '<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="' + tth('carteiras.nomeExemplo') + '"></label>' +
         '<label>' + tth('carteiras.extrato') + '<select id="fin-wn-banco">' + opcoes(bancosTela(), 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + genericoTxt() + '</small></label>' +
-        '<label>' + tth('carteiras.moedaConta') + '<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
+        '<label>' + tth('carteiras.moedaConta') + '<select id="fin-wn-moeda">' + opcoes(moedas(), x.config.moedaPrincipal) + '</select></label>' +
         '<label>' + tth('carteiras.pais') + '<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small data-nota="regras">' + notaRegrasPais() + '</small></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
     var mp = '';
@@ -2441,7 +2445,7 @@
       var k = '#fin-k-' + c.id, nm = c.propria ? $(k + '-nome').value.trim() : nomeParaGravar('cat', c.id, $(k + '-nome').value.trim()), oc = $(k + '-oculta'), ex = $(k + '-excluir');
       if (ex && ex.checked) { tirar.push(c.id); return; }
       if (c.propria) proprias.push({ id: c.id, nome: nm || c.nome, slot: c.slot });
-      else if (nm && nm !== c.padrao) nomes[c.id] = nm;
+      else if (nm && nm !== c.padrao && !ehNomeFabrica(c.id, nm)) nomes[c.id] = nm;
       if (oc && oc.checked) ocultas.push(c.id);
       if ($(k + '-fixa').checked) fixas.push(c.id);
     });
@@ -2858,7 +2862,7 @@
   }
 
   /* ---------- dívidas em observação ---------- */
-  var nr = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  var nr = { format: function (v) { return F().nr(v); } };
   function todayIso() { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
   function diasAte(iso) { return Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(todayIso() + 'T00:00:00Z')) / 86400000); }
   function vencTxt(iso) {
@@ -2874,11 +2878,7 @@
   }
   /* pagamentos em observação: cada um na sua moeda; o câmbio para a moeda da configuração é sempre digitado
      pela pessoa (rate = unidades da moeda por 1 da moeda da configuração) */
-  var fmtMoeda = {};
-  function fMoeda(v, cod) {
-    if (!(cod in fmtMoeda)) { try { fmtMoeda[cod] = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: cod }); } catch (e) { fmtMoeda[cod] = null; } }
-    return fmtMoeda[cod] ? fmtMoeda[cod].format(v) : cod + ' ' + n2.format(v);
-  }
+  function fMoeda(v, cod) { var s = F().fMoeda(v, cod); return s !== F().neutro ? s : cod + ' ' + n2.format(v); }
   function divState() {
     var d = S.div || {};
     return { items: Array.isArray(d.items) ? d.items : [], cambios: d.cambios || {}, margem: d.margem != null && !isNaN(d.margem) ? +d.margem : 2 };
@@ -2927,7 +2927,7 @@
     }
     h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>' + tth('obs.adicionarPagamento') + '</summary><form id="fin-fdiv"><div class="mgrid"><label>' + tth('comum.nome') + '<input id="fin-d-nome" type="text" placeholder="' + tth('obs.exNome') + '" autocomplete="off"></label>' +
       '<label>' + tth('comum.valor') + '<input id="fin-d-valor" type="text" inputmode="decimal" placeholder="3.700,00" autocomplete="off"></label>' +
-      '<label>' + tth('comum.moeda') + '<select id="fin-d-cur">' + opcoes(MOEDAS, BASE) + '<option value="outra">' + tth('obs.outraMoeda') + '</option></select></label>' +
+      '<label>' + tth('comum.moeda') + '<select id="fin-d-cur">' + opcoes(moedas(), BASE) + '<option value="outra">' + tth('obs.outraMoeda') + '</option></select></label>' +
       '<label id="fin-d-outra-l" hidden>' + tth('obs.codigoMoeda') + '<input id="fin-d-outra" type="text" maxlength="3" placeholder="' + tth('obs.exCodigo') + '" autocomplete="off" autocapitalize="characters"></label>' +
       '<label>' + tth('obs.vencimentoOpcional') + '<input id="fin-d-venc" type="date"></label>' +
       '<label>' + tth('obs.descricaoOpcional') + '<input id="fin-d-desc" type="text" placeholder="' + tth('obs.exDescricao') + '" autocomplete="off"></label></div><button class="btn sm pri" type="submit">' + tth('comum.adicionar') + '</button></form></details>';
@@ -2981,7 +2981,7 @@
   function metasPoupanca() { return listaMetasPoupanca(S.plan); }
   /* nome da meta na tela: o de fábrica traduzido, o da pessoa como está */
   function nomeMeta(g) { return nomeExibido('meta', g.id, g.nome, NORA_I18N.t); }
-  function pct(v) { return nn.format(v) + '%'; }
+  function pct(v) { return F().pct(v); }
   /* "a, b e c": o último item ligado pelo "e" do idioma */
   function listaE(l) { return l.length < 2 ? l.join('') : tt('comum.listaE', { inicio: l.slice(0, -1).join(', '), fim: l[l.length - 1] }); }
   function goalCfg(id) { var g = S.plan && S.plan.goals; return (g && g[id]) || {}; }
@@ -3014,7 +3014,7 @@
     var a = refMonth().split('-').map(Number), b = pz.split('-').map(Number);
     return Math.max(1, (b[0] * 12 + b[1]) - (a[0] * 12 + a[1]) + 1);
   }
-  function mesAno(pz) { var p = pz.split('-'); return MS[+p[1] - 1] + ' ' + p[0]; }
+  function mesAno(pz) { return F().mesAno(pz); }
   function addMonth(d) {
     var p = d.split('-').map(Number), y = p[0], m = p[1] + 1;
     if (m > 12) { m = 1; y++; }
@@ -3059,7 +3059,7 @@
     if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs), { envios: cw.envios }), planCat, CATST).proj);
     var st = statusPrevisao(dif, pend, f0);
     return h + '<span class="hint">' + tth('previsao.dica', { dia: day, dim: dim, n: left }) + '</span></div><div class="card prv">' +
-      '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: MES[p[1] - 1] }) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + f0(meta) + '</p></div></div>' +
+      '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: mNome(cur) }) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + f0(meta) + '</p></div></div>' +
       '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', { gasto: f0(g.gasto), proj: f0(proj), meta: f0(meta) }) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
       '<p class="s">' + st + pendFrase(pend, rs.length, f0) + '. ' + (porDia > 0 ? tth(falFix > 0.5 ? 'previsao.cabeDiaFixas' : 'previsao.cabeDia', { destaque: cru('<b>' + tth('previsao.porDiaValor', { valor: f0(porDia) }) + '</b>'), fixas: f0(falFix) }) :
@@ -3426,7 +3426,7 @@
     if (fid === 'fin-frcamb') {
       e.preventDefault();
       var lr = lerCambios('cambr');
-      if (lr.ruim) { toast(tt('msg.informeCambio', { moeda: lr.ruim, principal: nomeMoeda(moedaP()), exemplo: '0,86' }), true); return; }
+      if (lr.ruim) { toast(tt('msg.informeCambio', { moeda: lr.ruim, principal: nomeMoeda(moedaP(), 1), exemplo: '0,86' }), true); return; }
       S.rCamb = false;
       divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, lr.novos); }).then(function () { toast(tt(Object.keys(lr.novos).length ? 'msg.cambioSalvo' : 'msg.cambioNadaMudou')); });
       return;
@@ -3434,7 +3434,7 @@
     if (fid === 'fin-fcamb') {
       e.preventDefault();
       var mg = parseNum($('#fin-c-mg').value), lc = lerCambios('camb'), novos = lc.novos;
-      if (lc.ruim) { toast(tt('msg.informeCambio', { moeda: lc.ruim, principal: nomeMoeda(moedaP()), exemplo: '1,08' }), true); return; }
+      if (lc.ruim) { toast(tt('msg.informeCambio', { moeda: lc.ruim, principal: nomeMoeda(moedaP(), 1), exemplo: '1,08' }), true); return; }
       if (isNaN(mg) || mg < 0 || mg > 20) mg = 2;
       S.dCamb = false;
       divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast(tt('msg.cambioAtualizado')); });

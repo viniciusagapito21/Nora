@@ -44,7 +44,6 @@ const PERMITIDOS = {
   'Revolut': 'nome de banco',
   'Flexible Cash': 'nome de um produto do Revolut',
   'Pix': 'nome do sistema de pagamento do Brasil',
-  'março': 'nome do mês na lista MES do app.js: os formatos de data mudam no passo e (formato.js)',
   'Escape': 'nome da tecla (e.key), não é texto da tela',
   '0 0;background:': 'CSS do gráfico (flex: … 0 0;background: …), não é texto da tela',
   'informado por você': 'valor gravado nos dados (cambios[moeda].fonte, em lerCambios), não é texto da tela',
@@ -55,6 +54,21 @@ const RESERVADAS = {
   'tema.rotulo': 'seletor de tema (passo g)', 'tema.auto': 'seletor de tema (passo g)', 'tema.claro': 'seletor de tema (passo g)', 'tema.escuro': 'seletor de tema (passo g)',
   'idioma.rotulo': 'seletor de idioma (passo f)', 'idioma.auto': 'seletor de idioma (passo f)', 'idioma.pt-BR': 'seletor de idioma (passo f)', 'idioma.en-GB': 'seletor de idioma (passo f)',
 };
+
+// chaves montadas no app.js por prefixo + código (passo e), com o motivo
+const PREFIXOS = {
+  'cats.': 'nome de fábrica de cada categoria, por id (nomeFabrica)',
+  'moeda.opcao.': 'rótulo de cada moeda na lista (moedas())',
+  'moeda.grupo.': 'moeda dentro de "Países que usam …" (opcoesPais)',
+  'moeda.nome.': 'nome da moeda dentro de frases (nomeMoeda)',
+};
+test('chaves por prefixo: cada prefixo é usado no app.js e tem chave em pt-BR', () => {
+  for (const [p, m] of Object.entries(PREFIXOS)) {
+    assert.ok(m.trim(), p);
+    assert.ok(appJs.includes(`'${p}' +`), `prefixo ${p} não aparece no app.js`);
+    assert.ok(Object.keys(D['pt-BR']).some(k => k.startsWith(p)), `nenhuma chave ${p}*`);
+  }
+});
 
 test('o analisador separa texto de tela de código', () => {
   const v = s => pedacosVisiveis(s).map(p => p.texto);
@@ -119,13 +133,15 @@ test('nada de t(\'…\') no app.js (o parâmetro t esconde a tradução): use tt
 
 test('toda chave usada no app.js e no index.html existe nos dois dicionários; nenhuma sobra sem motivo', () => {
   const usadas = new Set([
-    ...[...appJs.matchAll(/\btth?\(\s*'([^']+)'/g)].map(m => m[1]),
+    ...[...appJs.matchAll(/\btth?\(\s*'([^']+)'(?!\s*\+)/g)].map(m => m[1]),
     ...[...indexHtml.matchAll(/data-i18n(?:-aria-label)?="([^"]+)"/g)].map(m => m[1]),
   ]);
   for (const k of usadas) for (const idi of ['pt-BR', 'en-GB']) assert.ok(k in D[idi], `${k} falta em ${idi}`);
   // chave citada como texto no app.js (ex.: a tabela NOMES_PADRAO) também conta como uso
   // e a chave erro.<codigo> conta como usada quando o código aparece num erroCod('<codigo>', …)
-  const citada = k => usadas.has(k) || appJs.includes(`'${k}'`) || (k.startsWith('erro.') && appJs.includes(`erroCod('${k.slice(5)}'`));
+  // e a chave montada por prefixo ('cats.' + id, 'moeda.nome.' + código…), quando o prefixo aparece assim no app.js
+  const porPrefixo = k => Object.keys(PREFIXOS).some(p => k.startsWith(p) && !k.slice(p.length).includes('.') && appJs.includes(`'${p}' +`));
+  const citada = k => usadas.has(k) || appJs.includes(`'${k}'`) || porPrefixo(k) || (k.startsWith('erro.') && appJs.includes(`erroCod('${k.slice(5)}'`));
   const semUso = Object.keys(D['pt-BR']).filter(k => !citada(k) && !(k in RESERVADAS));
   assert.deepEqual(semUso, [], 'chave sem uso: use, apague ou ponha em RESERVADAS com o motivo');
   for (const k of Object.keys(RESERVADAS)) assert.ok(k in D['pt-BR'], `RESERVADAS cita ${k}, que não existe`);
@@ -161,8 +177,9 @@ test('index.html: todo texto e aria-label do <body> tem data-i18n (o <title> "No
   for (const m of corpo.matchAll(/aria-label="([^"]+)" data-i18n-aria-label="([^"]+)"/g)) assert.equal(m[1], D['pt-BR'][m[2]], m[2]);
 });
 
-// texto de tela em constante de módulo ((módulo) no analisador): só os formatos que o passo e troca por NORA_FORMATO
-const MODULO_PASSO_E = { 'março': 'MES', 'dólar': 'NOME_MOEDA', 'Euro (€)': 'MOEDAS', 'Real (R$)': 'MOEDAS', 'Libra (£)': 'MOEDAS', 'Dólar (US$)': 'MOEDAS' };
+// texto de tela em constante de módulo ((módulo) no analisador): nenhum
+// (vazio desde o passo e: MES, MS, NOME_MOEDA e MOEDAS saíram do app.js; meses e moedas vêm do formato.js e do dicionário)
+const MODULO_PASSO_E = {};
 test('constantes de módulo: nenhum texto de tela além dos formatos do passo e', () => {
   const t = textosDoApp(appJs).filter(x => x.funcao === '(módulo)' && !(x.texto in MODULO_PASSO_E));
   assert.deepEqual(t.map(x => `app.js:${x.linha} "${x.texto}"`), [], 'texto de tela numa constante de módulo: troque por uma função que chama tt() na hora');

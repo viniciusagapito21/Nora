@@ -220,6 +220,14 @@ var NORA_FORMATO = (function () {
       return formatarData(formatadorData({ month: 'long', year: 'numeric' }), p.data);
     }
 
+    /* só o nome do mês, por extenso ("outubro", "October"), para frases como "previsão de outubro" */
+    function mNome(mes) {
+      var p = chaveMes(mes);
+      if (!p) return NEUTRO;
+      if (local === 'pt-BR') return MESES_PT[p.mes - 1];
+      return formatarData(formatadorData({ month: 'long' }), p.data);
+    }
+
     function mesAno(mes) {
       var p = chaveMes(mes);
       if (!p) return NEUTRO;
@@ -298,6 +306,7 @@ var NORA_FORMATO = (function () {
       dFmt: dFmt,
       mLabel: mLabel,
       mShort: mShort,
+      mNome: mNome,
       mesAno: mesAno,
       numero: numero,
       nn: function (valor) { return numero(valor, 0, 0); },
