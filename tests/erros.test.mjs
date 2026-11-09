@@ -10,7 +10,7 @@ const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const appJs = ler('app.js');
 const scriptsAntes = [...ler('index.html').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js' && f !== 'prefs.js');
 const core = scriptsAntes.map(ler).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira, decodificar, linhasDaAba, lerPlanilha, lerPdf };')();
+const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira, decodificar, linhasDaAba, lerPlanilha, lerPdf, paraV3, excluirCarteira, confirmarTransferencia };')();
 
 // a tela em pt-BR e em en-GB (o prefs.js de mentira diz o idioma; APLICAR_LANG ligada só aqui, para ver o inglês)
 function tela(idioma) {
@@ -150,4 +150,20 @@ test('grupo A3: limites saem pelo formato do idioma; o PDF longo continua passan
   assert.equal(EN.textoErro(pega(A3[1][1])), 'the spreadsheet has more than 20,000 rows');
   assert.equal(PT.textoErro(pega(A3[1][1])), 'a planilha passa de 20.000 linhas');
   assert.ok(/e\.codigo === 'arquivo\.pdfPaginas'/.test(appJs) && !/\/\^o PDF passa de\//.test(appJs), 'a conferência do limite de páginas é pelo código');
+});
+
+// grupo A4 (internos): a tela não deixa chegar a eles, mas, se chegarem, aparecem traduzidos
+const duas = () => N.lerSalvo(JSON.stringify({ v: 4, carteiras: [{ id: 'c1', moeda: 'EUR' }, { id: 'c2', moeda: 'EUR' }] }), '');
+const A4 = [
+  ['interno.v3UmaCarteira', () => N.paraV3(duas()), 'mais de uma carteira: não cabe na v3'],
+  ['interno.carteiraNaoExiste', () => N.excluirCarteira(duas(), 'c<9>'), 'a carteira c<9> não existe'],
+  ['interno.unicaCarteira', () => N.excluirCarteira(base({}), 'c1'), 'a única carteira não se exclui: use Apagar meus dados'],
+  ['interno.mesmaCarteira', () => N.confirmarTransferencia(duas(), { s: { c: 'c1', id: 'a' }, e: { c: 'c1', id: 'b' }, ja: null }), 'as duas pontas estão na mesma carteira'],
+];
+
+test('grupo A4 (internos): cada erro provocado, pt-BR idêntico ao de antes, en-GB pelo dicionário', () => {
+  confere(A4);
+  const doFonte = new Set([...appJs.matchAll(/\berroCod\(\s*'(interno\.[^']+)'/g)].map(m => m[1]));
+  assert.deepEqual([...doFonte].sort(), [...new Set(A4.map(c => c[0]))].sort());
+  assert.equal(EN.textoErro(pega(A4[1][1])), 'account c<9> does not exist');
 });

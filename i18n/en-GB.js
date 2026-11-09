@@ -753,5 +753,10 @@ NORA_DICIONARIOS['en-GB'] = {
   'erro.arquivo.pdfGrande': 'the PDF is larger than {mb} MB',
   'erro.arquivo.pdfPaginas': 'the PDF has more than {max} pages',
   'erro.arquivo.pdfSenha': 'the PDF is password-protected. Open it and save it without a password, or download the statement again from the bank app',
-  'erro.arquivo.pdfDanificado': 'the PDF is damaged or incomplete'
+  'erro.arquivo.pdfDanificado': 'the PDF is damaged or incomplete',
+  /* step d, core: internal errors (the screen never lets them happen; translated just in case; {carteira} is the id) */
+  'erro.interno.v3UmaCarteira': 'more than one account: does not fit in v3',
+  'erro.interno.carteiraNaoExiste': 'account {carteira} does not exist',
+  'erro.interno.unicaCarteira': 'the only account cannot be deleted: use Delete my data',
+  'erro.interno.mesmaCarteira': 'both sides are in the same account'
 };

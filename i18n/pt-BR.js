@@ -754,5 +754,10 @@ NORA_DICIONARIOS['pt-BR'] = {
   'erro.arquivo.pdfGrande': 'o PDF passa de {mb} MB',
   'erro.arquivo.pdfPaginas': 'o PDF passa de {max} páginas',
   'erro.arquivo.pdfSenha': 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco',
-  'erro.arquivo.pdfDanificado': 'o PDF está danificado ou incompleto'
+  'erro.arquivo.pdfDanificado': 'o PDF está danificado ou incompleto',
+  /* passo d, núcleo: erros internos (a tela não deixa chegar a eles; ficam traduzidos por garantia; {carteira} é o id) */
+  'erro.interno.v3UmaCarteira': 'mais de uma carteira: não cabe na v3',
+  'erro.interno.carteiraNaoExiste': 'a carteira {carteira} não existe',
+  'erro.interno.unicaCarteira': 'a única carteira não se exclui: use Apagar meus dados',
+  'erro.interno.mesmaCarteira': 'as duas pontas estão na mesma carteira'
 };

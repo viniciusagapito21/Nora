@@ -472,7 +472,7 @@
   }
   /* v4 → v3, só com uma carteira: para voltar atrás e para provar que a migração não perde nada */
   function paraV3(x) {
-    if (x.carteiras.length > 1) throw new Error('mais de uma carteira: não cabe na v3');
+    if (x.carteiras.length > 1) throw erroCod('interno.v3UmaCarteira', {}, 'mais de uma carteira: não cabe na v3');
     var w = x.carteiras[0];
     return { v: 3, months: w.months, over: w.over, plan: juntarPlan(x.config, w), summary: w.summary, div: divV3(x.div, x.cambios) };
   }
@@ -488,7 +488,7 @@
   function temLeitor(banco) { return COM_LEITOR.indexOf(banco) >= 0; }
   function acharCarteira(x, id) {
     var c = x.carteiras.filter(function (w) { return w.id === id; })[0];
-    if (!c) throw new Error('a carteira ' + id + ' não existe');
+    if (!c) throw erroCod('interno.carteiraNaoExiste', { carteira: id }, 'a carteira ' + id + ' não existe');
     return c;
   }
   function nomeCarteira(x, nome, id) {
@@ -556,7 +556,7 @@
   }
   function excluirCarteira(x, id) {
     acharCarteira(x, id);
-    if (x.carteiras.length === 1) throw new Error('a única carteira não se exclui: use Apagar meus dados');
+    if (x.carteiras.length === 1) throw erroCod('interno.unicaCarteira', {}, 'a única carteira não se exclui: use Apagar meus dados');
     /* as transferências com ela se desfazem: a outra ponta volta ao que era */
     var resto = x.carteiras.filter(function (w) { return w.id !== id; }).map(function (w) {
       var ids = {}; x.carteiras.forEach(function (c) { if (c.id !== id) ids[c.id] = 1; });
@@ -1438,7 +1438,7 @@
   /* par: { s: { c, id }, e: { c, id }, ja: 's' | 'e' | null }; a ponta que já era "Entre contas suas" fica sem marca */
   function confirmarTransferencia(x, par) {
     acharCarteira(x, par.s.c); acharCarteira(x, par.e.c);
-    if (par.s.c === par.e.c) throw new Error('as duas pontas estão na mesma carteira');
+    if (par.s.c === par.e.c) throw erroCod('interno.mesmaCarteira', {}, 'as duas pontas estão na mesma carteira');
     return comTransf(x, function (cid, t) {
       if (cid === par.s.c) t[par.s.id] = { c: par.e.c, id: par.e.id, lado: 's', marca: par.ja !== 's' };
       else if (cid === par.e.c) t[par.e.id] = { c: par.s.c, id: par.s.id, lado: 'e', marca: par.ja !== 'e' };

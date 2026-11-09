@@ -969,8 +969,15 @@ const ERROS_ARQUIVO = [
   ['tt', 'erro.arquivo.pdfSenha', {}, 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco'],
   ['tt', 'erro.arquivo.pdfDanificado', {}, 'o PDF está danificado ou incompleto'],
 ];
+// núcleo, grupo A4 (12b4): erros internos
+const ERROS_INTERNOS = [
+  ['tt', 'erro.interno.v3UmaCarteira', {}, 'mais de uma carteira: não cabe na v3'],
+  ['tt', 'erro.interno.carteiraNaoExiste', { carteira: 'c9' }, 'a carteira c9 não existe'],
+  ['tt', 'erro.interno.unicaCarteira', {}, 'a única carteira não se exclui: use Apagar meus dados'],
+  ['tt', 'erro.interno.mesmaCarteira', {}, 'as duas pontas estão na mesma carteira'],
+];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS, 'núcleo, leitura de arquivo': ERROS_ARQUIVO }))
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS, 'núcleo, leitura de arquivo': ERROS_ARQUIVO, 'núcleo, internos': ERROS_INTERNOS }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
