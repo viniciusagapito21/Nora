@@ -85,6 +85,33 @@ test('todo código de erro usado existe nos dois dicionários', () => {
   for (const c of usados) for (const idi of ['pt-BR', 'en-GB']) assert.ok(('erro.' + c) in D[idi], `erro.${c} falta em ${idi}`);
 });
 
+// núcleo (passo d, parte 12): erro que chega à tela nasce por erroCod; cada grupo pronto sai de NUCLEO_PENDENTE
+const NUCLEO_COM_CODIGO = {
+  'A1, dados salvos e backup': ['checarMeses', 'migrarAteV3', 'checarPeriodos', 'checarTransf', 'checarPixTitular', 'checarImportacao', 'checarCambios', 'validarV4', 'migrate', 'lerSalvo'],
+};
+const NUCLEO_PENDENTE = {
+  'A2, carteiras e categorias (12b2)': ['criarCategoria', 'nomeCarteira', 'conferirMoeda', 'conferirBanco', 'novaCarteira', 'editarCarteira'],
+  'A3, leitura de arquivo (12b3)': ['decodificar', 'linhasDaAba', 'lerPlanilha', 'lerPdf'],
+  'A4, internos (12b4)': ['paraV3', 'acharCarteira', 'excluirCarteira', 'confirmarTransferencia'],
+};
+// { função do núcleo: quantos new Error( crus ela tem } (erroCod, que cria o Error, fica de fora)
+function errosCrusDoNucleo(fonte) {
+  const linhas = fonte.slice(0, fonte.indexOf('/*CORE-END*/')).split('\n'), o = {};
+  let f = '(topo)';
+  for (const l of linhas) {
+    const m = l.match(/^ {2}function ([A-Za-z0-9_]+)\(/); if (m) f = m[1];
+    if (/new Error\(/.test(l) && f !== 'erroCod') o[f] = (o[f] || 0) + (l.match(/new Error\(/g) || []).length;
+  }
+  return o;
+}
+test('núcleo: os grupos prontos só lançam erroCod; new Error cru só nos grupos pendentes', () => {
+  assert.deepEqual(errosCrusDoNucleo("  /*CORE-START*/\n  function a() {\n    throw new Error('x');\n  }\n  function erroCod() { return new Error(1); }\n  /*CORE-END*/"), { a: 1 }, 'autoteste');
+  const crus = errosCrusDoNucleo(appJs), prontas = new Set(Object.values(NUCLEO_COM_CODIGO).flat()), pendentes = new Set(Object.values(NUCLEO_PENDENTE).flat());
+  for (const f of prontas) assert.ok(!crus[f], `${f} ainda tem new Error cru: use erroCod(código, vars, frase pt-BR)`);
+  assert.deepEqual(Object.keys(crus).filter(f => !pendentes.has(f)), [], 'new Error cru fora dos grupos pendentes: use erroCod');
+  for (const f of prontas) assert.ok(new RegExp('function ' + f + '\\(').test(appJs), `${f} não existe mais no app.js`);
+});
+
 test('nada de t(\'…\') no app.js (o parâmetro t esconde a tradução): use tt ou tth', () => {
   const ruins = appJs.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => /(^|[^\w.$])t\(\s*['"]/.test(l));
   assert.deepEqual(ruins.map(([n]) => n), []);
@@ -97,7 +124,8 @@ test('toda chave usada no app.js e no index.html existe nos dois dicionários; n
   ]);
   for (const k of usadas) for (const idi of ['pt-BR', 'en-GB']) assert.ok(k in D[idi], `${k} falta em ${idi}`);
   // chave citada como texto no app.js (ex.: a tabela NOMES_PADRAO) também conta como uso
-  const citada = k => usadas.has(k) || appJs.includes(`'${k}'`);
+  // e a chave erro.<codigo> conta como usada quando o código aparece num erroCod('<codigo>', …)
+  const citada = k => usadas.has(k) || appJs.includes(`'${k}'`) || (k.startsWith('erro.') && appJs.includes(`erroCod('${k.slice(5)}'`));
   const semUso = Object.keys(D['pt-BR']).filter(k => !citada(k) && !(k in RESERVADAS));
   assert.deepEqual(semUso, [], 'chave sem uso: use, apague ou ponha em RESERVADAS com o motivo');
   for (const k of Object.keys(RESERVADAS)) assert.ok(k in D['pt-BR'], `RESERVADAS cita ${k}, que não existe`);

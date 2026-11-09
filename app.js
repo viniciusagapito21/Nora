@@ -307,17 +307,17 @@
     return o;
   }
   function checarMeses(months) {
-    if (!months || typeof months !== 'object' || Array.isArray(months)) throw new Error('meses em formato errado');
+    if (!months || typeof months !== 'object' || Array.isArray(months)) throw erroCod('dados.mesesFormato', {}, 'meses em formato errado');
     Object.keys(months).forEach(function (m) {
-      if (!/^\d{4}-\d{2}$/.test(m) || !Array.isArray(months[m])) throw new Error('mês ' + m + ' em formato errado');
+      if (!/^\d{4}-\d{2}$/.test(m) || !Array.isArray(months[m])) throw erroCod('dados.mesFormato', { mes: m }, 'mês ' + m + ' em formato errado');
     });
     return months;
   }
   /* v1, v2 ou v3 → v3 (o passo antigo, mantido para a migração e para o teste de ida e volta) */
   function migrarAteV3(x, titularAntigo) {
-    if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
+    if (!x || typeof x !== 'object' || Array.isArray(x)) throw erroCod('dados.naoSaoDados', {}, 'não são dados do painel');
     var v = x.v == null ? 1 : x.v;
-    if (v !== 1 && v !== 2 && v !== 3) throw new Error('versão ' + v + ' desconhecida');
+    if (v !== 1 && v !== 2 && v !== 3) throw erroCod('dados.versaoDesconhecida', { versao: String(v) }, 'versão ' + v + ' desconhecida');
     var months = checarMeses(x.months || {});
     var plan = Object.assign({}, x.plan || {});
     /* na v1 o titular ficava numa chave à parte, gravada pelo console */
@@ -392,46 +392,46 @@
   function periodosMigrados(c) { var ds = datasDaCarteira(c); return ds.length ? [{ de: ds[0], ate: ds[ds.length - 1] }] : []; }
   var ISO = /^\d{4}-\d{2}-\d{2}$/;
   function checarPeriodos(ps, id) {
-    if (!Array.isArray(ps) || ps.some(function (p) { return !p || !ISO.test(p.de) || !ISO.test(p.ate); })) throw new Error('períodos em formato errado na carteira ' + id);
+    if (!Array.isArray(ps) || ps.some(function (p) { return !p || !ISO.test(p.de) || !ISO.test(p.ate); })) throw erroCod('dados.periodosFormato', { carteira: id }, 'períodos em formato errado na carteira ' + id);
     return juntarPeriodos(ps);
   }
   /* transf: { id do movimento: { c: carteira da outra ponta, id: movimento dela, lado: 's' | 'e', marca } };
      sugDispensadas: chaves de par (texto JSON de [carteira e movimento da saída, carteira e movimento da entrada]) */
   function checarTransf(w) {
     var t = w.transf, erro = 'transferências em formato errado na carteira ' + w.id;
-    if (typeof t !== 'object' || Array.isArray(t)) throw new Error(erro);
+    if (typeof t !== 'object' || Array.isArray(t)) throw erroCod('dados.transfFormato', { carteira: w.id }, erro);
     Object.keys(t).forEach(function (k) {
       var r = t[k];
-      if (!r || typeof r.c !== 'string' || typeof r.id !== 'string' || (r.lado !== 's' && r.lado !== 'e') || typeof r.marca !== 'boolean') throw new Error(erro);
+      if (!r || typeof r.c !== 'string' || typeof r.id !== 'string' || (r.lado !== 's' && r.lado !== 'e') || typeof r.marca !== 'boolean') throw erroCod('dados.transfItemFormato', { carteira: w.id }, erro);
     });
     if (!Array.isArray(w.sugDispensadas) || w.sugDispensadas.some(function (k) {
       try { var a = JSON.parse(k); return !Array.isArray(a) || a.length !== 4 || a.some(function (v) { return typeof v !== 'string'; }); } catch (e) { return true; }
-    })) throw new Error('sugestões dispensadas em formato errado na carteira ' + w.id);
+    })) throw erroCod('dados.dispensadasFormato', { carteira: w.id }, 'sugestões dispensadas em formato errado na carteira ' + w.id);
   }
   /* pixTitular: as chaves (como em over) que a sugestão de Pix para o titular marcou; "Desfazer" só tira essas */
   function checarPixTitular(l, id) {
     if (l == null) return l;
-    if (!Array.isArray(l) || l.some(function (k) { return typeof k !== 'string'; })) throw new Error('Pix marcados como seus em formato errado na carteira ' + id);
+    if (!Array.isArray(l) || l.some(function (k) { return typeof k !== 'string'; })) throw erroCod('dados.pixTitularFormato', { carteira: id }, 'Pix marcados como seus em formato errado na carteira ' + id);
     return l;
   }
   /* importacao: { código do cabeçalho: { sep, data, desc, valor, ... } }, as colunas lembradas do importador */
   function checarImportacao(imp, id) {
     var erro = 'colunas do importador em formato errado na carteira ' + id;
     if (imp == null) return imp;
-    if (typeof imp !== 'object' || Array.isArray(imp)) throw new Error(erro);
+    if (typeof imp !== 'object' || Array.isArray(imp)) throw erroCod('dados.colunasFormato', { carteira: id }, erro);
     Object.keys(imp).forEach(function (k) {
       var m = imp[k];
-      if (!m || typeof m !== 'object' || typeof m.sep !== 'string' || !(m.data >= 0) || !(m.desc >= 0) || !m.valor || typeof m.valor !== 'object') throw new Error(erro);
+      if (!m || typeof m !== 'object' || typeof m.sep !== 'string' || !(m.data >= 0) || !(m.desc >= 0) || !m.valor || typeof m.valor !== 'object') throw erroCod('dados.colunasItemFormato', { carteira: id }, erro);
     });
     return imp;
   }
   /* cambios: { moeda: { rate, data } }, quantos dessa moeda valem 1 da principal e quando a pessoa informou */
   function checarCambios(cs) {
     if (cs == null) return {};
-    if (typeof cs !== 'object' || Array.isArray(cs)) throw new Error('câmbio em formato errado');
+    if (typeof cs !== 'object' || Array.isArray(cs)) throw erroCod('dados.cambioFormato', {}, 'câmbio em formato errado');
     Object.keys(cs).forEach(function (m) {
       var c = cs[m];
-      if (!/^[A-Z]{3}$/.test(m) || !c || typeof c !== 'object' || !isFinite(+c.rate) || +c.rate < 0 || (c.data != null && !ISO.test(c.data))) throw new Error('câmbio de ' + m + ' em formato errado');
+      if (!/^[A-Z]{3}$/.test(m) || !c || typeof c !== 'object' || !isFinite(+c.rate) || +c.rate < 0 || (c.data != null && !ISO.test(c.data))) throw erroCod('dados.cambioMoedaFormato', { moeda: m }, 'câmbio de ' + m + ' em formato errado');
     });
     return cs;
   }
@@ -440,23 +440,23 @@
   }
   /* confere e completa uma v4; devolve uma cópia (nunca a mesma referência de cima) */
   function validarV4(x) {
-    if (!Array.isArray(x.carteiras) || !x.carteiras.length) throw new Error('nenhuma carteira');
-    if (x.carteiras.length > MAX_CARTEIRAS) throw new Error('mais de ' + MAX_CARTEIRAS + ' carteiras');
+    if (!Array.isArray(x.carteiras) || !x.carteiras.length) throw erroCod('dados.nenhumaCarteira', {}, 'nenhuma carteira');
+    if (x.carteiras.length > MAX_CARTEIRAS) throw erroCod('dados.carteirasDemais', { max: MAX_CARTEIRAS }, 'mais de ' + MAX_CARTEIRAS + ' carteiras');
     var ids = {};
     var carteiras = x.carteiras.map(function (c) {
-      if (!c || typeof c !== 'object') throw new Error('carteira em formato errado');
-      if (typeof c.id !== 'string' || !c.id) throw new Error('carteira sem id');
-      if (ids[c.id]) throw new Error('carteira ' + c.id + ' repetida');
+      if (!c || typeof c !== 'object') throw erroCod('dados.carteiraFormato', {}, 'carteira em formato errado');
+      if (typeof c.id !== 'string' || !c.id) throw erroCod('dados.carteiraSemId', {}, 'carteira sem id');
+      if (ids[c.id]) throw erroCod('dados.carteiraRepetida', { carteira: c.id }, 'carteira ' + c.id + ' repetida');
       ids[c.id] = 1;
-      if (!/^[A-Z]{3}$/.test(c.moeda || '')) throw new Error('moeda ' + c.moeda + ' inválida na carteira ' + c.id);
+      if (!/^[A-Z]{3}$/.test(c.moeda || '')) throw erroCod('dados.moedaInvalida', { moeda: String(c.moeda), carteira: c.id }, 'moeda ' + c.moeda + ' inválida na carteira ' + c.id);
       var w = Object.assign({}, c, { nome: String(c.nome || 'Carteira'), pais: c.pais || 'IE', banco: c.banco || 'revolut', months: checarMeses(c.months || {}),
         over: c.over || {}, summary: c.summary || null, metas: c.metas || {}, transf: c.transf || {}, sugDispensadas: c.sugDispensadas || [] });
       w.periodos = c.periodos === undefined ? periodosMigrados(w) : checarPeriodos(c.periodos, c.id);
       checarTransf(w);
       checarImportacao(w.importacao, c.id);
       checarPixTitular(w.pixTitular, c.id);
-      if (w.envios != null && w.envios !== 'gasto' && w.envios !== 'movido') throw new Error('opção de envios em formato errado na carteira ' + c.id);
-      if (w.enviosDecidido != null && typeof w.enviosDecidido !== 'boolean') throw new Error('resposta do aviso de envios em formato errado na carteira ' + c.id);
+      if (w.envios != null && w.envios !== 'gasto' && w.envios !== 'movido') throw erroCod('dados.enviosFormato', { carteira: c.id }, 'opção de envios em formato errado na carteira ' + c.id);
+      if (w.enviosDecidido != null && typeof w.enviosDecidido !== 'boolean') throw erroCod('dados.avisoEnviosFormato', { carteira: c.id }, 'resposta do aviso de envios em formato errado na carteira ' + c.id);
       return w;
     });
     /* transferência com uma carteira que não existe mais (backup antigo): sai, e a ponta volta ao que era */
@@ -466,7 +466,7 @@
     return { v: 4, config: config, carteiras: carteiras, ativa: ids[x.ativa] ? x.ativa : carteiras[0].id, cambios: checarCambios(x.cambios), div: x.div || null };
   }
   function migrate(x, titularAntigo) {
-    if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('não são dados do painel');
+    if (!x || typeof x !== 'object' || Array.isArray(x)) throw erroCod('dados.naoSaoDados', {}, 'não são dados do painel');
     if (x.v === 4) return validarV4(x);
     return paraV4(migrarAteV3(x, titularAntigo));
   }
@@ -614,7 +614,7 @@
   /* lê dados salvos ou um backup (texto JSON) e devolve sempre a v4; erro com motivo se não der */
   function lerSalvo(texto, titularAntigo) {
     var x;
-    try { x = JSON.parse(texto); } catch (e) { throw new Error('o conteúdo não é JSON válido'); }
+    try { x = JSON.parse(texto); } catch (e) { throw erroCod('dados.jsonInvalido', {}, 'o conteúdo não é JSON válido'); }
     return migrate(x, titularAntigo);
   }
   /* resumo para confirmar antes de restaurar ou apagar: quantos meses, de quando a quando (v3 ou v4, todas as carteiras) */

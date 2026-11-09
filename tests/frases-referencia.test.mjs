@@ -916,7 +916,34 @@ test('frases de referência em pt-BR: a nota "Fora do Entrou e do Gastou" monta 
   }
 });
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C }))
+// núcleo, grupo A1 (12b1): erros dos dados salvos e do backup; {carteira} é o id, {moeda} o código vindo do backup (cru)
+const ERROS_DADOS = [
+  ['tt', 'erro.dados.naoSaoDados', {}, 'não são dados do painel'],
+  ['tt', 'erro.dados.versaoDesconhecida', { versao: '9' }, 'versão 9 desconhecida'],
+  ['tt', 'erro.dados.jsonInvalido', {}, 'o conteúdo não é JSON válido'],
+  ['tt', 'erro.dados.mesesFormato', {}, 'meses em formato errado'],
+  ['tt', 'erro.dados.mesFormato', { mes: 'setembro' }, 'mês setembro em formato errado'],
+  ['tt', 'erro.dados.nenhumaCarteira', {}, 'nenhuma carteira'],
+  ['tt', 'erro.dados.carteirasDemais', { max: '5' }, 'mais de 5 carteiras'],
+  ['tt', 'erro.dados.carteiraFormato', {}, 'carteira em formato errado'],
+  ['tt', 'erro.dados.carteiraSemId', {}, 'carteira sem id'],
+  ['tt', 'erro.dados.carteiraRepetida', { carteira: 'c<1>&"' }, 'carteira c<1>&" repetida'],
+  ['tt', 'erro.dados.moedaInvalida', { moeda: 'X<&>"', carteira: 'c1' }, 'moeda X<&>" inválida na carteira c1'],
+  ['tth', 'erro.dados.moedaInvalida', { moeda: 'X<&>"', carteira: 'c1' }, 'moeda X&lt;&amp;&gt;&quot; inválida na carteira c1'],
+  ['tt', 'erro.dados.periodosFormato', { carteira: 'c2' }, 'períodos em formato errado na carteira c2'],
+  ['tt', 'erro.dados.transfFormato', { carteira: 'c2' }, 'transferências em formato errado na carteira c2'],
+  ['tt', 'erro.dados.transfItemFormato', { carteira: 'c2' }, 'transferências em formato errado na carteira c2'],
+  ['tt', 'erro.dados.dispensadasFormato', { carteira: 'c2' }, 'sugestões dispensadas em formato errado na carteira c2'],
+  ['tt', 'erro.dados.pixTitularFormato', { carteira: 'c2' }, 'Pix marcados como seus em formato errado na carteira c2'],
+  ['tt', 'erro.dados.colunasFormato', { carteira: 'c2' }, 'colunas do importador em formato errado na carteira c2'],
+  ['tt', 'erro.dados.colunasItemFormato', { carteira: 'c2' }, 'colunas do importador em formato errado na carteira c2'],
+  ['tt', 'erro.dados.enviosFormato', { carteira: 'c2' }, 'opção de envios em formato errado na carteira c2'],
+  ['tt', 'erro.dados.avisoEnviosFormato', { carteira: 'c2' }, 'resposta do aviso de envios em formato errado na carteira c2'],
+  ['tt', 'erro.dados.cambioFormato', {}, 'câmbio em formato errado'],
+  ['tt', 'erro.dados.cambioMoedaFormato', { moeda: 'G<B>' }, 'câmbio de G<B> em formato errado'],
+];
+
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
