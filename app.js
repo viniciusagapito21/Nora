@@ -800,7 +800,7 @@
     var t;
     if (cod !== 'latin1') {
       try { t = new TextDecoder('utf-8', { fatal: true }).decode(bytes); return { texto: t.replace(/^\uFEFF/, ''), cod: 'utf-8' }; }
-      catch (e) { if (cod === 'utf-8') throw new Error('o arquivo não é UTF-8 válido'); }
+      catch (e) { if (cod === 'utf-8') throw erroCod('arquivo.naoUtf8', {}, 'o arquivo não é UTF-8 válido'); }
     }
     return { texto: new TextDecoder('windows-1252').decode(bytes), cod: 'latin1' };
   }
@@ -1101,7 +1101,7 @@
   function linhasDaAba(X, ws, d1904) {
     if (!ws || !ws['!ref']) return [];
     var R = X.utils.decode_range(ws['!ref']), rows = [], r, c, row;
-    if (R.e.r + 1 > LIMITE_LINHAS) throw new Error('a planilha passa de ' + LIMITE_LINHAS.toLocaleString('pt-BR') + ' linhas');
+    if (R.e.r + 1 > LIMITE_LINHAS) throw erroCod('arquivo.linhasDemais', { max: LIMITE_LINHAS }, 'a planilha passa de ' + LIMITE_LINHAS.toLocaleString('pt-BR') + ' linhas');
     for (r = 0; r <= R.e.r; r++) {
       row = [];
       for (c = 0; c <= R.e.c; c++) row.push(textoCelula(X, ws[X.utils.encode_cell({ r: r, c: c })], d1904));
@@ -1111,14 +1111,14 @@
   }
   /* as abas com algum conteúdo; fórmulas não são calculadas (vale o valor que o arquivo já traz) */
   function lerPlanilha(X, bytes, tipo) {
-    if (bytes.length > LIMITE_PLANILHA) throw new Error('o arquivo passa de 15 MB');
+    if (bytes.length > LIMITE_PLANILHA) throw erroCod('arquivo.planilhaGrande', { mb: 15 }, 'o arquivo passa de 15 MB');
     var op = { cellNF: true, cellDates: false, cellFormula: false, sheetRows: LIMITE_LINHAS + 1, raw: true }, wb;
     try { wb = tipo === 'html' || tipo === 'xml' ? X.read(decodificar(bytes).texto, Object.assign({ type: 'string' }, op)) : X.read(bytes, Object.assign({ type: 'array' }, op)); }
-    catch (e) { throw new Error(/password|encrypt/i.test(e && e.message) ? SENHA : 'a planilha está danificada ou incompleta'); }
+    catch (e) { throw /password|encrypt/i.test(e && e.message) ? erroCod('arquivo.planilhaSenha', {}, SENHA) : erroCod('arquivo.planilhaDanificada', {}, 'a planilha está danificada ou incompleta'); }
     var d1904 = !!(wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.date1904);
     var abas = (wb.SheetNames || []).map(function (n) { return { nome: String(n), rows: linhasDaAba(X, wb.Sheets[n], d1904) }; })
       .filter(function (a) { return linhasCheias(a.rows).length; });
-    if (!abas.length) throw new Error('a planilha não tem nenhuma tabela');
+    if (!abas.length) throw erroCod('arquivo.planilhaVazia', {}, 'a planilha não tem nenhuma tabela');
     return abas;
   }
   /* ---------- PDF (extrato do Itaú) ----------
@@ -1128,19 +1128,19 @@
   var LIMITE_PDF = 10 * 1024 * 1024, LIMITE_PAGINAS_PDF = 50;
   var SENHA_PDF = 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco';
   function lerPdf(pdfjs, bytes) {
-    if (bytes.length > LIMITE_PDF) return Promise.reject(new Error('o PDF passa de 10 MB'));
+    if (bytes.length > LIMITE_PDF) return Promise.reject(erroCod('arquivo.pdfGrande', { mb: 10 }, 'o PDF passa de 10 MB'));
     /* uma cópia dos bytes: o pdf.js fica com o buffer que recebe */
     var tarefa = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, disableFontFace: true, useSystemFonts: false, verbosity: 0 });
     return tarefa.promise.then(function (d) {
-      if (d.numPages > LIMITE_PAGINAS_PDF) throw new Error('o PDF passa de ' + LIMITE_PAGINAS_PDF + ' páginas');
+      if (d.numPages > LIMITE_PAGINAS_PDF) throw erroCod('arquivo.pdfPaginas', { max: LIMITE_PAGINAS_PDF }, 'o PDF passa de ' + LIMITE_PAGINAS_PDF + ' páginas');
       var n = [];
       for (var i = 1; i <= d.numPages; i++) n.push(i);
       return n.reduce(function (acc, k) { return acc.then(function (ps) { return paginaPdf(d, k).then(function (p) { ps.push(p); return ps; }); }); }, Promise.resolve([]));
     }).then(function (ps) { tarefa.destroy(); return ps; }, function (e) {
       tarefa.destroy();
-      if (e && e.name === 'PasswordException') throw new Error(SENHA_PDF);
-      if (e && /^o PDF passa de/.test(e.message)) throw e;
-      throw new Error('o PDF está danificado ou incompleto');
+      if (e && e.name === 'PasswordException') throw erroCod('arquivo.pdfSenha', {}, SENHA_PDF);
+      if (e && e.codigo === 'arquivo.pdfPaginas') throw e;
+      throw erroCod('arquivo.pdfDanificado', {}, 'o PDF está danificado ou incompleto');
     });
   }
   /* o texto pelo stream, lido à mão (o atalho getTextContent falha no WebKit) */
@@ -2215,7 +2215,7 @@
       var b = new Uint8Array(buf), c = cartAtual(), tipo = tipoArquivo(b), lem = c && c.importacao;
       if (tipo === 'pdf') return abrirPdf(f.name, b);
       if (tipo === 'zip') throw new Error(tt('importar.compactado'));
-      if (tipo === 'senha') throw new Error(SENHA);
+      if (tipo === 'senha') throw erroCod('arquivo.planilhaSenha', {}, SENHA);
       if (tipo === 'vazio') throw new Error(tt('importar.vazio'));
       if (!ehPlanilha(tipo)) return Object.assign({ nome: f.name, bytes: b }, prepararImportacao(b, lem));
       return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });

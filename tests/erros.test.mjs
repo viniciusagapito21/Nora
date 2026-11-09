@@ -4,12 +4,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { carregarXLSX, xlsxAMao, comSenha, pdfAMao, carregarPdfjs } from './planilhas.mjs';
 
 const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const appJs = ler('app.js');
 const scriptsAntes = [...ler('index.html').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js' && f !== 'prefs.js');
 const core = scriptsAntes.map(ler).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira };')();
+const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira, decodificar, linhasDaAba, lerPlanilha, lerPdf };')();
 
 // a tela em pt-BR e em en-GB (o prefs.js de mentira diz o idioma; APLICAR_LANG ligada só aqui, para ver o inglês)
 function tela(idioma) {
@@ -56,6 +57,13 @@ const A1 = [
   ['dados.cambioMoedaFormato', salvo(v4({}, { cambios: { 'G<B>': { rate: 1 } } })), 'câmbio de G<B> em formato errado'],
 ];
 
+function confereUm(codigo, e, frase) {
+  assert.equal(e.codigo, codigo, frase);
+  assert.equal(e.message, frase, `${codigo}: a frase do núcleo mudou`);
+  assert.equal(PT.textoErro(e), e.message, `${codigo}: em pt-BR a tela tem de mostrar a frase de sempre`);
+  const en = EN.textoErro(e);
+  assert.ok(!en.startsWith('erro.') && en !== e.message, `${codigo}: em en-GB saiu "${en}"`);
+}
 function confere(casos) {
   for (const [codigo, provoca, frase] of casos) {
     const e = pega(provoca);
@@ -109,4 +117,37 @@ test('grupo A2: o nome digitado entra como está; o número de cores e de cartei
   assert.equal(EN.textoErro(pega(A2[3][1])), 'there is already an account called Conta <b> & "cia"');
   assert.equal(EN.textoErro(pega(A2[1][1])), 'all 8 colours are in use: hide a category to free up its colour');
   assert.equal(EN.textoErro(pega(A2[7][1])), 'there are already 5 accounts: delete one to create another');
+});
+
+// grupo A3 (leitura de arquivo): planilhas e PDFs inventados, montados pelo próprio teste
+const XL = carregarXLSX();
+const A3 = [
+  ['arquivo.naoUtf8', () => N.decodificar(new Uint8Array([0x41, 0xff, 0x42]), 'utf-8'), 'o arquivo não é UTF-8 válido'],
+  ['arquivo.linhasDemais', () => N.linhasDaAba(XL, { '!ref': 'A1:B20001' }, false), 'a planilha passa de 20.000 linhas'],
+  ['arquivo.planilhaGrande', () => N.lerPlanilha(XL, new Uint8Array(15 * 1024 * 1024 + 1), 'xlsx'), 'o arquivo passa de 15 MB'],
+  ['arquivo.planilhaSenha', () => N.lerPlanilha(XL, comSenha(XL), 'xls'), 'a planilha está protegida por senha. Abra no Excel e salve sem senha, ou baixe o extrato em CSV'],
+  ['arquivo.planilhaDanificada', () => N.lerPlanilha(XL, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3]), 'xlsx'), 'a planilha está danificada ou incompleta'],
+  ['arquivo.planilhaVazia', () => N.lerPlanilha(XL, xlsxAMao([{ nome: 'A', linhas: [] }]), 'xlsx'), 'a planilha não tem nenhuma tabela'],
+];
+
+test('grupo A3 (leitura de arquivo): cada erro provocado, pt-BR idêntico ao de antes, en-GB pelo dicionário', async () => {
+  confere(A3);
+  const pdfjs = await carregarPdfjs(), rej = async p => { try { await p; } catch (e) { return e; } assert.fail('devia ter dado erro'); };
+  const grande = new Uint8Array(10 * 1024 * 1024 + 1); grande.set([0x25, 0x50, 0x44, 0x46]);
+  const pdfs = [
+    ['arquivo.pdfGrande', N.lerPdf(pdfjs, grande), 'o PDF passa de 10 MB'],
+    ['arquivo.pdfPaginas', N.lerPdf(pdfjs, pdfAMao(Array.from({ length: 51 }, () => ({ textos: [] })))), 'o PDF passa de 50 páginas'],
+    ['arquivo.pdfSenha', N.lerPdf(pdfjs, pdfAMao([{ textos: [{ s: 'x', x: 10, y: 10 }] }], { senha: true })), 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco'],
+    ['arquivo.pdfDanificado', N.lerPdf(pdfjs, new Uint8Array(Buffer.from('%PDF-1.7\n% inventado e cortado\n'))), 'o PDF está danificado ou incompleto'],
+  ];
+  for (const [codigo, p, frase] of pdfs) confereUm(codigo, await rej(p), frase);
+  assert.deepEqual([...PT.I.faltando, ...EN.I.faltando], [], 'nenhuma chave faltou');
+  const doFonte = new Set([...appJs.matchAll(/\berroCod\(\s*'(arquivo\.[^']+)'/g)].map(m => m[1]));
+  assert.deepEqual([...doFonte].sort(), [...new Set([...A3, ...pdfs].map(c => c[0]))].sort());
+});
+
+test('grupo A3: limites saem pelo formato do idioma; o PDF longo continua passando pelo pdf.js sem virar "danificado"', () => {
+  assert.equal(EN.textoErro(pega(A3[1][1])), 'the spreadsheet has more than 20,000 rows');
+  assert.equal(PT.textoErro(pega(A3[1][1])), 'a planilha passa de 20.000 linhas');
+  assert.ok(/e\.codigo === 'arquivo\.pdfPaginas'/.test(appJs) && !/\/\^o PDF passa de\//.test(appJs), 'a conferência do limite de páginas é pelo código');
 });

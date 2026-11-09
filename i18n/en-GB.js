@@ -742,5 +742,16 @@ NORA_DICIONARIOS['en-GB'] = {
   'erro.carteira.limite': 'there are already {max} accounts: delete one to create another',
   'erro.carteira.moedaTravada': 'the currency cannot change once statements are saved: create another account',
   'erro.carteira.bancoTravado': 'the statement type cannot change once statements are saved: create another account',
-  'erro.carteira.enviosDesconhecido': 'unknown transfers option: {opcao}'
+  'erro.carteira.enviosDesconhecido': 'unknown transfers option: {opcao}',
+  /* step d, core: file reading errors ({max} and {mb} are numbers; the screen formats them) */
+  'erro.arquivo.naoUtf8': 'the file is not valid UTF-8',
+  'erro.arquivo.linhasDemais': 'the spreadsheet has more than {max} rows',
+  'erro.arquivo.planilhaGrande': 'the file is larger than {mb} MB',
+  'erro.arquivo.planilhaSenha': 'the spreadsheet is password-protected. Open it in Excel and save it without a password, or download the statement as CSV',
+  'erro.arquivo.planilhaDanificada': 'the spreadsheet is damaged or incomplete',
+  'erro.arquivo.planilhaVazia': 'the spreadsheet has no tables',
+  'erro.arquivo.pdfGrande': 'the PDF is larger than {mb} MB',
+  'erro.arquivo.pdfPaginas': 'the PDF has more than {max} pages',
+  'erro.arquivo.pdfSenha': 'the PDF is password-protected. Open it and save it without a password, or download the statement again from the bank app',
+  'erro.arquivo.pdfDanificado': 'the PDF is damaged or incomplete'
 };

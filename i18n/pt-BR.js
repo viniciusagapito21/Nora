@@ -743,5 +743,16 @@ NORA_DICIONARIOS['pt-BR'] = {
   'erro.carteira.limite': 'já há {max} carteiras: exclua uma para criar outra',
   'erro.carteira.moedaTravada': 'a moeda não muda depois que há extratos salvos: crie outra carteira',
   'erro.carteira.bancoTravado': 'o tipo de extrato não muda depois que há extratos salvos: crie outra carteira',
-  'erro.carteira.enviosDesconhecido': 'opção de envios desconhecida: {opcao}'
+  'erro.carteira.enviosDesconhecido': 'opção de envios desconhecida: {opcao}',
+  /* passo d, núcleo: erros da leitura de arquivo ({max} e {mb} são números; a tela formata) */
+  'erro.arquivo.naoUtf8': 'o arquivo não é UTF-8 válido',
+  'erro.arquivo.linhasDemais': 'a planilha passa de {max} linhas',
+  'erro.arquivo.planilhaGrande': 'o arquivo passa de {mb} MB',
+  'erro.arquivo.planilhaSenha': 'a planilha está protegida por senha. Abra no Excel e salve sem senha, ou baixe o extrato em CSV',
+  'erro.arquivo.planilhaDanificada': 'a planilha está danificada ou incompleta',
+  'erro.arquivo.planilhaVazia': 'a planilha não tem nenhuma tabela',
+  'erro.arquivo.pdfGrande': 'o PDF passa de {mb} MB',
+  'erro.arquivo.pdfPaginas': 'o PDF passa de {max} páginas',
+  'erro.arquivo.pdfSenha': 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco',
+  'erro.arquivo.pdfDanificado': 'o PDF está danificado ou incompleto'
 };

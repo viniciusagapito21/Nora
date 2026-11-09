@@ -956,8 +956,21 @@ const ERROS_CARTEIRAS = [
   ['tt', 'erro.carteira.bancoTravado', {}, 'o tipo de extrato não muda depois que há extratos salvos: crie outra carteira'],
   ['tt', 'erro.carteira.enviosDesconhecido', { opcao: 'x<y>' }, 'opção de envios desconhecida: x<y>'],
 ];
+// núcleo, grupo A3 (12b3): erros da leitura de arquivo; {max} já vem formatado pela tela
+const ERROS_ARQUIVO = [
+  ['tt', 'erro.arquivo.naoUtf8', {}, 'o arquivo não é UTF-8 válido'],
+  ['tt', 'erro.arquivo.linhasDemais', { max: '20.000' }, 'a planilha passa de 20.000 linhas'],
+  ['tt', 'erro.arquivo.planilhaGrande', { mb: '15' }, 'o arquivo passa de 15 MB'],
+  ['tt', 'erro.arquivo.planilhaSenha', {}, 'a planilha está protegida por senha. Abra no Excel e salve sem senha, ou baixe o extrato em CSV'],
+  ['tt', 'erro.arquivo.planilhaDanificada', {}, 'a planilha está danificada ou incompleta'],
+  ['tt', 'erro.arquivo.planilhaVazia', {}, 'a planilha não tem nenhuma tabela'],
+  ['tt', 'erro.arquivo.pdfGrande', { mb: '10' }, 'o PDF passa de 10 MB'],
+  ['tt', 'erro.arquivo.pdfPaginas', { max: '50' }, 'o PDF passa de 50 páginas'],
+  ['tt', 'erro.arquivo.pdfSenha', {}, 'o PDF está protegido por senha. Abra e salve sem senha, ou baixe o extrato de novo pelo app do banco'],
+  ['tt', 'erro.arquivo.pdfDanificado', {}, 'o PDF está danificado ou incompleto'],
+];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS }))
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS, 'núcleo, leitura de arquivo': ERROS_ARQUIVO }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);
