@@ -9,7 +9,7 @@ const ler = f => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 const appJs = ler('app.js');
 const scriptsAntes = [...ler('index.html').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'app.js' && f !== 'prefs.js');
 const core = scriptsAntes.map(ler).join('\n') + appJs.slice(appJs.indexOf('/*CORE-START*/'), appJs.indexOf('/*CORE-END*/'));
-const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3 };')();
+const N = new Function(core + '; return { lerSalvo, migrate, migrarAteV3, criarCategoria, novaCarteira, editarCarteira };')();
 
 // a tela em pt-BR e em en-GB (o prefs.js de mentira diz o idioma; APLICAR_LANG ligada só aqui, para ver o inglês)
 function tela(idioma) {
@@ -79,4 +79,34 @@ test('grupo A1: id e moeda vindos do backup entram como estão (no HTML, a tela 
   const e = pega(salvo(v4({ moeda: MOEDA_X })));
   assert.equal(EN.textoErro(e), 'invalid currency X<&>" in account c1');
   assert.equal(PT.I.th('bloqueio.aviso', { motivo: PT.textoErro(e) }).includes('(moeda X&lt;&amp;&gt;&quot; inválida na carteira c1)'), true);
+});
+
+// grupo A2 (carteiras e categorias): o que a pessoa faz em Configurações
+const base = (carteira) => N.lerSalvo(v4(carteira), '');
+const cheia = () => N.lerSalvo(JSON.stringify({ v: 4, carteiras: [1, 2, 3, 4, 5].map(i => ({ id: 'c' + i, nome: 'C' + i, moeda: 'EUR' })) }), '');
+const comExtrato = () => base({ months: { '2026-09': [['2026-09-01', 'x', 'Others', -100, null]] } });
+const A2 = [
+  ['categoria.semNome', () => N.criarCategoria({ ocultas: ['mercado'] }, '   '), 'a categoria precisa de um nome'],
+  ['categoria.semCor', () => N.criarCategoria({}, 'Pets'), 'as 8 cores estão em uso: esconda uma categoria para liberar a cor dela'],
+  ['carteira.semNome', () => N.novaCarteira(base({}), { nome: ' ', moeda: 'EUR' }), 'a carteira precisa de um nome'],
+  ['carteira.nomeRepetido', () => N.novaCarteira(base({}), { nome: 'conta <b> & "CIA"', moeda: 'EUR' }), 'já existe uma carteira chamada Conta <b> & "cia"'],
+  ['carteira.moedaInvalida', () => N.novaCarteira(base({}), { nome: 'Nova', moeda: MOEDA_X }), 'moeda X<&>" inválida'],
+  ['carteira.moedaInvalida', () => N.novaCarteira(base({}), { nome: 'Nova' }), 'moeda undefined inválida'],
+  ['carteira.bancoDesconhecido', () => N.novaCarteira(base({}), { nome: 'Nova', moeda: 'EUR', banco: 'b<1>' }), 'tipo de extrato b<1> desconhecido'],
+  ['carteira.limite', () => N.novaCarteira(cheia(), { nome: 'Nova', moeda: 'EUR' }), 'já há 5 carteiras: exclua uma para criar outra'],
+  ['carteira.moedaTravada', () => N.editarCarteira(comExtrato(), 'c1', { moeda: 'GBP' }), 'a moeda não muda depois que há extratos salvos: crie outra carteira'],
+  ['carteira.bancoTravado', () => N.editarCarteira(comExtrato(), 'c1', { banco: 'aib' }), 'o tipo de extrato não muda depois que há extratos salvos: crie outra carteira'],
+  ['carteira.enviosDesconhecido', () => N.editarCarteira(base({}), 'c1', { envios: 'x<y>' }), 'opção de envios desconhecida: x<y>'],
+];
+
+test('grupo A2 (carteiras e categorias): cada erro provocado, pt-BR idêntico ao de antes, en-GB pelo dicionário', () => {
+  confere(A2);
+  const doFonte = new Set([...appJs.matchAll(/\berroCod\(\s*'((?:carteira|categoria)\.[^']+)'/g)].map(m => m[1]));
+  assert.deepEqual([...doFonte].sort(), [...new Set(A2.map(c => c[0]))].sort());
+});
+
+test('grupo A2: o nome digitado entra como está; o número de cores e de carteiras sai pelo formato do idioma', () => {
+  assert.equal(EN.textoErro(pega(A2[3][1])), 'there is already an account called Conta <b> & "cia"');
+  assert.equal(EN.textoErro(pega(A2[1][1])), 'all 8 colours are in use: hide a category to free up its colour');
+  assert.equal(EN.textoErro(pega(A2[7][1])), 'there are already 5 accounts: delete one to create another');
 });

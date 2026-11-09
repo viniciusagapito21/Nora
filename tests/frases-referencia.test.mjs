@@ -942,8 +942,22 @@ const ERROS_DADOS = [
   ['tt', 'erro.dados.cambioFormato', {}, 'câmbio em formato errado'],
   ['tt', 'erro.dados.cambioMoedaFormato', { moeda: 'G<B>' }, 'câmbio de G<B> em formato errado'],
 ];
+// núcleo, grupo A2 (12b2): erros de carteiras e categorias; {nome} é o que a pessoa digitou (cru no tt, escapado no tth)
+const ERROS_CARTEIRAS = [
+  ['tt', 'erro.categoria.semNome', {}, 'a categoria precisa de um nome'],
+  ['tt', 'erro.categoria.semCor', { max: '8' }, 'as 8 cores estão em uso: esconda uma categoria para liberar a cor dela'],
+  ['tt', 'erro.carteira.semNome', {}, 'a carteira precisa de um nome'],
+  ['tt', 'erro.carteira.nomeRepetido', { nome: 'Conta <b> & "cia"' }, 'já existe uma carteira chamada Conta <b> & "cia"'],
+  ['tth', 'erro.carteira.nomeRepetido', { nome: 'Conta <b> & "cia"' }, 'já existe uma carteira chamada Conta &lt;b&gt; &amp; &quot;cia&quot;'],
+  ['tt', 'erro.carteira.moedaInvalida', { moeda: 'X<&>"' }, 'moeda X<&>" inválida'],
+  ['tt', 'erro.carteira.bancoDesconhecido', { banco: 'b<1>' }, 'tipo de extrato b<1> desconhecido'],
+  ['tt', 'erro.carteira.limite', { max: '5' }, 'já há 5 carteiras: exclua uma para criar outra'],
+  ['tt', 'erro.carteira.moedaTravada', {}, 'a moeda não muda depois que há extratos salvos: crie outra carteira'],
+  ['tt', 'erro.carteira.bancoTravado', {}, 'o tipo de extrato não muda depois que há extratos salvos: crie outra carteira'],
+  ['tt', 'erro.carteira.enviosDesconhecido', { opcao: 'x<y>' }, 'opção de envios desconhecida: x<y>'],
+];
 
-for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS }))
+for (const [area, casos] of Object.entries({ 'index.html e dicas do gráfico': DICAS, 'em observação': OBS, 'casca e abas': CASCA, 'saldo e caixa': SALDO, 'revisão e Pix': REVISAR, 'mensagens': MSG, 'painel': PAINEL, 'metas, previsão e poupança': METAS, 'configurações: carteiras, países, moedas e câmbio': CONFIG_A, 'configurações: formulário, categorias e seus dados': CONFIG_B, 'importação: prévia e resultado': IMPORTAR_A, 'importação: leitura, erros e avisos': IMPORTAR_B, 'importação: escolha de colunas': IMPORTAR_C, 'Resumo': RESUMO, 'transferências entre carteiras': TRANSF, 'Resumo: fora das somas e escolha da carteira': RESUMO_C, 'núcleo, dados salvos e backup': ERROS_DADOS, 'núcleo, carteiras e categorias': ERROS_CARTEIRAS }))
   test(`frases de referência em pt-BR: ${area}`, () => {
     for (const [f, k, vars, esperado] of casos) assert.equal(f === 'tth' ? I.th(k, vars) : I.t(k, vars), esperado, `${k} ${JSON.stringify(vars)}`);
     assert.deepEqual([...I.faltando], []);

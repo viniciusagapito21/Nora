@@ -88,9 +88,9 @@ test('todo código de erro usado existe nos dois dicionários', () => {
 // núcleo (passo d, parte 12): erro que chega à tela nasce por erroCod; cada grupo pronto sai de NUCLEO_PENDENTE
 const NUCLEO_COM_CODIGO = {
   'A1, dados salvos e backup': ['checarMeses', 'migrarAteV3', 'checarPeriodos', 'checarTransf', 'checarPixTitular', 'checarImportacao', 'checarCambios', 'validarV4', 'migrate', 'lerSalvo'],
+  'A2, carteiras e categorias': ['criarCategoria', 'nomeCarteira', 'conferirMoeda', 'conferirBanco', 'novaCarteira', 'editarCarteira'],
 };
 const NUCLEO_PENDENTE = {
-  'A2, carteiras e categorias (12b2)': ['criarCategoria', 'nomeCarteira', 'conferirMoeda', 'conferirBanco', 'novaCarteira', 'editarCarteira'],
   'A3, leitura de arquivo (12b3)': ['decodificar', 'linhasDaAba', 'lerPlanilha', 'lerPdf'],
   'A4, internos (12b4)': ['paraV3', 'acharCarteira', 'excluirCarteira', 'confirmarTransferencia'],
 };

@@ -732,5 +732,16 @@ NORA_DICIONARIOS['pt-BR'] = {
   'erro.dados.enviosFormato': 'opção de envios em formato errado na carteira {carteira}',
   'erro.dados.avisoEnviosFormato': 'resposta do aviso de envios em formato errado na carteira {carteira}',
   'erro.dados.cambioFormato': 'câmbio em formato errado',
-  'erro.dados.cambioMoedaFormato': 'câmbio de {moeda} em formato errado'
+  'erro.dados.cambioMoedaFormato': 'câmbio de {moeda} em formato errado',
+  /* passo d, núcleo: erros de carteiras e categorias ({nome} é o que a pessoa digitou; {moeda}, {banco}, {opcao} entram crus) */
+  'erro.categoria.semNome': 'a categoria precisa de um nome',
+  'erro.categoria.semCor': 'as {max} cores estão em uso: esconda uma categoria para liberar a cor dela',
+  'erro.carteira.semNome': 'a carteira precisa de um nome',
+  'erro.carteira.nomeRepetido': 'já existe uma carteira chamada {nome}',
+  'erro.carteira.moedaInvalida': 'moeda {moeda} inválida',
+  'erro.carteira.bancoDesconhecido': 'tipo de extrato {banco} desconhecido',
+  'erro.carteira.limite': 'já há {max} carteiras: exclua uma para criar outra',
+  'erro.carteira.moedaTravada': 'a moeda não muda depois que há extratos salvos: crie outra carteira',
+  'erro.carteira.bancoTravado': 'o tipo de extrato não muda depois que há extratos salvos: crie outra carteira',
+  'erro.carteira.enviosDesconhecido': 'opção de envios desconhecida: {opcao}'
 };

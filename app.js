@@ -87,9 +87,9 @@
   /* devolve um plan novo com a categoria criada, ou erro se não houver cor livre */
   function criarCategoria(plan, nome) {
     nome = String(nome || '').trim().slice(0, 40);
-    if (!nome) throw new Error('a categoria precisa de um nome');
+    if (!nome) throw erroCod('categoria.semNome', {}, 'a categoria precisa de um nome');
     var livres = slotsLivres(plan);
-    if (!livres.length) throw new Error('as 8 cores estão em uso: esconda uma categoria para liberar a cor dela');
+    if (!livres.length) throw erroCod('categoria.semCor', { max: MAX_CORES }, 'as ' + MAX_CORES + ' cores estão em uso: esconda uma categoria para liberar a cor dela');
     var p = Object.assign({}, plan || {}), pr = (p.proprias || []).slice(), n = 1;
     while (pr.some(function (c) { return c.id === 'u' + n; })) n++;
     pr.push({ id: 'u' + n, nome: nome, slot: livres[0] });
@@ -493,9 +493,9 @@
   }
   function nomeCarteira(x, nome, id) {
     nome = String(nome || '').trim().slice(0, 40);
-    if (!nome) throw new Error('a carteira precisa de um nome');
+    if (!nome) throw erroCod('carteira.semNome', {}, 'a carteira precisa de um nome');
     var igual = x.carteiras.filter(function (w) { return w.id !== id && w.nome.toLowerCase() === nome.toLowerCase(); })[0];
-    if (igual) throw new Error('já existe uma carteira chamada ' + igual.nome);
+    if (igual) throw erroCod('carteira.nomeRepetido', { nome: igual.nome }, 'já existe uma carteira chamada ' + igual.nome);
     return nome;
   }
   /* países do cadastro da carteira, com a moeda de cada um: os 27 que usam o euro (os 21 da zona do euro, mais
@@ -518,15 +518,15 @@
      Wise e "Outro banco" não sugerem nada (a Wise tem conta em várias moedas). Carteira existente nunca passa por aqui. */
   var BANCO_MOEDA_PAIS = { btg: ['BRL', 'BR'], itau: ['BRL', 'BR'], nubank: ['BRL', 'BR'], revolut: ['EUR', 'IE'], aib: ['EUR', 'IE'], boi: ['EUR', 'IE'] };
   function preenchimentoDoBanco(banco, mexeu) { var b = BANCO_MOEDA_PAIS[banco]; return b && !mexeu ? { moeda: b[0], pais: b[1] } : null; }
-  function conferirMoeda(m) { if (!/^[A-Z]{3}$/.test(m || '')) throw new Error('moeda ' + m + ' inválida'); return m; }
-  function conferirBanco(b) { if (!BANCOS.some(function (o) { return o[0] === b; })) throw new Error('tipo de extrato ' + b + ' desconhecido'); return b; }
+  function conferirMoeda(m) { if (!/^[A-Z]{3}$/.test(m || '')) throw erroCod('carteira.moedaInvalida', { moeda: String(m) }, 'moeda ' + m + ' inválida'); return m; }
+  function conferirBanco(b) { if (!BANCOS.some(function (o) { return o[0] === b; })) throw erroCod('carteira.bancoDesconhecido', { banco: String(b) }, 'tipo de extrato ' + b + ' desconhecido'); return b; }
   /* a principal é a primeira; se a moeda dela mudou, o câmbio digitado deixa de valer */
   function comPrincipal(x, carteiras, ativa) {
     var mp = carteiras.length === 1 ? carteiras[0].moeda : x.config.moedaPrincipal, config = Object.assign({}, x.config, { moedaPrincipal: mp });
     return Object.assign({}, x, { config: config, carteiras: carteiras, ativa: ativa, cambios: mp === x.config.moedaPrincipal ? x.cambios : {} });
   }
   function novaCarteira(x, d) {
-    if (x.carteiras.length >= MAX_CARTEIRAS) throw new Error('já há ' + MAX_CARTEIRAS + ' carteiras: exclua uma para criar outra');
+    if (x.carteiras.length >= MAX_CARTEIRAS) throw erroCod('carteira.limite', { max: MAX_CARTEIRAS }, 'já há ' + MAX_CARTEIRAS + ' carteiras: exclua uma para criar outra');
     var nome = nomeCarteira(x, d.nome), n = 0;
     x.carteiras.forEach(function (w) { var k = +String(w.id).replace(/^c/, ''); if (k > n) n = k; });
     var c = { id: 'c' + (n + 1), nome: nome, moeda: conferirMoeda(d.moeda), pais: d.pais || 'IE', banco: conferirBanco(d.banco || 'revolut'),
@@ -539,15 +539,15 @@
     if (d.nome != null) c.nome = nomeCarteira(x, d.nome, id);
     if (d.pais) c.pais = d.pais;
     if (d.moeda && d.moeda !== c0.moeda) {
-      if (travada) throw new Error('a moeda não muda depois que há extratos salvos: crie outra carteira');
+      if (travada) throw erroCod('carteira.moedaTravada', {}, 'a moeda não muda depois que há extratos salvos: crie outra carteira');
       c.moeda = conferirMoeda(d.moeda);
     }
     if (d.banco && d.banco !== c0.banco) {
-      if (travada) throw new Error('o tipo de extrato não muda depois que há extratos salvos: crie outra carteira');
+      if (travada) throw erroCod('carteira.bancoTravado', {}, 'o tipo de extrato não muda depois que há extratos salvos: crie outra carteira');
       c.banco = conferirBanco(d.banco);
     }
     /* envios para outra conta sua: gasto (padrão, sem o campo) ou dinheiro movido; muda a qualquer hora */
-    if (d.envios != null && d.envios !== 'gasto' && d.envios !== 'movido') throw new Error('opção de envios desconhecida: ' + d.envios);
+    if (d.envios != null && d.envios !== 'gasto' && d.envios !== 'movido') throw erroCod('carteira.enviosDesconhecido', { opcao: String(d.envios) }, 'opção de envios desconhecida: ' + d.envios);
     /* mudar a opção em Configurações também responde o aviso dos envios (ele não volta) */
     if (d.envios && d.envios !== (c0.envios === 'movido' ? 'movido' : 'gasto')) c.enviosDecidido = true;
     if (d.envios === 'movido') c.envios = 'movido';

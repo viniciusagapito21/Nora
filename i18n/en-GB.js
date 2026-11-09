@@ -731,5 +731,16 @@ NORA_DICIONARIOS['en-GB'] = {
   'erro.dados.enviosFormato': 'transfers option in the wrong format in account {carteira}',
   'erro.dados.avisoEnviosFormato': 'answer to the transfers notice in the wrong format in account {carteira}',
   'erro.dados.cambioFormato': 'exchange rates in the wrong format',
-  'erro.dados.cambioMoedaFormato': '{moeda} exchange rate in the wrong format'
+  'erro.dados.cambioMoedaFormato': '{moeda} exchange rate in the wrong format',
+  /* step d, core: account and category errors ({nome} is what the person typed; {moeda}, {banco}, {opcao} go in as they are) */
+  'erro.categoria.semNome': 'the category needs a name',
+  'erro.categoria.semCor': 'all {max} colours are in use: hide a category to free up its colour',
+  'erro.carteira.semNome': 'the account needs a name',
+  'erro.carteira.nomeRepetido': 'there is already an account called {nome}',
+  'erro.carteira.moedaInvalida': 'invalid currency {moeda}',
+  'erro.carteira.bancoDesconhecido': 'unknown statement type {banco}',
+  'erro.carteira.limite': 'there are already {max} accounts: delete one to create another',
+  'erro.carteira.moedaTravada': 'the currency cannot change once statements are saved: create another account',
+  'erro.carteira.bancoTravado': 'the statement type cannot change once statements are saved: create another account',
+  'erro.carteira.enviosDesconhecido': 'unknown transfers option: {opcao}'
 };
