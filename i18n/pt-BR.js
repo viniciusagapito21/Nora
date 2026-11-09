@@ -13,6 +13,8 @@ NORA_DICIONARIOS['pt-BR'] = {
   'idioma.auto': 'Automático (do navegador)',
   'idioma.pt-BR': 'Português (Brasil)',
   'idioma.en-GB': 'English (UK)',
+  'config.prefsDica': 'Muda na hora e fica só neste navegador, fora do backup.',
+  'mov.semDescricao': '(sem descrição)',
   'importar.adicionou': { one: 'Adicionei {n} movimentação em {meses}', other: 'Adicionei {n} movimentações em {meses}' },
   'importar.meses': { one: '{n} mês', other: '{n} meses' },
   /* nomes padrão que ficam gravados nos dados (passo c): o texto pt-BR é o que se grava; veja nomeExibido no app.js */

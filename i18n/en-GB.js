@@ -12,6 +12,8 @@ NORA_DICIONARIOS['en-GB'] = {
   'idioma.auto': 'Automatic (from your browser)',
   'idioma.pt-BR': 'Português (Brasil)',
   'idioma.en-GB': 'English (UK)',
+  'config.prefsDica': 'Changes straight away and stays in this browser only, outside the backup.',
+  'mov.semDescricao': '(no description)',
   'importar.adicionou': { one: 'Added {n} transaction in {meses}', other: 'Added {n} transactions in {meses}' },
   'importar.meses': { one: '{n} month', other: '{n} months' },
   /* default names stored in the data (step c): the pt-BR text is what gets saved; see nomeExibido in app.js */
@@ -494,8 +496,8 @@ NORA_DICIONARIOS['en-GB'] = {
   'dados.restaurar': 'Restore backup',
   'dados.apagar': 'Delete my data',
   'dados.nenhumExtrato': 'no statements',
-  'dados.resumoUmMes': '{meses}, {de} ({mov})',
-  'dados.resumoMeses': '{meses}, {de} to {ate} ({mov})',
+  'dados.resumoUmMes': '{meses}, from {de} ({mov})',
+  'dados.resumoMeses': '{meses}, from {de} to {ate} ({mov})',
   'dados.ilegiveis': 'the unreadable data saved in this browser',
   'msg.naoEBackup': 'This file is not a dashboard backup: {erro}.',
   /* step d: restoring a backup (risk confirmation: exact wording) */

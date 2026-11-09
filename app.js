@@ -34,6 +34,8 @@
     { id: 'outros', nome: 'Pessoas, taxas e outros', slot: 0 }
   ];
   var CAT_BY = {}; CATS.forEach(function (c) { CAT_BY[c.id] = c; });
+  /* gravado nos dados quando o arquivo não traz descrição (nunca traduzido: a tela usa descExibida) */
+  var SEM_DESCRICAO = '(sem descrição)';
   /* o nome de fábrica de uma categoria no idioma da tela: a chave cats.<id> pelo tr (o t do i18n.js); sem tradução, o
      texto pt-BR de CATS (a reserva). Os ids nunca mudam; o nome de fábrica nunca é gravado */
   function nomeFabrica(id, tr) { var k = 'cats.' + id, s = tr ? tr(k) : null; return typeof s === 'string' && s && s !== k ? s : CAT_BY[id].nome; }
@@ -973,7 +975,7 @@
       if (a == null && b != null && !isNaN(b)) return;
       if (a == null || isNaN(a)) { ign.push({ n: x.n, cod: 'valorRuim', motivo: 'valor não entendido', celulas: r }); return; }
       if (!a) { ign.push({ n: x.n, cod: 'valorZero', motivo: 'valor zero', celulas: r }); return; }
-      tx.push([d, String(r[m.desc] || '').trim() || '(sem descrição)', 'Others', a, null]); ns.push(x.n);
+      tx.push([d, String(r[m.desc] || '').trim() || SEM_DESCRICAO, 'Others', a, null]); ns.push(x.n);
     });
     /* extrato do mais novo para o mais antigo: inverte, para a ordem dentro do dia ser a do acontecido */
     var dts = tx.map(function (t) { return t[0]; }).concat(sal.map(function (z) { return z[0]; }));
@@ -1513,6 +1515,9 @@
   function nomeMoeda(cod, n) { cod = cod || moeda(); var k = 'moeda.nome.' + cod; return NORA_I18N.existe(k) ? tt(k, { n: n == null ? 2 : n }) : cod; }
   /* o símbolo que o Intl usa para a moeda (€, R$, £, US$), para rótulos como "Meta (R$)" */
   function simbolo(cod) { return F().simbolo(cod || moeda()); }
+  /* descrição de um movimento na tela: "(sem descrição)" continua gravado em pt-BR (é o dado e a chave de repetidos,
+     txKey); só a exibição muda de idioma */
+  function descExibida(d) { return d === SEM_DESCRICAO ? tt('mov.semDescricao') : d; }
   /* nn, n2, n1, nr: números sem moeda (com .format, como os Intl.NumberFormat de antes) */
   var nn = { format: function (v) { return F().nn(v); } }, n2 = { format: function (v) { return F().n2(v); } };
   function f2(v) { return F().f2(v, moeda()); }
@@ -1657,7 +1662,7 @@
   function savePlan(p) { S.plan = p; localSave(); return Promise.resolve(); }
 
   function recompute() {
-    CATST = montarCats(S.plan); CATSV = CATST.filter(function (c) { return !c.oculta; }); CPOR = {};
+    CATST = montarCats(S.plan, NORA_I18N.t); CATSV = CATST.filter(function (c) { return !c.oculta; }); CPOR = {};
     CATST.forEach(function (c) { CPOR[c.id] = c; });
     var cw = cartAtual();
     M = buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, cw ? { dia: cw.saldosDia, ancora: cw.ancora } : null, cw && cw.transf, cw && { envios: cw.envios });
@@ -1859,7 +1864,7 @@
       return tt('resumo.foraParte', { nome: p.w.nome, n: it.n, valores: v });
     });
     var lista = '';
-    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(r.desc) + ': ' + (r.a > 0 ? '+' : '−') + esc(F().dinheiro(Math.abs(r.a), p.w.moeda, 2)) + '</li>'; }); });
+    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(descExibida(r.desc)) + ': ' + (r.a > 0 ? '+' : '−') + esc(F().dinheiro(Math.abs(r.a), p.w.moeda, 2)) + '</li>'; }); });
     /* as partes ligadas por "e" uma a uma, como antes (com três carteiras: "A e B e C") */
     return '<div class="rfora"><p class="passo">' + tth('resumo.foraTexto', { n: n, mes: nm, partes: partes.reduce(function (a, b) { return tt('resumo.foraPartesE', { a: a, b: b }); }) }) + '</p>' +
       '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>' + tth('resumo.verQuais') + '</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">' + tth('resumo.foraAjuda') + '</p></details></div>';
@@ -1976,7 +1981,7 @@
     return d + ' · ' + v;
   }
   function ladoPar(rot, w, r) {
-    return '<div class="tl"><span class="tlr">' + tth(rot) + ' · ' + esc(w.nome) + '</span>' + (r ? '<span class="td">' + esc(dFmt(r.date)) + ' · ' + esc(r.desc) + '</span><b class="num">' + valorMov(r, w.moeda) + '</b>'
+    return '<div class="tl"><span class="tlr">' + tth(rot) + ' · ' + esc(w.nome) + '</span>' + (r ? '<span class="td">' + esc(dFmt(r.date)) + ' · ' + esc(descExibida(r.desc)) + '</span><b class="num">' + valorMov(r, w.moeda) + '</b>'
       : '<span class="td">' + tth('transf.movSumiu') + '</span>') + '</div>';
   }
   function parTela(p) {
@@ -1990,7 +1995,7 @@
   function confirmadasTela(C) {
     if (!C.length) return '';
     return '<details class="metas" id="fin-tconf"' + (S.tConf ? ' open' : '') + '><summary>' + tth('transf.confirmadas', { n: C.length }) + '</summary><ul class="tconf">' + C.map(function (t) {
-      var lado = function (l) { return l.r ? esc(dFmt(l.r.date)) + ' · ' + esc(l.w.nome) + ' · ' + esc(l.r.desc) + ' <b class="num">' + valorMov(l.r, l.w.moeda) + '</b>' : esc(l.w.nome) + ' · ' + tth('transf.movSumiu'); };
+      var lado = function (l) { return l.r ? esc(dFmt(l.r.date)) + ' · ' + esc(l.w.nome) + ' · ' + esc(descExibida(l.r.desc)) + ' <b class="num">' + valorMov(l.r, l.w.moeda) + '</b>' : esc(l.w.nome) + ' · ' + tth('transf.movSumiu'); };
       return '<li><span>' + lado(t.s) + ' → ' + lado(t.e) + '</span><button class="btn sm" type="button" data-tdesf="' + esc(t.s.w.id) + '" data-tmov="' + esc(t.s.id) + '">' + tth('comum.desfazer') + '</button></li>';
     }).join('') + '</ul><p class="passo">' + tth('transf.desfazerDica') + '</p></details>';
   }
@@ -2067,12 +2072,38 @@
       '<fieldset><legend>' + tth('config.voce') + '</legend><div class="mgrid">' +
       '<label>' + tth('config.seuNome') + '<input id="fin-s-titular" type="text" autocomplete="off" spellcheck="false" placeholder="' + tth('config.nomeExemplo') + '" value="' + esc(p.titular || '') + '">' +
       '<small>' + tth('config.nomeDica') + '</small></label>' +
-      '</div></fieldset>' + carteirasCampos() + categoriasCampos() +
+      '</div></fieldset>' + preferenciasCampos() + carteirasCampos() + categoriasCampos() +
       '<fieldset><legend>' + (variasCarteiras() ? tth('config.metasTituloCarteira', { carteira: cartAtual().nome, simbolo: simbolo() }) : tth('config.metasTitulo', { simbolo: simbolo() })) + '</legend><p class="passo">' + tth(SUG ? 'config.metasSug' : 'config.metasSemSug') + '</p>' +
       '<div class="mgrid">' + metasCampos('s') + '</div></fieldset>' + secaoDados() +
       '<div class="grupo"><button class="btn pri" type="submit">' + tth(primeira ? 'config.salvarComecar' : 'config.salvar') + '</button>' +
       (primeira ? '' : '<button class="btn" type="button" data-fin-setup>' + tth('comum.cancelar') + '</button>') + '</div>' +
       '</form></div></section>';
+  }
+  /* idioma (e, no passo g, tema): nora.prefs, fora do backup; vale na hora, sem o botão Salvar */
+  function preferenciasCampos() {
+    var p = NORA_PREFS.ler();
+    return '<fieldset><legend>' + tth('idioma.rotulo') + '</legend><div class="mgrid">' +
+      '<label>' + tth('idioma.rotulo') + '<select id="fin-p-idioma">' + opcoes([['auto', tt('idioma.auto')], ['pt-BR', tt('idioma.pt-BR')], ['en-GB', tt('idioma.en-GB')]], p.idioma || 'auto') + '</select>' +
+      '<small>' + tth('config.prefsDica') + '</small></label></div></fieldset>';
+  }
+  /* troca uma preferência na hora: grava, aplica no <html>, troca o idioma e redesenha, sem perder o que já foi digitado
+     no formulário (campo mudado pela pessoa volta como estava; o resto vem no idioma novo) */
+  function mudarPreferencia(campo, valor) {
+    var p = NORA_PREFS.ler(), mudados = {};
+    p[campo] = valor === 'auto' && campo === 'idioma' ? null : valor;
+    p = NORA_PREFS.gravar(p);
+    Array.prototype.forEach.call(document.querySelectorAll('#fin-fsetup input, #fin-fsetup select'), function (el) {
+      if (!el.id || /^fin-p-/.test(el.id)) return;
+      if (el.type === 'checkbox' || el.type === 'radio') { if (el.checked !== el.defaultChecked) mudados[el.id] = el.checked; return; }
+      var def = el.tagName === 'SELECT' ? (Array.prototype.filter.call(el.options, function (o) { return o.defaultSelected; })[0] || el.options[0] || {}).value : el.defaultValue;
+      if (el.value !== def) mudados[el.id] = el.value;
+    });
+    NORA_PREFS.aplicar(p, document.documentElement);
+    NORA_I18N.usar(NORA_PREFS.idiomaEfetivo(p));
+    NORA_I18N.aplicarTextosFixos(document);
+    recompute(); render();
+    Object.keys(mudados).forEach(function (id) { var el = document.getElementById(id); if (!el) return; if (typeof mudados[id] === 'boolean') el.checked = mudados[id]; else el.value = mudados[id]; });
+    var foco = document.getElementById('fin-p-' + campo); if (foco) foco.focus();
   }
   /* as moedas da lista, mais a da carteira se ela não estiver na lista (veio de um backup) */
   function opcoesMoeda(sel) { return opcoes(moedas().some(function (o) { return o[0] === sel; }) ? moedas() : moedas().concat([[sel, sel]]), sel); }
@@ -2389,7 +2420,7 @@
           '<div class="tw"><table class="imp"><thead><tr><th>' + tth('importar.colLinha') + '</th><th>' + tth('importar.colData') + '</th><th>' + tth('importar.colDescricao') + '</th><th>' + tth('comum.valor') + '</th></tr></thead><tbody>' +
           r.tx.slice(0, 5).map(function (t, i) {
             var n = r.linhas[i];
-            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(t[1]) + '<small>' + tth('importar.noArquivo', { celulas: celulas(I.rows[n - 1]) }) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td></tr>';
+            return '<tr><td>' + n + '</td><td>' + esc(dFull(t[0])) + '</td><td class="ds">' + esc(descExibida(t[1])) + '<small>' + tth('importar.noArquivo', { celulas: celulas(I.rows[n - 1]) }) + '</small></td><td class="num ' + (t[3] < 0 ? 'neg' : 'pos') + '">' + (t[3] < 0 ? '−' : '+') + f2(Math.abs(t[3]) / 100) + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
           (r.ignoradas.length ? '<details class="metas"><summary>' + tth('importar.ignoradas', { n: r.ignoradas.length }) + '</summary><ul class="imp-ign">' +
             r.ignoradas.slice(0, 20).map(function (x) { return '<li>' + tth('importar.linhaIgnorada', { n: x.n, motivo: motivoIgnorada(x), celulas: celulas(x.celulas) }) + '</li>'; }).join('') + '</ul></details>' : '') +
@@ -2643,7 +2674,7 @@
     var sh = rows.filter(filterMatch).reverse();
     if (!sh.length) h += '<p class="vazio">' + tth('painel.nadaFiltro') + '</p>';
     sh.slice(0, S.more).forEach(function (r) {
-      var d = r.kind === 'renda' ? r.desc.replace(/^Payment from /i, '') : r.desc;
+      var d = descExibida(r.kind === 'renda' ? r.desc.replace(/^Payment from /i, '') : r.desc);
       h += '<div class="mov"><span class="dt">' + dFmt(r.date) + '</span><span class="ds">' + esc(d) + '</span><span class="am num' + (r.a > 0 ? ' in' : '') + '">' + (r.a > 0 ? '+' : '−') + f2(Math.abs(r.a)) + '</span><span class="tg">' + tagOf(r) + '</span></div>';
     });
     if (sh.length > S.more) h += '<div style="padding-top:12px"><button class="btn sm" type="button" data-more>' + tth('painel.mostrarMais', { n: Math.min(30, sh.length - S.more), total: sh.length - S.more }) + '</button></div>';
@@ -2721,13 +2752,13 @@
     if (!all.length && !ent.length) return '<p class="vazio">' + tth('revisar.nadaEncontrado') + '</p>';
     if (all.length) h += '<h3 class="rvt">' + tth('revisar.saidas') + '</h3>';
     all.slice(0, 40).forEach(function (x) {
-      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + tth('revisar.movimentos', { n: x.n, valor: f2(x.total) }) + (S.over[x.key] ? ' · ' + tth('revisar.categoriaSua') : '') + (x.eff === '' ? ' · ' + tth('revisar.divididoCategoria', { lista: Object.keys(x.effs).map(function (e) { return tt('revisar.itemContagem', { nome: effNome(e), n: x.effs[e] }); }).join(', ') }) : '') + '</small></div>' +
+      h += '<div class="rrow"><div class="n">' + esc(descExibida(x.desc)) + '<small>' + tth('revisar.movimentos', { n: x.n, valor: f2(x.total) }) + (S.over[x.key] ? ' · ' + tth('revisar.categoriaSua') : '') + (x.eff === '' ? ' · ' + tth('revisar.divididoCategoria', { lista: Object.keys(x.effs).map(function (e) { return tt('revisar.itemContagem', { nome: effNome(e), n: x.effs[e] }); }).join(', ') }) : '') + '</small></div>' +
         '<select data-ov="' + esc(x.key) + '" aria-label="' + tth('revisar.categoriaDe', { desc: x.desc }) + '">' + optionsFor(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
     });
     if (all.length > 40) h += '<p class="passo" style="padding-top:12px">' + tth('revisar.mostrandoSaidas', { mostrando: 40, total: all.length }) + '</p>';
     if (ent.length) h += '<h3 class="rvt">' + tth('revisar.entradas') + '</h3>';
     ent.slice(0, 40).forEach(function (x) {
-      h += '<div class="rrow"><div class="n">' + esc(x.desc) + '<small>' + tth('revisar.movimentosEntrada', { n: x.n, valor: f2(x.total) }) + (S.over[x.key] ? ' · ' + tth('revisar.escolhaSua') : '') +
+      h += '<div class="rrow"><div class="n">' + esc(descExibida(x.desc)) + '<small>' + tth('revisar.movimentosEntrada', { n: x.n, valor: f2(x.total) }) + (S.over[x.key] ? ' · ' + tth('revisar.escolhaSua') : '') +
         (x.eff === '' ? ' · ' + tth('revisar.divididoTipo', { lista: Object.keys(x.effs).map(function (e) { return tt('revisar.itemContagem', { nome: nomeEntrada(e), n: x.effs[e] }); }).join(', ') }) : '') + '</small></div>' +
         '<select data-ov="' + esc(x.key) + '" aria-label="' + tth('revisar.tipoEntradaDe', { desc: x.desc }) + '">' + optionsEntrada(x.eff, !!S.over[x.key] && Object.keys(x.autos).length > 1) + '</select></div>';
     });
@@ -2751,7 +2782,7 @@
           return '<button class="btn sm" type="button" data-pixtit-marcar="' + m + '">' + tth('revisar.marcarTodosMes', { mes: mLabel(m) }) + '</button>';
         }).join('') + '</div>' +
         '<div class="radios">' + P.pendentes.map(function (x) {
-          return '<label class="chk"><input type="checkbox" data-pixtit="' + esc(x.chave) + '" data-mes="' + x.data.slice(0, 7) + '"><span>' + esc(dFull(x.data)) + ' · ' + esc(x.desc) + ' · ' + (x.valor > 0 ? '+' : '−') + esc(f2(Math.abs(x.valor) / 100)) + '</span></label>';
+          return '<label class="chk"><input type="checkbox" data-pixtit="' + esc(x.chave) + '" data-mes="' + x.data.slice(0, 7) + '"><span>' + esc(dFull(x.data)) + ' · ' + esc(descExibida(x.desc)) + ' · ' + (x.valor > 0 ? '+' : '−') + esc(f2(Math.abs(x.valor) / 100)) + '</span></label>';
         }).join('') + '</div><div class="grupo"><button class="btn pri" type="button" data-pixtit-aplicar>' + tth('revisar.aplicarMarcados') + '</button></div>';
     }
     if (P.aplicados.length) h += '<p class="passo">' + tth('revisar.pixAplicados', { n: P.aplicados.length }) + '</p><div class="grupo"><button class="btn" type="button" data-pixtit-desfazer>' + tth('comum.desfazer') + '</button></div>';
@@ -3072,7 +3103,7 @@
   function perguntaAluguel() {
     var o = aluguelSugerido();
     if (!o) return '';
-    return '<div class="aviso pergunta"><p>' + tth('plano.aluguelPergunta', { dia: o.dia, valor: f2(o.v), desc: cru('<b>' + esc(o.last.desc) + '</b>'), categoria: catPor(o.last.cat).nome, pergunta: cru('<b>' + tth('plano.ehAluguel') + '</b>') }) + '</p>' +
+    return '<div class="aviso pergunta"><p>' + tth('plano.aluguelPergunta', { dia: o.dia, valor: f2(o.v), desc: cru('<b>' + esc(descExibida(o.last.desc)) + '</b>'), categoria: catPor(o.last.cat).nome, pergunta: cru('<b>' + tth('plano.ehAluguel') + '</b>') }) + '</p>' +
       '<div class="grupo"><button class="btn sm pri" type="button" data-aluguel="sim">' + tth('plano.simAluguel') + '</button><button class="btn sm" type="button" data-aluguel="nao">' + tth('plano.naoE') + '</button></div></div>';
   }
   /* o aviso dos envios, uma vez por carteira: some depois de qualquer resposta (aqui ou em Configurações) */
@@ -3091,7 +3122,7 @@
     if (!list.length) return h + '<p class="vazio">' + tth('plano.recorrentesVazio') + '</p></div></section>';
     list.forEach(function (o, i) {
       var c = catPor(o.last.cat);
-      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(o.last.desc) + '<small>' + esc(catNome(c)) + ' · ' + tth('plano.dosUltimos', { n: Object.keys(o.m).length, total: nk }) + '</small></span><span class="rd">' + tth('plano.dia', { dia: o.dia }) + (o.atrasada ? '<small class="atraso">' + tth('plano.atrasada', { dia: o.dia }) + '</small>' : '<small>' + tth('plano.proxima', { data: dFmt(addMonth(o.last.date)) }) + '</small>') + '</span><b class="num">' + f2(o.v) + '</b></div>';
+      h += '<div class="rec' + (i ? '' : ' first') + '"><i class="sw" style="background:' + colorOf(c) + '"></i><span class="rn">' + esc(descExibida(o.last.desc)) + '<small>' + esc(catNome(c)) + ' · ' + tth('plano.dosUltimos', { n: Object.keys(o.m).length, total: nk }) + '</small></span><span class="rd">' + tth('plano.dia', { dia: o.dia }) + (o.atrasada ? '<small class="atraso">' + tth('plano.atrasada', { dia: o.dia }) + '</small>' : '<small>' + tth('plano.proxima', { data: dFmt(addMonth(o.last.date)) }) + '</small>') + '</span><b class="num">' + f2(o.v) + '</b></div>';
     });
     return h + '<div class="rec tot"><span></span><span class="rn">' + tth('plano.totalFixo') + '</span><span></span><b class="num">' + f2(tot) + '</b></div></div></section>';
   }
@@ -3359,6 +3390,7 @@
     if (t.hasAttribute && t.hasAttribute('data-imp-campo') && S.importar) { mudarImportacao(t); return; }
     if (t.id === 'fin-csv') { var fl = t.files; handleFiles(fl).then(function () { t.value = ''; }); return; }
     if (t.id === 'fin-d-cur') { $('#fin-d-outra-l').hidden = t.value !== 'outra'; return; }
+    if (t.id === 'fin-p-idioma') { mudarPreferencia('idioma', t.value); return; }
     var wm = /^(fin-w-.+|fin-wn)-(pais|banco|moeda)$/.exec(t.id || '');
     /* no formulário novo, quem escolheu moeda ou país já decidiu: o banco não sobrescreve mais */
     if (wm && wm[1] === 'fin-wn' && wm[2] !== 'banco') $('#fin-wnova').setAttribute('data-mexeu', '1');

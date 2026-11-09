@@ -21,7 +21,7 @@ function abrir({ languages, language, salvo, storage, attrs = {} } = {}) {
   return { html, P: ctx.NORA_PREFS };
 }
 const tema = html => html.getAttribute('data-tema');
-// o idioma que vale (lido e validado); o lang do <html> só passa a usá-lo no passo f
+// o idioma que vale (lido e validado), o mesmo do lang do <html>
 const idioma = ({ P }) => P.idiomaEfetivo(P.ler());
 
 test('idioma automático: o primeiro idioma do navegador decide', () => {
@@ -51,13 +51,30 @@ test('idioma salvo vence o navegador; tema claro e escuro definem data-tema, aut
   assert.equal(tema(abrir({ salvo: { tema: 'auto' }, attrs: { 'data-tema': 'escuro' } }).html), null);
 });
 
-test('lang do <html> ainda não muda (sem dicionário inglês até o passo f); o tema sim', () => {
+test('lang do <html> segue o idioma efetivo (passo f: APLICAR_LANG ligada); o tema também é aplicado', () => {
   for (const r of [abrir({ languages: ['en-US'] }), abrir({ languages: ['pt-BR'], salvo: { idioma: 'en-GB', tema: 'escuro' } }), abrir({})]) {
-    assert.equal(r.html.lang, 'pt-BR');
     assert.equal(idioma(r), 'en-GB');
+    assert.equal(r.html.lang, 'en-GB');
   }
+  assert.equal(abrir({ languages: ['pt-PT'] }).html.lang, 'pt-BR');
+  assert.equal(abrir({ languages: ['en-GB'], salvo: { idioma: 'pt-BR', tema: 'auto' } }).html.lang, 'pt-BR');
   assert.equal(tema(abrir({ languages: ['en-US'], salvo: { idioma: 'en-GB', tema: 'escuro' } }).html), 'escuro');
-  assert.match(prefsJs, /var APLICAR_LANG = false;/);
+  assert.match(prefsJs, /var APLICAR_LANG = true;/);
+});
+
+test('gravar: só preferências válidas, na chave nora.prefs; localStorage que falha não quebra', () => {
+  const mapa = new Map();
+  const storage = { getItem: k => (mapa.has(k) ? mapa.get(k) : null), setItem: (k, v) => mapa.set(k, String(v)) };
+  const { P } = abrir({ storage });
+  assert.deepEqual({ ...P.gravar({ idioma: 'en-GB', tema: 'escuro' }) }, { idioma: 'en-GB', tema: 'escuro' });
+  assert.deepEqual(JSON.parse(mapa.get('nora.prefs')), { idioma: 'en-GB', tema: 'escuro' });
+  assert.deepEqual({ ...P.gravar({ idioma: 'fr', tema: 'claro', outro: 1 }) }, { idioma: null, tema: 'claro' });
+  assert.deepEqual(JSON.parse(mapa.get('nora.prefs')), { idioma: null, tema: 'claro' });
+  assert.deepEqual({ ...P.ler() }, { idioma: null, tema: 'claro' });
+  // localStorage que lança (Safari em janela privada): devolve o que valeria, sem erro
+  assert.deepEqual({ ...abrir({ storage: 'lança' }).P.gravar({ idioma: 'pt-BR', tema: 'auto' }) }, { idioma: 'pt-BR', tema: 'auto' });
+  const cheio = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
+  assert.deepEqual({ ...abrir({ storage: cheio }).P.gravar({ idioma: 'en-GB', tema: 'auto' }) }, { idioma: 'en-GB', tema: 'auto' });
 });
 
 test('valores inválidos são ignorados, campo por campo', () => {

@@ -9,7 +9,7 @@ const prefsJs = ler('prefs.js'), i18nJs = ler('i18n.js');
 const DIC = ['i18n/pt-BR.js', 'i18n/en-GB.js'].map(ler);
 
 // carrega dicionários + i18n.js num contexto próprio; idioma pelo prefs.js de verdade (navegador e nora.prefs falsos).
-// aplicarLang: injeta APLICAR_LANG = true no prefs.js (o que o passo f vai fazer); sem ela, vale a do arquivo (false)
+// aplicarLang: garante APLICAR_LANG = true (desde o passo f é a do arquivo; fica para os testes antigos)
 const LANG_DESLIGADA = 'var APLICAR_LANG = false;';
 function abrir({ languages = ['pt-BR'], salvo, dicionarios, aplicarLang = false } = {}) {
   const mapa = new Map(salvo ? [['nora.prefs', JSON.stringify(salvo)]] : []);
@@ -23,16 +23,25 @@ function abrir({ languages = ['pt-BR'], salvo, dicionarios, aplicarLang = false 
 }
 const faltas = ctx => [...ctx.NORA_I18N.faltando].map(f => f.idioma + ':' + f.chave);
 
-test('APLICAR_LANG desligada (até o passo f): t() fica em pt-BR, mas a preferência é lida e validada', () => {
-  assert.ok(prefsJs.includes(LANG_DESLIGADA), 'o prefs.js ainda tem a constante desligada');
+test('APLICAR_LANG ligada (passo f): t() segue a preferência, e o prefs.js do disco já vem assim', () => {
+  assert.ok(prefsJs.includes('var APLICAR_LANG = true;'), 'o prefs.js tem a constante ligada');
   for (const o of [{ languages: ['en-US'] }, { languages: ['pt-BR'], salvo: { idioma: 'en-GB', tema: 'auto' } }]) {
     const c = abrir(o);
-    assert.equal(c.NORA_I18N.idioma(), 'pt-BR');
+    assert.equal(c.NORA_I18N.idioma(), 'en-GB');
     assert.equal(c.NORA_I18N.idiomaPreferido(), 'en-GB');
-    assert.equal(c.t('abas.resumo'), 'Resumo');
-    assert.equal(c.t('importar.meses', { n: 2 }), '2 meses');
+    assert.equal(c.t('abas.resumo'), 'Overview');
   }
-  assert.equal(abrir({ salvo: { idioma: 'fr', tema: 'auto' } }).NORA_I18N.idiomaPreferido(), 'pt-BR', 'idioma inválido cai no automático');
+  assert.equal(abrir({ salvo: { idioma: 'fr', tema: 'auto' } }).NORA_I18N.idioma(), 'pt-BR', 'idioma inválido cai no automático');
+});
+
+test('usar(idioma): troca o idioma na hora (seletor); idioma desconhecido não muda nada', () => {
+  const c = abrir({ languages: ['pt-BR'] });
+  assert.equal(c.t('abas.resumo'), 'Resumo');
+  assert.equal(c.NORA_I18N.usar('en-GB'), 'en-GB');
+  assert.equal(c.NORA_I18N.idioma(), 'en-GB'); assert.equal(c.t('abas.resumo'), 'Overview');
+  assert.equal(c.NORA_I18N.usar('fr'), 'en-GB'); assert.equal(c.NORA_I18N.idioma(), 'en-GB');
+  assert.equal(c.NORA_I18N.usar('pt-BR'), 'pt-BR'); assert.equal(c.t('abas.resumo'), 'Resumo');
+  assert.deepEqual(faltas(c), []);
 });
 
 test('t() devolve o texto do idioma efetivo e troca as variáveis (APLICAR_LANG ligada)', () => {
@@ -141,8 +150,8 @@ test('th(): texto do dicionário e variáveis escapados; só cru() passa a marca
 test('aplicarTextosFixos: troca o texto e o aria-label marcados, e só eles', () => {
   const dicionarios = { 'pt-BR': { 'casca.carregando': 'Carregando…', 'casca.financas': 'Finanças' }, 'en-GB': { 'casca.carregando': 'Loading…', 'casca.financas': 'Finances' } };
   const el = (atrs, texto) => ({ textContent: texto, atrs: { ...atrs }, getAttribute(k) { return k in this.atrs ? this.atrs[k] : null; }, setAttribute(k, v) { this.atrs[k] = v; } });
-  for (const [aplicarLang, txt, aria] of [[false, 'Carregando…', 'Finanças'], [true, 'Loading…', 'Finances']]) {
-    const { NORA_I18N: I } = abrir({ languages: ['en-GB'], dicionarios, aplicarLang });
+  for (const [languages, txt, aria] of [[['pt-BR'], 'Carregando…', 'Finanças'], [['en-GB'], 'Loading…', 'Finances']]) {
+    const { NORA_I18N: I } = abrir({ languages, dicionarios });
     const p = el({ 'data-i18n': 'casca.carregando' }, 'Carregando…'), sec = el({ 'data-i18n-aria-label': 'casca.financas', 'aria-label': 'Finanças' }, 'conteúdo');
     I.aplicarTextosFixos({ querySelectorAll: sel => (assert.equal(sel, '[data-i18n], [data-i18n-aria-label]'), [p, sec]) });
     assert.equal(p.textContent, txt); assert.equal(sec.atrs['aria-label'], aria); assert.equal(sec.textContent, 'conteúdo');

@@ -1,24 +1,33 @@
-body 12em9fp 1ln8j76 1ln8j76
-body>main.wrap z8x1n6 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 18hsrt4 1yytz64 1yytz64
+body hlowxx 1ln8j76 1ln8j76
+body>main.wrap 1z2p8q 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 4waqqw 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top om1fu9 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div 10mwsgy 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca 1rp9kmp 1af5xs7 1af5xs7
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>img xqo98o 1af5xs7 1af5xs7
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l eb7lf7 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm iwjzi9 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec nm2q96 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec ayp4my 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top 12ld5ik 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>h2 g4rf1k o14nw0 o14nw0
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.sec-top>span.hint 1kemqo0 4eerhl 4eerhl
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 19ujsn7 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid fjj4nu 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card 139211 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid 1nfrq96 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1j39nze 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend 1wx5hs0 zl0uga zl0uga
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid 15pwga6 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1hx3cnx 15snphz 15snphz
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>input#fin-s-titular 1dkb5me qc0uyc qc0uyc nzzihh
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small b6dl0t o2ei29 o2ei29
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1xr1uru 1ln8j76 1ln8j76
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend d3hd0i zl0uga zl0uga
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid 1jfoxz6 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label 1cs5hyj 15snphz 15snphz
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-p-idioma 1kxy53d 4056kx 4056kx
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-p-idioma>option oypd0 1n2tj1g 1n2tj1g
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-p-idioma>option oypd0 1n2tj1g 1n2tj1g
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>select#fin-p-idioma>option oypd0 1n2tj1g 1n2tj1g
+body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.mgrid>label>small dvcdfn o2ei29 o2ei29
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset 1oluvge 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>legend ofy041 zl0uga zl0uga
 body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-fsetup.ggrid>fieldset>div.wcart 1ul1qau 1ln8j76 1ln8j76
@@ -297,6 +306,6 @@ body>main.wrap>section#fin-app.view.fin>section#fin-setup.sec>div.card>form#fin-
 body>div#toast.toast 14ixo05 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>input#fin-csv.vh 1x77r2i 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 1x77r2i 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh 1bp7t90 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh 1bp7t90 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug

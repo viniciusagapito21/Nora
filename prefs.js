@@ -1,10 +1,9 @@
 /* Preferências do Nora (idioma e tema), na chave nora.prefs: { idioma: null | 'pt-BR' | 'en-GB', tema: 'auto' | 'claro' | 'escuro' }.
    Separada dos dados: fica fora do backup e "Apagar meus dados" não a apaga (só apaga cortex-financas.*).
-   Carregado no <head>, síncrono, antes do styles.css: põe data-tema no <html> antes da primeira pintura (o lang só
-   a partir do passo f; veja APLICAR_LANG).
+   Carregado no <head>, síncrono, antes do styles.css: põe lang e data-tema no <html> antes da primeira pintura.
    idioma null = automático (primeiro idioma do navegador começando com "pt" → pt-BR, senão en-GB); tema 'auto' não
    define data-tema. localStorage sempre em try/catch (Safari em janela privada): se falhar, vale o automático.
-   Script simples, só var; aqui nada grava (a gravação entra com os seletores, nos passos f e g da Fase 3). */
+   Script simples, só var; gravar(p) é chamado pelos seletores de Configurações (passos f e g da Fase 3). */
 var NORA_PREFS = (function () {
   var CHAVE = 'nora.prefs';
   var IDIOMAS = ['pt-BR', 'en-GB'], TEMAS = ['auto', 'claro', 'escuro'];
@@ -23,15 +22,21 @@ var NORA_PREFS = (function () {
     return /^pt(?:$|[-_])/i.test(String(l)) ? 'pt-BR' : 'en-GB';
   }
   function idiomaEfetivo(p) { return p.idioma || idiomaAuto(); }
-  /* o lang ainda não é aplicado: enquanto não existe dicionário inglês (passo f), a página é toda em português e
-     lang="en-GB" faria leitores de tela lerem português com voz inglesa; o <html> fica com o lang="pt-BR" do index.html.
-     O passo f liga APLICAR_LANG junto com o dicionário; o t() do i18n.js segue a mesma constante (desligada: pt-BR). */
-  var APLICAR_LANG = false;
+  /* ligada no passo f, junto com o dicionário inglês: o lang do <html> e o t() do i18n.js seguem o idioma efetivo
+     (desligada, os dois ficariam em pt-BR) */
+  var APLICAR_LANG = true;
   function aplicar(p, html) {
     if (APLICAR_LANG) html.lang = idiomaEfetivo(p);
     if (p.tema === 'auto') html.removeAttribute('data-tema'); else html.setAttribute('data-tema', p.tema);
   }
 
+  /* grava só o que é válido (limpar) e devolve o que passou a valer; se o localStorage falhar, vale só nesta página */
+  function gravar(p) {
+    var l = limpar(p);
+    try { localStorage.setItem(CHAVE, JSON.stringify(l)); } catch (e) { }
+    return l;
+  }
+
   if (typeof document !== 'undefined' && document.documentElement) aplicar(ler(), document.documentElement);
-  return { CHAVE: CHAVE, limpar: limpar, ler: ler, idiomaAuto: idiomaAuto, idiomaEfetivo: idiomaEfetivo, aplicar: aplicar, APLICAR_LANG: APLICAR_LANG };
+  return { CHAVE: CHAVE, limpar: limpar, ler: ler, gravar: gravar, idiomaAuto: idiomaAuto, idiomaEfetivo: idiomaEfetivo, aplicar: aplicar, APLICAR_LANG: APLICAR_LANG };
 })();

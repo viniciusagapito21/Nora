@@ -79,7 +79,9 @@ var NORA_I18N = (function () {
       if (a) el.setAttribute('aria-label', t(a));
     }
   }
-  return { t: t, th: th, cru: cru, esc: esc, existe: existe, textoErro: textoErro, aplicarTextosFixos: aplicarTextosFixos, faltando: faltando,
+  /* troca o idioma na hora (seletor de Configurações); idioma sem dicionário não muda nada. Devolve o que vale */
+  function usar(idi) { if (tem.call(dics, idi)) { idioma = idi; preferido = idi; } return idioma; }
+  return { t: t, th: th, cru: cru, esc: esc, existe: existe, textoErro: textoErro, aplicarTextosFixos: aplicarTextosFixos, faltando: faltando, usar: usar,
     idioma: function () { return idioma; }, idiomaPreferido: function () { return preferido; }, BASE: BASE };
 })();
 function t(chave, vars) { return NORA_I18N.t(chave, vars); }
