@@ -515,14 +515,14 @@ for (const s of TELAS) {
   const salvo = await pg.evaluate(() => JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[0]);
   await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
   await pg.setInputFiles('#fin-csv', EXEMPLO); await pg.waitForSelector('#toast:not([hidden])');
-  const aviso2 = await pg.textContent('#toast-txt');
+  const aviso2 = await pg.textContent('#toast-txt'), aviso2Cod = await pg.getAttribute('#toast', 'data-aviso');
   const igual = JSON.stringify(salvo.months) === JSON.stringify(esperado);
   const n = Object.values(esperado).reduce((a, l) => a + l.length, 0);
   if (!igual) problemas.push('importar Revolut: os meses salvos não são os que o leitor devolve');
   const resumo = api.extractSummary(api.parseCSV(readFileSync(EXEMPLO, 'utf8'))); // o exemplo não tem resumo de saldos: null
   if (JSON.stringify(salvo.summary || null) !== JSON.stringify(resumo)) problemas.push('importar Revolut: o resumo de saldos salvo não é o do leitor');
   if (JSON.stringify(salvo.periodos) !== JSON.stringify([{ de: '2026-07-01', ate: '2026-10-15' }])) problemas.push('importar Revolut: período salvo inesperado ' + JSON.stringify(salvo.periodos));
-  if (!/^Nada novo/.test(aviso2)) problemas.push('importar Revolut: importar de novo não foi "Nada novo" (' + aviso2 + ')');
+  if (aviso2Cod !== 'importar.nadaNovo') problemas.push('importar Revolut: importar de novo não foi "Nada novo" (' + aviso2 + ')');
   console.log(`importar Revolut pela tela: ${igual ? n + ' movimentos salvos iguais aos do leitor' : 'FALHOU'} ("${aviso1}"); de novo: "${aviso2}"`);
   await ctx.close();
 }
@@ -547,10 +547,10 @@ for (const s of TELAS) {
   await pg.evaluate(() => { document.getElementById('toast').hidden = true; });
   // de novo: a prévia avisa que todos já estavam salvos e não deixa importar
   await pg.setInputFiles('#fin-csv', BTG_XLS); await pg.waitForSelector('#fin-fimp .imp-tot');
-  const aviso2 = await pg.evaluate(() => [...document.querySelectorAll('#fin-fimp .aviso')].map(p => p.textContent).find(t => /já estavam salvos/.test(t)) || '');
+  const rep2 = await pg.evaluate(() => { const p = document.querySelector('#fin-fimp [data-aviso="importar.repetidos"]'); return p ? { n: +p.getAttribute('data-n'), txt: p.textContent } : { n: 0, txt: '' }; }), aviso2 = rep2.txt;
   const travado = await pg.evaluate(() => document.querySelector('#fin-fimp button[type=submit]').disabled);
   if (!ok) problemas.push('importar BTG: o que ficou salvo não é o que o leitor devolve (movimentos com tipo, saldos do dia, sem mapeamento lembrado)');
-  if (!aviso2.startsWith(L.tx.length + ' movimentos já estavam salvos') || !travado) problemas.push('importar BTG: importar de novo não avisou que tudo já estava salvo');
+  if (rep2.n !== L.tx.length || !travado) problemas.push('importar BTG: importar de novo não avisou que tudo já estava salvo');
   const tipos = salvos.reduce((o, t) => ((o[t[2]] = (o[t[2]] || 0) + 1), o), {});
   console.log(`importar BTG pela tela: ${ok ? salvos.length + ' movimentos salvos iguais aos do leitor (' + Object.entries(tipos).map(([k, v]) => v + ' ' + k).join(', ') + '), ' + Object.keys(c.saldosDia).length + ' saldos do dia' : 'FALHOU'} ("${aviso1}"); de novo, a prévia: "${aviso2}"${travado ? ', sem botão de importar' : ''}`);
   await ctx.close();
@@ -604,10 +604,10 @@ for (const s of TELAS) {
   const soAgosto = await marcadas(), gravadoMes = await estado();
   await pg.click('[data-pixtit-marcar=""]');
   const todas = await marcadas(), gravadoTodos = await estado();
-  const botoes = await pg.evaluate(() => [...document.querySelectorAll('[data-pixtit-marcar]')].map(b => b.textContent));
+  const botoes = await pg.evaluate(() => [...document.querySelectorAll('[data-pixtit-marcar]')].map(b => b.getAttribute('data-pixtit-marcar')));
   const marcarOk = JSON.stringify(soAgosto) === JSON.stringify(['PIX TRANSF MARIA E07/08', '+PIX TRANSF MARIA E18/08']) && todas.length === 4 &&
     JSON.stringify(gravadoMes) === JSON.stringify(antes) && JSON.stringify(gravadoTodos) === JSON.stringify(antes) &&
-    JSON.stringify(botoes) === JSON.stringify(['Marcar todos', 'Marcar todos de agosto de 2026', 'Marcar todos de setembro de 2026', 'Marcar todos de outubro de 2026']);
+    JSON.stringify(botoes) === JSON.stringify(['', '2026-08', '2026-09', '2026-10']);
   if (!marcarOk) problemas.push('Pix para o titular: "Marcar todos" ou "Marcar todos de <mês>" não marcou só as caixas certas, ou gravou algo');
   await pg.evaluate(() => document.querySelectorAll('[data-pixtit]').forEach(i => { i.checked = false; }));
   await pg.check('[data-pixtit="PIX TRANSF MARIA E07/08"]'); await pg.check('[data-pixtit="+PIX TRANSF MARIA E18/08"]');
@@ -634,14 +634,14 @@ for (const s of TELAS) {
   await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, D);
   await pg.reload(); await pg.waitForTimeout(150);
   const g = api.buildModel(comDados.months, {}, plan.titular, plan.pais).by['2026-09'];
-  const cartao = await pg.evaluate(() => { const k = [...document.querySelectorAll('.kpi')].find(x => x.querySelector('.l').textContent === 'Gastou'); return { v: k.querySelector('.v').textContent, nota: (k.querySelector('.pend') || {}).textContent || '' }; });
-  const linha = await pg.evaluate(() => { const r = [...document.querySelectorAll('tr.tot.sub')][0]; return r ? r.textContent : ''; });
-  const okCarteira = digitos(cartao.v) === Math.round(g.gasto) && cartao.nota.startsWith('inclui') && digitos(cartao.nota) === Math.round(g.spend.brasil) && /^dos quais envios para outra conta sua/.test(linha);
+  const cartao = await pg.evaluate(() => { const k = document.querySelector('.kpi[data-kpi="gastou"]'), p = k.querySelector('[data-nota="envios"]'); return { v: k.querySelector('.v').textContent, nota: p ? p.textContent : '', temNota: !!p }; });
+  const linha = await pg.evaluate(() => !!document.querySelector('tr[data-linha="envios"]'));
+  const okCarteira = digitos(cartao.v) === Math.round(g.gasto) && cartao.temNota && digitos(cartao.nota) === Math.round(g.spend.brasil) && linha;
   // no Resumo (Revolut + Banco Exemplo, transferências do exemplo): a nota é a soma das carteiras, na moeda principal
   await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, TRANSFERENCIAS);
   await pg.reload(); await pg.waitForTimeout(150);
   const x = JSON.parse(TRANSFERENCIAS['cortex-financas.v4']), R = api.resumir(x), Q = api.mesResumo(R, x, R.meses.filter(m => m !== R.partial).slice(-1)[0]);
-  const resumo = await pg.evaluate(() => { const k = [...document.querySelectorAll('#fin-rmes .kpi')].find(x => x.querySelector('.l').textContent === 'Gastou'); return { v: k.querySelector('.v').textContent, nota: (k.querySelector('.pend') || {}).textContent || '' }; });
+  const resumo = await pg.evaluate(() => { const k = document.querySelector('#fin-rmes .kpi[data-kpi="gastou"]'); return { v: k.querySelector('.v').textContent, nota: (k.querySelector('[data-nota="envios"]') || {}).textContent || '' }; });
   const okResumo = digitos(resumo.v) === Math.round(Q.total.gasto) && digitos(resumo.nota) === Math.round(Q.total.spend.brasil);
   if (!okCarteira || !okResumo) problemas.push(`nota de envios: carteira ${okCarteira ? 'ok' : 'FALHOU'}, Resumo ${okResumo ? 'ok' : 'FALHOU'} (${cartao.v} / ${cartao.nota} / ${resumo.v} / ${resumo.nota})`);
   console.log(`nota de envios: ${okCarteira && okResumo ? `carteira "${cartao.v}" ${cartao.nota.replace(/\s+/g, ' ')}; mês a mês com a linha "dos quais"; Resumo "${resumo.v}" ${resumo.nota.replace(/\s+/g, ' ')} — os valores do Gastou são os do modelo` : 'FALHOU'}`);
@@ -657,7 +657,7 @@ for (const s of TELAS) {
   const abrir = async () => { await pg.goto(URL_PAGINA); await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, comItau(true, { aviso: true })); await pg.reload(); await pg.waitForTimeout(150); await pg.click('[data-carteira="c2"]'); };
   const tem = () => pg.evaluate(() => !!document.getElementById('fin-avenvios'));
   const cart = () => pg.evaluate(() => { const c = JSON.parse(localStorage.getItem('cortex-financas.v4')).carteiras[1]; return { envios: c.envios || 'gasto', decidido: !!c.enviosDecidido }; });
-  const gastou = () => pg.evaluate(() => [...document.querySelectorAll('.kpi')].find(k => k.querySelector('.l').textContent === 'Gastou').querySelector('.v').textContent);
+  const gastou = () => pg.evaluate(() => document.querySelector('.kpi[data-kpi="gastou"] .v').textContent);
   // "Continua gasto": some, fica lembrado depois de recarregar, nada muda nos números
   await abrir(); r.push(await tem()); const g0 = await gastou();
   await pg.click('[data-envios="gasto"]'); r.push(!(await tem())); r.push(JSON.stringify(await cart()) === JSON.stringify({ envios: 'gasto', decidido: true }));
@@ -703,7 +703,7 @@ for (const s of TELAS) {
   await pg.selectOption('#fin-w-c2-banco', 'btg'); r.existente = await pg.evaluate(() => document.querySelector('#fin-w-c2-moeda').value + '/' + document.querySelector('#fin-w-c2-pais').value);
   // a carteira com extrato (c1, euro): moeda travada; trocar o país não muda a moeda
   await pg.selectOption('#fin-w-c1-pais', 'BR'); r.travada = await pg.inputValue('#fin-w-c1-moeda');
-  r.nota = await pg.evaluate(() => /só existem para Irlanda e Brasil/.test(document.querySelector('#fin-wnova').textContent));
+  r.nota = await pg.evaluate(() => !!document.querySelector('#fin-wnova [data-nota="regras"]'));
   const ok = r.euro === 27 && r.todos === 29 && r.brasil === 'BRL' && r.reino === 'GBP' && r.volta === 'IE' && r.dolar === 'BR' && r.itau === 'BRL/BR' && r.wise === 'BRL/BR' && r.revolut === 'EUR/IE' && r.boi === 'EUR/IE' && r.outro === 'EUR/IE' && r.mexeu === 'EUR/PT' && r.existente === 'GBP/GB' && r.travada === 'EUR' && r.nota;
   if (!ok) problemas.push('países e moedas: ' + JSON.stringify(r));
   console.log(`países e moedas: ${ok ? 'EUR mostra os 27 países no primeiro grupo (29 no total); Brasil põe BRL, Reino Unido põe GBP; de volta a EUR, Irlanda; USD mantém o país; banco preenche (Itaú → BRL/Brasil, Revolut e Bank of Ireland → EUR/Irlanda, Wise e Outro banco não mexem) e nunca depois da escolha da pessoa nem em carteira existente; moeda travada não muda; aviso das regras de lojas' : 'FALHOU ' + JSON.stringify(r)}`);
@@ -793,7 +793,7 @@ await browser.close();
           await pg.click('[data-imp=cancelar]');
         } else {
           await pg.waitForSelector('#toast:not([hidden])', { timeout: 10000 });
-          if (!/npm start/.test(await pg.textContent('#toast-txt'))) falhas.push('do disco, o PDF não deu o aviso de abrir pelo npm start');
+          if ((await pg.getAttribute('#toast', 'data-aviso')) !== 'importar.pdfDoDisco') falhas.push('do disco, o PDF não deu o aviso de abrir pelo npm start');
         }
         if (workers) falhas.push(workers + ' worker(s) criado(s): o pdf.js tinha que rodar na própria página');
         await pg.click('[data-fin-setup]');

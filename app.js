@@ -2,8 +2,10 @@
 /* aviso rápido usado pelo painel (salvou, importou, erro); fica aqui, e não inline no index.html, por causa da CSP */
 (function () {
   var el = document.getElementById('toast'), txt = document.getElementById('toast-txt'), t;
-  window.__cortexToast = function (msg, erro, ms) {
+  /* aviso: identificador estável do aviso (data-aviso), para o roteiro de telas não depender do texto */
+  window.__cortexToast = function (msg, erro, ms, aviso) {
     txt.textContent = msg;
+    if (aviso) el.setAttribute('data-aviso', aviso); else el.removeAttribute('data-aviso');
     el.classList.toggle('erro', !!erro);
     el.hidden = false;
     clearTimeout(t);
@@ -1553,7 +1555,7 @@
     return o;
   }
 
-  function toast(msg, erro) { if (window.__cortexToast) window.__cortexToast(msg, erro, erro ? 9000 : 6000); }
+  function toast(msg, erro, aviso) { if (window.__cortexToast) window.__cortexToast(msg, erro, erro ? 9000 : 6000, aviso); }
 
   /* ---------- números do período ---------- */
   function avgKeys() { return M.complete.length ? M.complete : M.keys; }
@@ -1709,7 +1711,7 @@
       if (added) toast(tt('importar.adicionou', { n: added, meses: tt('importar.meses', { n: months }) }) + '.' + (dup ? ' ' + tt('importar.jaSalvas', { n: dup }) : '') + (bad.length ? ' ' + tt('importar.naoLi', { arquivos: bad.join(', ') }) : ''));
       else if (bad.length && Object.keys(outras).length) toast(tt('importar.semConta', { moeda: moeda(), arquivos: bad.join(', '), outras: Object.keys(outras).join(', ') }), true);
       else if (bad.length) toast(tt('importar.semMovimentos', { arquivos: bad.join(', ') }), true);
-      else toast(tt('importar.nadaNovo', { n: dup }));
+      else toast(tt('importar.nadaNovo', { n: dup }), false, 'importar.nadaNovo');
     });
   }
 
@@ -1879,7 +1881,7 @@
     if (T) {
       var n = Q.por.filter(function (p) { return p.g; }).length, sub = n === 1 ? tth('resumo.so', { nome: Q.por.filter(function (p) { return p.g; })[0].w.nome }) : tth('resumo.somaDe', { n: n });
       h += '<div class="kpis">' + [[tth('comum.entrou'), T.entrou, 0, 'entrou'], [tth('comum.gastou'), T.gasto, 0, 'gastou'], [tth('comum.guardou'), T.saved, 0, 'guardou'], [tth('comum.saldoMes'), T.saldo, 1, 'saldo']].map(function (t) {
-        return '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[3] === 'gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? (Math.abs(T.movido) >= 0.5 ? tth('painel.formulaMovido') + '<br>' + fraseMovido(T.movido, function (v) { return ap + fP0(v); }) : tth('painel.formula')) : sub) + '</span></div>';
+        return '<div class="kpi" data-kpi="' + t[3] + '"><span class="l">' + t[0] + '</span><span class="v">' + ap + (t[2] ? sgn(t[1], fP0) : fP0(t[1])) + '</span>' + (t[3] === 'gastou' ? notaEnvios(T.spend.brasil || 0, function (v) { return ap + fP0(v); }) : '') + '<span class="s">' + (t[2] ? (Math.abs(T.movido) >= 0.5 ? tth('painel.formulaMovido') + '<br>' + fraseMovido(T.movido, function (v) { return ap + fP0(v); }) : tth('painel.formula')) : sub) + '</span></div>';
       }).join('') + '</div>' +
         '<details class="metas" id="fin-rpor"' + (S.rPor ? ' open' : '') + '><summary>' + tth('resumo.porCarteira') + '</summary>' + tabelaPorCarteira(Q) + '</details>';
     } else h += '<p class="passo">' + tth('resumo.semTotalCambio') + '</p>' + tabelaPorCarteira(Q);
@@ -1900,7 +1902,7 @@
   }
   /* movido > 0: saiu mais para outras contas suas do que entrou delas (mesma convenção do "Guardou") */
   function fraseMovido(v, fmt) { return v > 0 ? tth('painel.saiuMovido', { valor: fmt(v) }) : tth('painel.entrouMovido', { valor: fmt(-v) }); }
-  function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend">' + tth(media ? 'painel.incluiMedia' : 'painel.inclui', { valor: fmt(v), nome: nomeEnvios() }) + '</p>'; }
+  function notaEnvios(v, fmt, media) { return !(v >= 0.5) ? '' : '<p class="pend" data-nota="envios">' + tth(media ? 'painel.incluiMedia' : 'painel.inclui', { valor: fmt(v), nome: nomeEnvios() }) + '</p>'; }
   function pendNum(pend, fmt) { return pend < 0.5 ? '' : '<p class="pend">' + tth('previsao.incluiConfirmar', { valor: fmt(pend) }) + '</p>'; }
   function pendFrase(pend, n, fmt) {
     return pend < 0.5 ? '' : ', ' + tth('previsao.pendFrase', { valor: fmt(pend), n: n });
@@ -2095,7 +2097,7 @@
         '<div class="mgrid"><label>' + tth('carteiras.nome') + '<input id="fin-wn-nome" type="text" autocomplete="off" maxlength="40" placeholder="' + tth('carteiras.nomeExemplo') + '"></label>' +
         '<label>' + tth('carteiras.extrato') + '<select id="fin-wn-banco">' + opcoes(bancosTela(), 'revolut') + '</select><small id="fin-wn-leitor" hidden>' + genericoTxt() + '</small></label>' +
         '<label>' + tth('carteiras.moedaConta') + '<select id="fin-wn-moeda">' + opcoes(MOEDAS, x.config.moedaPrincipal) + '</select></label>' +
-        '<label>' + tth('carteiras.pais') + '<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small>' + notaRegrasPais() + '</small></label></div>' +
+        '<label>' + tth('carteiras.pais') + '<select id="fin-wn-pais">' + opcoesPais(x.config.moedaPrincipal, moedaDoPais(carteiraAtiva(x).pais) === x.config.moedaPrincipal ? carteiraAtiva(x).pais : paisPadraoDaMoeda(x.config.moedaPrincipal)) + '</select><small data-nota="regras">' + notaRegrasPais() + '</small></label></div>' +
         '<p class="aviso" id="fin-wn-aviso"' + (temRegras(carteiraAtiva(x).pais) ? ' hidden' : '') + '>' + avisoSuporte(carteiraAtiva(x).pais) + '</p></details>';
     var mp = '';
     if (varias) {
@@ -2205,7 +2207,7 @@
     return enqueue(function () { usarDados(x); localSave(); }).then(function () {
       recompute(); render(); window.scrollTo(0, 0);
       toast(!novos && rep === 0 ? tt('importar.saldoSalvo') : novos ? tt('importar.adicionou', { n: novos, meses: tt('importar.meses', { n: meses }) }) + '.' + (rep ? ' ' + tt('importar.jaSalvas', { n: rep }) : '')
-        : tt('importar.nadaNovo', { n: rep }));
+        : tt('importar.nadaNovo', { n: rep }), false, !novos && rep === 0 ? 'importar.saldoSalvo' : novos ? 'importar.adicionou' : 'importar.nadaNovo');
     });
   }
   function abrirGenerico(files) {
@@ -2221,7 +2223,7 @@
       return carregarLeitorPlanilhas().then(function (X) { return Object.assign({ nome: f.name, bytes: b, tipo: tipo }, prepararPlanilha(X, b, tipo, lem)); });
     }).then(function (I) {
       S.importar = comLeitor(I); render(); window.scrollTo(0, 0);
-    }).catch(function (e) { toast(tt('importar.naoLeu', { arquivo: f.name, erro: textoErro(e) }), true); });
+    }).catch(function (e) { toast(tt('importar.naoLeu', { arquivo: f.name, erro: textoErro(e) }), true, e.aviso || 'importar.naoLeu'); });
   }
   /* banco reconhecido pelo conteúdo (hoje, o BTG): o leitor dele define colunas, formatos e o tipo de cada movimento,
      e a prévia é a mesma, sem perguntas */
@@ -2244,7 +2246,7 @@
   }
   /* PDF: só o extrato do Itaú, e só com o painel servido (aberto do disco, o navegador não carrega o pdf.js) */
   function abrirPdf(nome, b) {
-    if (location.protocol === 'file:') return Promise.reject(new Error(tt('importar.pdfDoDisco')));
+    if (location.protocol === 'file:') { var ed = new Error(tt('importar.pdfDoDisco')); ed.aviso = 'importar.pdfDoDisco'; return Promise.reject(ed); }
     return carregarPdfjs().then(function (pdfjs) { return lerPdf(pdfjs, b); }).then(function (ps) {
       var t = tabelaDoPdf(ps), lb = detectarBanco(t.linhas);
       if (!t.comTexto) throw new Error(tt('importar.pdfImagem'));
@@ -2387,7 +2389,7 @@
           }).join('') + '</tbody></table></div>' +
           (r.ignoradas.length ? '<details class="metas"><summary>' + tth('importar.ignoradas', { n: r.ignoradas.length }) + '</summary><ul class="imp-ign">' +
             r.ignoradas.slice(0, 20).map(function (x) { return '<li>' + tth('importar.linhaIgnorada', { n: x.n, motivo: motivoIgnorada(x), celulas: celulas(x.celulas) }) + '</li>'; }).join('') + '</ul></details>' : '') +
-          (rep ? '<p class="aviso">' + tth('importar.repetidos', { n: rep }) + '</p>' : '') +
+          (rep ? '<p class="aviso" data-aviso="importar.repetidos" data-n="' + rep + '">' + tth('importar.repetidos', { n: rep }) + '</p>' : '') +
           previaSaldo(I, r)
         : '<p class="aviso erro">' + tth('importar.nenhumEntendido') + '</p>') + '</fieldset>';
     }
@@ -2548,7 +2550,7 @@
     var h = '<section class="sec"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2><button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + tth(all ? 'painel.voltarMes' : 'painel.verMedia') + '</button></div><div class="kpis">';
     tiles.forEach(function (t) {
       var v = t[3] ? sgn(t[1]) : f0(t[1]);
-      h += '<div class="kpi"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span>' + (t[4] === 'gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
+      h += '<div class="kpi" data-kpi="' + t[4] + '"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span>' + (t[4] === 'gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
     });
     return h + '</div></section>';
   }
@@ -2655,14 +2657,14 @@
       ks.forEach(function (k, i) { h += '<td class="h' + (S.sel === k ? ' selc' : '') + '" style="--i:' + Math.max(0, vals[i] / mxv).toFixed(2) + '">' + (Math.abs(vals[i]) < .5 ? '–' : nn.format(vals[i])) + '</td>'; });
       h += '<td class="avg">' + nn.format(avg / n) + '</td></tr>';
     });
-    function line(lbl, fn, cls) {
+    function line(lbl, fn, cls, id) {
       var a = 0; comp.forEach(function (k) { a += fn(M.by[k]); });
-      var r = '<tr class="tot' + (cls || '') + '"><td>' + lbl + '</td>';
+      var r = '<tr class="tot' + (cls || '') + '"' + (id ? ' data-linha="' + id + '"' : '') + '><td>' + lbl + '</td>';
       ks.forEach(function (k) { r += '<td class="' + (S.sel === k ? 'selc' : '') + '">' + nn.format(fn(M.by[k])) + '</td>'; });
       return r + '<td class="avg">' + nn.format(a / n) + '</td></tr>';
     }
     h += line(tth('comum.gastou'), function (g) { return g.gasto; });
-    if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line(tth('painel.dosQuais', { nome: nomeEnvios() }), function (g) { return g.spend.brasil || 0; }, ' sub');
+    if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line(tth('painel.dosQuais', { nome: nomeEnvios() }), function (g) { return g.spend.brasil || 0; }, ' sub', 'envios');
     h += line(tth('comum.entrou'), function (g) { return g.entrou; });
     h += line(tth('comum.guardou'), function (g) { return g.saved; });
     if (ks.some(function (k) { return Math.abs(M.by[k].movido) >= 0.5; })) h += line(tth('painel.movidoOutras'), function (g) { return g.movido; });
