@@ -9,7 +9,8 @@
     "start": "node scripts/servir.mjs",
     "publicar": "node scripts/publicar.mjs",
     "telas": "node scripts/telas.mjs",
-    "telas:aprovar": "node scripts/telas.mjs --aprovar"
+    "telas:aprovar": "node scripts/telas.mjs --aprovar",
+    "telas:completo": "node scripts/telas.mjs --completo"
   },
   "engines": {
     "node": ">=18"

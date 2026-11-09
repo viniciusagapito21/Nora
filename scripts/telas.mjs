@@ -6,6 +6,9 @@
 //
 //   npm run telas            fotografa em telas/atual/, confere e compara; sai com erro se algo mudou
 //   npm run telas:aprovar    fotografa, confere e, se a conferência passar, troca as referências pelas novas
+//   npm run telas:completo   as mesmas telas nas 4 combinações de idioma e tema (pt-BR e en-GB, claro e escuro), só
+//                            com as conferências (borda, cortado, sobreposto, contraste AA, CSP, chaves): sem
+//                            comparação nem referência; fotos em telas/completo/<idioma>-<tema>/
 //
 // Roda num servidor local próprio (127.0.0.1, porta livre); nenhum dado sai da máquina.
 import { chromium, firefox, webkit } from 'playwright';
@@ -20,7 +23,11 @@ import { fileURLToPath } from 'node:url';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const ATUAL = join(RAIZ, 'telas/atual'), REF = join(RAIZ, 'telas/referencia'), DIFF = join(RAIZ, 'telas/diff');
-const aprovar = process.argv.includes('--aprovar');
+const aprovar = process.argv.includes('--aprovar'), completo = process.argv.includes('--completo');
+if (aprovar && completo) { console.error('--aprovar e --completo não se misturam: o completo não tem referências'); process.exit(1); }
+const COMPLETO = join(RAIZ, 'telas/completo');
+// as combinações do telas:completo, gravadas em nora.prefs antes de abrir (o locale do navegador acompanha o idioma)
+const COMBOS = [['pt-BR', 'claro'], ['pt-BR', 'escuro'], ['en-GB', 'claro'], ['en-GB', 'escuro']];
 // a data e o fuso ficam fixos, para "vence em 3 dias" e o mês em andamento não mudarem com o dia em que roda
 const AGORA = new Date('2026-10-22T12:00:00+01:00');
 
@@ -407,14 +414,16 @@ for (const w of [1280, 390]) {
   } });
 }
 
-rmSync(ATUAL, { recursive: true, force: true }); mkdirSync(ATUAL, { recursive: true });
 const browser = await chromium.launch();
 const erros = [], problemas = [];
 // motores que não abriram: não reprovam a conferência (não é defeito da página), mas saem em destaque no fim
 const naoVerificados = [];
+// fotografa e confere todas as TELAS em pasta; prefs (opcional) vai para nora.prefs e rot prefixa cada problema
+async function fotografar(pasta, prefs, rot) {
+rmSync(pasta, { recursive: true, force: true }); mkdirSync(pasta, { recursive: true });
 for (const s of TELAS) {
-  const arq = `${s.w}-${s.nome}`;
-  const ctx = await browser.newContext({ viewport: { width: s.w, height: s.w > 600 ? 900 : 844 }, deviceScaleFactor: 1, locale: 'pt-BR', timezoneId: 'Europe/Dublin', colorScheme: 'light' });
+  const arq = (rot ? rot + '/' : '') + `${s.w}-${s.nome}`;
+  const ctx = await browser.newContext({ viewport: { width: s.w, height: s.w > 600 ? 900 : 844 }, deviceScaleFactor: 1, locale: prefs ? prefs.idioma : 'pt-BR', timezoneId: 'Europe/Dublin', colorScheme: 'light' });
   const pg = await ctx.newPage();
   await pg.clock.setFixedTime(AGORA);
   pg.on('pageerror', e => erros.push(arq + ': ' + e.message));
@@ -422,7 +431,7 @@ for (const s of TELAS) {
   pg.on('request', r => { if (!pedidoPermitido(r)) problemas.push(`${arq}: pedido fora do permitido: ${r.resourceType()} ${r.url()}`); });
   pg.on('console', m => { if (m.type() === 'error') erros.push(arq + ': ' + m.text()); });
   await pg.goto(s.disco ? URL_DISCO : URL_PAGINA);
-  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, s.storage || {});
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, prefs ? { ...(s.storage || {}), 'nora.prefs': JSON.stringify(prefs) } : s.storage || {});
   await pg.reload(); await pg.waitForTimeout(150);
   if (s.prepara) await s.prepara(pg);
   await pg.evaluate(() => document.fonts.ready);
@@ -430,8 +439,8 @@ for (const s of TELAS) {
   await pg.mouse.move(0, 0); // nada em hover, a não ser na tela da dica
   if (s.hover) await s.hover(pg);
   await pg.waitForTimeout(800);
-  await pg.screenshot({ path: join(ATUAL, arq + '.png'), fullPage: !s.viewport, animations: 'disabled' });
-  writeFileSync(join(ATUAL, arq + '.estilos.txt'), await pg.evaluate(estilosDaPagina));
+  await pg.screenshot({ path: join(pasta, `${s.w}-${s.nome}.png`), fullPage: !s.viewport, animations: 'disabled' });
+  if (!prefs) writeFileSync(join(pasta, `${s.w}-${s.nome}.estilos.txt`), await pg.evaluate(estilosDaPagina));
   (await pg.evaluate(() => window.__violacoes)).forEach(v => problemas.push(`${arq}: violação da CSP: ${v}`));
   // toda chave pedida existe no dicionário (NORA_I18N.faltando vazio)
   (await pg.evaluate(() => (window.NORA_I18N ? NORA_I18N.faltando.map(f => f.idioma + ':' + f.chave) : ['NORA_I18N não carregou'])))
@@ -443,6 +452,20 @@ for (const s of TELAS) {
   c.sobrepostos.slice(0, 5).forEach(x => problemas.push(`${arq}: controles sobrepostos ${x}`));
   await ctx.close();
 }
+}
+
+if (completo) {
+  for (const [idioma, tema] of COMBOS) {
+    const antes = problemas.length + erros.length;
+    await fotografar(join(COMPLETO, `${idioma}-${tema}`), { idioma, tema }, `${idioma}-${tema}`);
+    console.log(`${idioma}-${tema}: ${TELAS.length} telas, ${problemas.length + erros.length - antes} problema(s)`);
+  }
+  await browser.close(); servidor.close();
+  console.log(erros.length ? 'erros no console:\n  ' + erros.join('\n  ') : 'console sem erros');
+  console.log(problemas.length ? `conferência: ${problemas.length} problema(s)\n  ` + problemas.join('\n  ') : 'conferência nas 4 combinações: nada além da borda, nada cortado, nenhum controle sobreposto, contraste AA em todo texto');
+  process.exit(erros.length || problemas.length ? 1 : 0);
+}
+await fotografar(ATUAL, null, '');
 
 // ---------- ida e volta do backup, no navegador ----------
 // carrega o backup completo, fotografa o Resumo e cada carteira, baixa o backup pelo botão, apaga tudo, restaura o

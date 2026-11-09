@@ -4,6 +4,7 @@ dist/
 *.local.csv
 telas/atual/
 telas/diff/
+telas/completo/
 
 # dados pessoais: capturas de tela e extratos reais nunca vão para o git; só os exemplos inventados de exemplo/
 capturas/
