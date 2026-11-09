@@ -40,7 +40,7 @@ for (const arquivo of arquivosParsersDist) {
   cpSync(origem, join(saida, 'parsers', arquivo));
 }
 
-for (const opcional of ['prefs.js', 'i18n.js', 'i18n', 'formato.js']) {
+for (const opcional of ['prefs.js', 'i18n.js', 'i18n', 'formato.js', 'painel-calculos.js']) {
   const origem = join(raiz, '..', opcional);
   if (existsSync(origem)) cpSync(origem, join(saida, opcional), { recursive: true });
 }

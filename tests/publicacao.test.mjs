@@ -22,7 +22,7 @@ test('dist não inclui arquivos de desenvolvimento nem dados locais', () => {
   for (const item of proibidos) assert.ok(!existsSync(join(dist, item)), `${item} não deve estar em dist/`);
 
   const esperados = ['_headers', 'app.js', 'fonts', 'icon.svg', 'index.html', 'logo.svg', 'parsers', 'privacidade.css', 'privacidade.html', 'rules', 'styles.css', 'vendor'];
-  for (const opcional of ['prefs.js', 'i18n.js', 'i18n', 'formato.js']) {
+  for (const opcional of ['prefs.js', 'i18n.js', 'i18n', 'formato.js', 'painel-calculos.js']) {
     if (existsSync(join(raiz, opcional))) esperados.push(opcional);
   }
   assert.deepEqual(readdirSync(dist).sort(), esperados.sort(), 'dist contém apenas os arquivos e diretórios de publicação');
