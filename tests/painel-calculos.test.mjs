@@ -46,7 +46,8 @@ test('P1: meta zero, último dia, fevereiro bissexto e divisão da cota em centa
     ultimaDataISO: '2026-10-31', fimDoMesISO: '2026-10-31'
   });
   assert.equal(ultimoDia.diasRestantes, 0);
-  assert.equal(ultimoDia.cotaCents, null);
+  // D2 do roteiro: no último dia do mês a cota é o próprio livre (20000 - 5000)
+  assert.equal(ultimoDia.cotaCents, 15000);
   assert.equal(ultimoDia.estado, 'dentro');
 
   const bissexto = calculos.cotaDiaria({

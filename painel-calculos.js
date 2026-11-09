@@ -50,8 +50,10 @@ var NORA_PAINEL_CALCULOS = (function () {
     var dias = diasRestantes(entrada.ultimaDataISO, entrada.fimDoMesISO);
     var metaValida = meta > 0n;
     var estado = !metaValida ? 'sem-meta' : livre < 0n ? 'fora' : 'dentro';
-    var cota = metaValida && livre >= 0n && dias > 0
-      ? comoNumeroSeguro(livre / BigInt(dias))
+    /* no último dia do mês (dias 0) a cota é o próprio livre, como define o D2 do roteiro */
+    var divisor = BigInt(dias > 0 ? dias : 1);
+    var cota = metaValida && livre >= 0n
+      ? comoNumeroSeguro(livre / divisor)
       : null;
 
     return {
