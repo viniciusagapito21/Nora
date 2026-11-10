@@ -88,6 +88,7 @@ NORA_DICIONARIOS['en-GB'] = {
   'comum.entrou': 'Money in',
   /* step d: index.html */
   'casca.carregando': 'Loading…',
+  'casca.privacidade': 'Privacy',
   'casca.financas': 'Finances',
   /* step d: chart tooltips */
   'dica.mesEmAndamento': '{mes} · so far',

@@ -1,5 +1,5 @@
-body 15o4ks1 1ln8j76 1ln8j76
-body>main.wrap e86tf4 1yytz64 1yytz64
+body si7s7t 1ln8j76 1ln8j76
+body>main.wrap g9hxls 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin 8pb6pw 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top hxtfdx 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div 1nihfk7 1yytz64 1yytz64
@@ -1157,9 +1157,11 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>div.br.end>span
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>div.br.end>b.num z3v300 yol0eq yol0eq
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>div.br.end>span.bt bjny5f 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>div.br.end>span.bt>i 5vhjq8 ybpzrp ybpzrp
+body>main.wrap>footer.rodape ncti7 4eerhl 4eerhl
+body>main.wrap>footer.rodape>a byhph5 iesfpj iesfpj
 body>div#toast.toast c8u0id 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>input#fin-csv.vh bgqy6c 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh bgqy6c 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh zjgsx2 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh zjgsx2 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 1xksmq8 kiu4ug kiu4ug

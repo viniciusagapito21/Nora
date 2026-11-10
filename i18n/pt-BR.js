@@ -89,6 +89,7 @@ NORA_DICIONARIOS['pt-BR'] = {
   'comum.entrou': 'Entrou',
   /* passo d: index.html */
   'casca.carregando': 'Carregando…',
+  'casca.privacidade': 'Privacidade',
   'casca.financas': 'Finanças',
   /* passo d: dicas do gráfico */
   'dica.mesEmAndamento': '{mes} · em andamento',

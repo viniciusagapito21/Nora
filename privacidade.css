@@ -90,3 +90,4 @@ a:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 4px; 
   .cabecalho { margin-bottom: var(--sp-24); }
   .selo { text-align: right; }
 }
+.voltar { margin: var(--sp-24) 0 0; }
