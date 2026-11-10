@@ -1,4 +1,4 @@
-// Comparação de telas: fotografa as 93 telas do painel (47 em 1280px, 46 em 390px) com o extrato de exemplo
+// Comparação de telas: fotografa as 133 telas do painel (67 em 1280px, 66 em 390px) com o extrato de exemplo
 // inventado, confere cada uma (nada além da borda da tela, nenhum texto cortado, contraste AA) e compara com as
 // capturas de referência em telas/referencia/ (pixels e estilos calculados de todos os elementos).
 // Também faz a ida e volta do backup no navegador: baixa, apaga tudo, restaura, e o painel tem que ficar idêntico;
