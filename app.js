@@ -731,8 +731,21 @@
       if (o.m[cur]) { rec += o.m[cur][0]; vari -= o.m[cur][0]; }
       else { rec += o.v; falFix += o.v; pend.push(o); }
     });
-    return { m: cur, day: day, dim: dim, gasto: g.gasto, proj: fixo + rec + Math.max(0, vari) / day * dim, falFix: falFix, pend: pend, semBase: semBase };
+    /* P1 (D1, D2): meta do mês, livre e cota diária em centavos, contando os dias a partir da última data importada */
+    var metaTotal = 0; cats.forEach(function (c) { metaTotal += +metaCat(c.id) || 0; });
+    var cota = NORA_PAINEL_CALCULOS.cotaDiaria({ metaGastoCents: centavos(metaTotal), gastoCents: centavos(g.gasto), fixasACairCents: centavos(falFix),
+      ultimaDataISO: model.lastDate, fimDoMesISO: cur + '-' + (dim < 10 ? '0' : '') + dim });
+    return { m: cur, day: day, dim: dim, gasto: g.gasto, proj: fixo + rec + Math.max(0, vari) / day * dim, falFix: falFix, pend: pend, semBase: semBase, metaTotal: metaTotal, cota: cota };
   }
+  /* o modelo guarda valores na moeda (somas de t[3] / 100); os cálculos do painel trabalham em centavos inteiros */
+  function centavos(v) { return Math.round((+v || 0) * 100); }
+  /* P2 (D3): taxa de poupança do mês (guardou ÷ entrou, em pontos-base); guardou negativo = retirada, nunca percentual negativo */
+  function taxaDoMes(g) {
+    var s = centavos(g.saved);
+    return NORA_PAINEL_CALCULOS.taxaPoupanca({ entrouCents: centavos(g.entrou), aportesCents: Math.max(0, s), resgatesCents: Math.max(0, -s) });
+  }
+  /* P3: atenção a partir de 80% da meta, "no limite" em 100% exato, estouro só acima de 100% (comparação em centavos) */
+  function alertaCategoria(gasto, meta) { return NORA_PAINEL_CALCULOS.alertaMeta({ gastoCents: centavos(gasto), metaCents: centavos(meta) }); }
   /* metas sugeridas: média dos 3 primeiros meses completos (ou dos que houver), em múltiplos de 5 */
   function sugerirMetas(model, cats) {
     cats = (cats || montarCats(null)).filter(function (c) { return !c.oculta; });
@@ -1722,6 +1735,15 @@
   }
 
   /* ---------- peças da página ---------- */
+  /* ícones do painel (docs/componentes-painel.md): sempre junto de um texto, nunca só a cor */
+  function icone(nome) {
+    var d = { ok: '<circle cx="10" cy="10" r="8"/><path d="M6.5 10.2 9 12.6l4.6-5.2"/>',
+      estouro: '<path d="M6.8 2.5h6.4l4.3 4.3v6.4l-4.3 4.3H6.8l-4.3-4.3V6.8Z"/><path d="M10 6.5v4.5"/><circle cx="10" cy="14" r="0.7" fill="currentColor"/>',
+      atencao: '<path d="M10 3 2.2 16.5h15.6Z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.6" fill="currentColor"/>',
+      retirada: '<path d="M4 13v3h12v-3"/><path d="M10 12V4"/><path d="M6.5 7.5 10 4l3.5 3.5"/>',
+      info: '<circle cx="10" cy="10" r="8"/><path d="M10 9v4.5"/><circle cx="10" cy="6.3" r="0.7" fill="currentColor"/>' }[nome];
+    return '<svg class="painel-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  }
   /* o logo (o mesmo desenho do logo.svg) dentro da página, para seguir o tema: o "N" no teal (--accent) e a palavra na cor do
      texto (currentColor = --fg) */
   function logo() {
@@ -2588,13 +2610,25 @@
       /* o 5º campo identifica o cartão (o rótulo muda com o idioma) */
       [tth('comum.entrou'), s.entrou, all ? (aE == null ? '' : tth('painel.soMesesRenda')) : (aE == null ? '' : dl(s.entrou, aE, true, 'media') + '<br>' + tth('painel.mediaValor', { valor: f0(aE) })), '', 'entrou'],
       [tth('comum.gastou'), s.gasto, (all ? '' : (aG == null ? '' : dl(s.gasto, aG, false, 'media') + '<br>')) + dl(s.gasto, pt, false, 'orcamento') + ' ' + tth('painel.deValor', { valor: f0(pt) }), '', 'gastou'],
-      [tth('comum.guardou'), s.saved, dl(s.saved, pp, true, 'objetivo') + ' ' + tth('painel.deValor', { valor: f0(pp) }) + '<br>' + tth('painel.reservaInvest'), '', 'guardou'],
+      [tth('comum.guardou'), s.saved, dl(s.saved, pp, true, 'objetivo') + ' ' + tth('painel.deValor', { valor: f0(pp) }) + '<br>' + tth('painel.reservaInvest'), '', 'guardou', all ? null : taxaDoMes(s)],
       [tth('comum.saldoMes'), s.saldo, Math.abs(s.movido) >= 0.5 ? tth('painel.formulaMovido') + '<br>' + fraseMovido(s.movido, f0) : tth('painel.formula'), 'sg', 'saldo']
     ];
-    var h = '<section class="sec"><div class="sec-top"><h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2><button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + tth(all ? 'painel.voltarMes' : 'painel.verMedia') + '</button></div><div class="kpis">';
+    var titulo = '<h2>' + esc(lab.charAt(0).toUpperCase() + lab.slice(1)) + '</h2>';
+    /* P4b: ‹ › trocam o mês (o mesmo que tocar na barra do gráfico); desligados no primeiro e no último mês */
+    if (!all && M.keys.length > 1) {
+      var i = M.keys.indexOf(S.sel), ant = M.keys[i - 1], prox = M.keys[i + 1];
+      titulo = '<div class="painel-mes-nav" role="group" aria-label="' + tth('mesnav.grupo') + '">' +
+        '<button type="button" class="btn painel-mes-btn" data-mesnav="ant" data-sel="' + (ant || '') + '"' + (ant ? ' aria-label="' + tth('mesnav.anterior', { mes: mLabel(ant) }) + '"' : ' disabled aria-label="' + tth('mesnav.semAnterior') + '"') + '><span aria-hidden="true">‹</span></button>' +
+        titulo +
+        '<button type="button" class="btn painel-mes-btn" data-mesnav="prox" data-sel="' + (prox || '') + '"' + (prox ? ' aria-label="' + tth('mesnav.proximo', { mes: mLabel(prox) }) + '"' : ' disabled aria-label="' + tth('mesnav.semProximo') + '"') + '><span aria-hidden="true">›</span></button></div>';
+    }
+    var h = '<section class="sec"><div class="sec-top">' + titulo + '<button class="btn sm" type="button" data-all aria-pressed="' + all + '">' + tth(all ? 'painel.voltarMes' : 'painel.verMedia') + '</button></div><div class="kpis">';
     tiles.forEach(function (t) {
-      var v = t[3] ? sgn(t[1]) : f0(t[1]);
-      h += '<div class="kpi" data-kpi="' + t[4] + '"><span class="l">' + t[0] + '</span><span class="v">' + v + '</span>' + (t[4] === 'gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
+      var v = t[3] ? sgn(t[1]) : f0(t[1]), tx = t[5], vh = '<span class="v">' + v + '</span>';
+      /* P2: retirada no lugar do valor negativo; taxa positiva logo abaixo do valor */
+      if (tx && tx.tipo === 'retirada') vh = '<span class="painel-taxa-retirada">' + icone('retirada') + '<span>' + tth('taxa.retirou', { valor: f0(tx.retiradaCents / 100) }) + '</span></span>';
+      else if (tx && tx.tipo === 'taxa') vh += '<span class="painel-taxa-destaque">' + icone('ok') + '<span>' + tth('taxa.doQueEntrou', { pct: pct(tx.pontosBase / 100) }) + '</span></span>';
+      h += '<div class="kpi" data-kpi="' + t[4] + '"><span class="l">' + t[0] + '</span>' + vh + (t[4] === 'gastou' ? notaEnvios(s.spend.brasil || 0, f0, all) : '') + '<span class="s">' + t[2] + '</span></div>';
     });
     return h + '</div></section>';
   }
@@ -2644,8 +2678,11 @@
       else if (Math.abs(over) <= 0.5) st = tth('painel.naMeta', { destaque: cru('<span class="d ok">' + tth('painel.naMetaDestaque') + '</span>'), meta: f0(x.g) });
       else if (over > 0.5) st = tth('painel.daMeta', { destaque: cru('<span class="d bad">' + tth('painel.acimaDestaque', { valor: f0(over) }) + '</span>'), meta: f0(x.g) });
       else st = tth('painel.daMeta', { destaque: cru('<span class="d good">' + tth('painel.abaixoDestaque', { valor: f0(-over) }) + '</span>'), meta: f0(x.g) });
-      h += '<button type="button" class="cat" data-f="' + x.c.id + '" aria-pressed="' + (S.f.indexOf(x.c.id) >= 0) + '"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(catNome(x.c)) + '</span><span class="val">' + f0(x.v) + '</span>' +
-        '<span class="track"><i style="width:' + w.toFixed(1) + '%;background:' + colorOf(x.c) + '"></i>' + (x.g > 0 ? '<b class="goal" style="left:calc(' + gp.toFixed(1) + '% - 1px)"></b>' : '') + '</span><span class="st">' + st + '</span></button>';
+      /* P3: atenção (80% a 100%) e estouro (acima de 100%) com ícone e texto; a cor da barra vem da classe */
+      var al = x.g > 0 ? alertaCategoria(x.v, x.g) : null, nv = al && (al.nivel === 'limite' ? 'atencao' : al.nivel), cls = { atencao: ' painel-alerta-atencao', estouro: ' painel-alerta-estouro' }[nv] || '';
+      if (cls) st = '<span class="painel-alerta-selo ' + nv + '">' + icone(nv) + '<span>' + tth(al.nivel === 'estouro' ? 'alerta.estouro' : al.nivel === 'limite' ? 'alerta.limite' : 'alerta.atencao', { pct: pct(Math.floor(al.pontosBase / 100)), valor: f0(al.acimaCents / 100) }) + '</span></span><span>' + st + '</span>';
+      h += '<button type="button" class="cat' + cls + '" data-f="' + x.c.id + '" aria-pressed="' + (S.f.indexOf(x.c.id) >= 0) + '"><i class="sw" style="background:' + colorOf(x.c) + '"></i><span class="nm">' + esc(catNome(x.c)) + '</span><span class="val">' + f0(x.v) + '</span>' +
+        '<span class="track"><i style="width:' + w.toFixed(1) + '%' + (cls ? '' : ';background:' + colorOf(x.c)) + '"></i>' + (x.g > 0 ? '<b class="goal" style="left:calc(' + gp.toFixed(1) + '% - 1px)"></b>' : '') + '</span><span class="st">' + st + '</span></button>';
     });
     h += '<details class="metas" id="fin-metas"' + (S.metasOpen ? ' open' : '') + '><summary>' + tth('painel.editarMetas') + '</summary><form id="fin-fmetas"><div class="mgrid">' +
       metasCampos('m') + '</div><button class="btn sm pri" type="submit">' + tth('painel.salvarMetas') + '</button></form></details></div></div>';
@@ -3094,7 +3131,7 @@
     var cur = M.partial, h = '<section class="sec"><div class="sec-top"><h2>' + tth('previsao.titulo') + '</h2>';
     if (!cur) return h + '</div><div class="card"><p class="passo">' + tth('previsao.semMesAtual', { mes: mLabel(M.keys[M.keys.length - 1]) }) + '</p></div></section>';
     var P = preverMes(M, planCat, CATST), g = M.by[cur], p = cur.split('-').map(Number), dim = P.dim, day = P.day, left = Math.max(1, dim - day);
-    var proj = P.proj, falFix = P.falFix, meta = planTotal(), sobra = meta - g.gasto - falFix, porDia = sobra / left, dif = proj - meta;
+    var proj = P.proj, falFix = P.falFix, meta = planTotal(), porDia = P.cota.cotaCents != null ? P.cota.cotaCents / 100 : 0, dif = proj - meta;
     var mx = Math.max(proj, meta, g.gasto, 1), cw = cartAtual(), rs = TR && cw ? saidasPendentes(TR.S, cw.id, cur) : [], pend = 0;
     if (rs.length) pend = Math.max(0, proj - preverMes(buildModel(S.months, S.over, S.plan && S.plan.titular, S.plan && S.plan.pais, CATST, { dia: cw.saldosDia, ancora: cw.ancora }, comPendentes(cw.transf, rs), { envios: cw.envios }), planCat, CATST).proj);
     var st = statusPrevisao(dif, pend, f0);
@@ -3106,6 +3143,30 @@
         tth(falFix > 0.5 ? 'previsao.metaUsadaFixas' : 'previsao.metaUsada', { fixas: f0(falFix) })) +
       ' ' + tth('previsao.entramValor', { lista: listaE(CATSV.filter(function (c) { return c.fixa; }).map(function (c) { return c.nome; }).concat([tt('previsao.contasDetectadas')])), dia: day }) + '</p>' + pendBotao(pend) +
       (P.semBase.length ? '<p class="aviso">' + tth('previsao.semBase', { n: P.semBase.length, lista: cru(P.semBase.map(function (id) { return '<b>' + esc(catPor(id).nome) + '</b>'; }).join(', ')) }) + '</p>' : '') + '</div></section>';
+  }
+  /* P1: a cota diária em destaque (mês em andamento), acima da dobra no celular. Mesma conta da Previsão (preverMes) */
+  function cotaCard() {
+    var cur = M.partial;
+    if (!cur) return '';
+    var P = preverMes(M, planCat, CATST), C = P.cota, mc = centavos(P.metaTotal), gc = centavos(P.gasto), fc = centavos(P.falFix), cents = function (c) { return f0(c / 100); };
+    if (C.estado === 'sem-meta') return '';
+    var fora = C.estado === 'fora', mx = Math.max(mc, gc + fc, 1), pc = function (v) { return (v / mx * 100).toFixed(1) + '%'; };
+    var dias = C.diasRestantes ? tth('cota.diasPelaFrente', { n: C.diasRestantes }) : tth('cota.ultimoDia');
+    var h = '<section class="sec"><div class="card painel-cota-card' + (fora ? ' em-estouro' : '') + '" data-painel="cota"><div class="painel-cota-cab"><span class="painel-cota-rotulo">' + tth('cota.rotulo', { mes: mNome(cur) }) + '</span>' +
+      '<span class="painel-selo ' + (fora ? 'estouro' : 'ok') + '">' + icone(fora ? 'estouro' : 'ok') + '<span>' + tth(fora ? 'cota.seloFora' : 'cota.seloDentro') + '</span></span></div><div class="painel-cota-destaque">';
+    if (fora) h += '<p class="painel-cota-valor em-estouro">' + icone('estouro') + '<span>' + tth('cota.metaUsadaAcima', { valor: cents(-C.livreCents) }) + '</span></p>' +
+      '<p class="painel-cota-resumo">' + (C.diasRestantes ? tth('cota.semCota', { dias: cru('<strong>' + dias + '</strong>'), valor: cru('<strong>' + esc(cents(C.comprometidoCents)) + '</strong>') }) : tth('cota.comprometido', { valor: cru('<strong>' + esc(cents(C.comprometidoCents)) + '</strong>') })) + '</p>';
+    else h += '<p class="painel-cota-valor">' + esc(cents(C.cotaCents)) + ' <small>' + tth('cota.porDia') + '</small></p>' +
+      '<p class="painel-cota-resumo"><strong>' + tth('cota.livres', { valor: cents(C.livreCents) }) + '</strong> · ' + dias + '</p>';
+    h += '</div><div class="painel-cota-trilha" role="img" aria-label="' + tth(fora ? 'cota.trilhaAriaFora' : 'cota.trilhaAria', { meta: cents(mc), gasto: cents(gc), fixas: cents(fc), livre: cents(Math.abs(C.livreCents)) }) + '">' +
+      '<i class="painel-cota-seg ' + (fora ? 'gasto-acima' : 'gasto-ok') + '" style="width:' + pc(gc) + '"></i>' +
+      (fc > 0 ? '<i class="painel-cota-seg ' + (fora ? 'fixas-acima' : 'fixas-ok') + '" style="left:' + pc(gc) + ';width:' + pc(fc) + '"></i>' : '') +
+      '<b class="painel-cota-meta' + (mc >= gc + fc ? ' no-fim' : '') + '"' + (mc >= gc + fc ? '' : ' style="left:calc(' + pc(mc) + ' - 1px)"') + '></b></div>' +
+      '<div class="painel-cota-legenda"><span><i class="sw ' + (fora ? 'painel-cota-sw-estouro' : 'painel-cota-sw-gasto') + '" aria-hidden="true"></i>' + tth('cota.legGasto', { valor: cents(gc) }) + '</span>' +
+      '<span><i class="sw ' + (fora ? 'painel-cota-sw-atencao' : 'painel-cota-sw-fixas') + '" aria-hidden="true"></i>' + tth('cota.legFixas', { valor: cents(fc) }) + '</span>' +
+      '<span><i class="sw line" aria-hidden="true"></i>' + tth('cota.legMeta', { valor: cents(mc) }) + '</span></div>' +
+      '<dl class="painel-cota-conta"><div><dt>' + tth('previsao.metaGasto') + '</dt><dd>' + esc(cents(mc)) + '</dd></div><div><dt>' + tth('cota.jaGasto') + '</dt><dd>' + esc(cents(gc)) + '</dd></div><div><dt>' + tth('cota.fixasPorCair') + '</dt><dd>' + esc(cents(fc)) + '</dd></div></dl></div></section>';
+    return h;
   }
   /* a pessoa nova não sabe que o aluguel por transferência cai em "outros": pergunta uma vez */
   function aluguelSugerido() { return CPOR.aluguel && !CPOR.aluguel.oculta ? sugerirAluguel(RECS, S.plan && S.plan.naoAluguel) : null; }
@@ -3140,6 +3201,7 @@
     items.forEach(function (x) { if (x.v != null) mx = Math.max(mx, x.v); });
     return '<div class="vb">' + items.map(function (x) {
       var hh = x.v != null && mx > 0 ? Math.max(2, Math.max(0, x.v) / mx * 110) : 2;
+      if (x.retirada != null) return '<div class="vbc painel-taxa-resgate' + (x.at ? ' at' : '') + '"><b>' + icone('retirada') + '<em>' + tth('taxa.saida') + '</em></b><i></i><span>' + esc(mShort(x.k)) + (x.parc ? '*' : '') + '</span></div>';
       return '<div class="vbc' + (x.at ? ' at' : '') + '"><b>' + (x.v == null ? '–' : fmt(x.v)) + '</b><i style="height:' + hh.toFixed(0) + 'px"></i><span>' + esc(mShort(x.k)) + (x.parc ? '*' : '') + '</span></div>';
     }).join('') + '</div>';
   }
@@ -3152,17 +3214,20 @@
       (M.partial ? '<p class="s">' + tth('plano.mesEmAndamento') + '</p>' : '') + '</div></section>';
   }
   function taxaPoup() {
-    var ks = M.keys.slice(-6), rate = function (k) { var g = M.by[k]; return g.entrou > 0 ? g.saved / g.entrou * 100 : null; };
+    /* P2: taxa por taxaDoMes (pontos-base); mês com retirada não entra nas médias e aparece como retirada */
+    var ks = M.keys.slice(-6), rate = function (k) { var x = taxaDoMes(M.by[k]); return x.tipo === 'taxa' ? x.pontosBase / 100 : null; };
     var comp = M.complete.map(rate).filter(function (v) { return v != null; }), avg = comp.length ? comp.reduce(function (a, b) { return a + b; }, 0) / comp.length : null;
     var l3 = comp.slice(-3), p3 = comp.slice(-6, -3), tr = '';
     if (l3.length && p3.length) {
       var a1 = l3.reduce(function (a, b) { return a + b; }, 0) / l3.length, a0 = p3.reduce(function (a, b) { return a + b; }, 0) / p3.length, d = a1 - a0;
       tr = Math.abs(d) < 1 ? '<span class="d ok">' + tth('plano.estavel') + '</span>' : d > 0 ? '<span class="d good">' + tth('plano.subiuPontos', { n: nn.format(d) }) + '</span>' : '<span class="d bad">' + tth('plano.caiuPontos', { n: nn.format(-d) }) + '</span>';
     }
-    var items = ks.map(function (k) { return { k: k, v: rate(k), at: k === ks[ks.length - 1], parc: k === M.partial }; });
+    var items = ks.map(function (k) { var x = taxaDoMes(M.by[k]); return { k: k, v: rate(k), at: k === ks[ks.length - 1], parc: k === M.partial, retirada: x.tipo === 'retirada' ? x.retiradaCents / 100 : null }; });
+    var ret = items.filter(function (x) { return x.retirada != null; });
     var alvo = 0, nE = 0; M.complete.forEach(function (k) { if (M.by[k].entrou > 0) { alvo += M.by[k].entrou; nE++; } });
     alvo = nE ? planPoupar() / (alvo / nE) * 100 : null;
     return '<section class="sec"><div class="sec-top"><h2>' + tth('plano.taxaTitulo') + '</h2><span class="hint">' + tth('plano.taxaDica') + '</span></div><div class="card">' + vbars(items, pct) +
+      ret.map(function (x) { return '<p class="painel-taxa-nota">' + icone('retirada') + '<span>' + tth('taxa.nota', { mes: cru('<strong>' + esc(mLabel(x.k)) + (x.parc ? '*' : '') + ':</strong>'), valor: f0(x.retirada) }) + '</span></p>'; }).join('') +
       '<div class="tri3"><div><b class="num">' + (avg == null ? '–' : pct(avg)) + '</b><span>' + tth('plano.mediaCompletos') + '</span></div><div><b>' + (tr || '–') + '</b><span>' + tth('plano.ultimos3') + '</span></div><div><b class="num">' + (alvo == null ? '–' : pct(alvo)) + '</b><span>' + tth('plano.metaGuardar', { valor: f0(planPoupar()) }) + '</span></div></div>' +
       (M.partial ? '<p class="s">' + tth('plano.mesEmAndamento') + '</p>' : '') + '</div></section>';
   }
@@ -3201,7 +3266,7 @@
     }
     if (!M.keys.length) { root.innerHTML = header() + abas() + emptyState(); return; }
     var uma = !variasCarteiras();
-    root.innerHTML = header() + abas() + perguntaAluguel() + perguntaEnvios() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
+    root.innerHTML = header() + abas() + perguntaAluguel() + perguntaEnvios() + cotaCard() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
       '<p class="passo">' + tth(bancoAtual() === 'revolut' ? 'casca.fimMesRevolut' : bancoAtual() === 'itau' ? 'casca.fimMesPdf' : 'casca.fimMesPlanilha', { origem: origem() }) + '</p>' + cashBridge();
@@ -3364,7 +3429,14 @@
       return;
     }
     if (t.hasAttribute('data-pixtit-desfazer')) { salvarPixTitular(desfazerPixTitular(S.over, cartAtual().pixTitular), tt('msg.pixDesfeito')); return; }
-    if (t.hasAttribute('data-sel')) { S.sel = t.getAttribute('data-sel'); S.more = 12; hideTip(); render(); return; }
+    if (t.hasAttribute('data-sel')) {
+      if (!t.getAttribute('data-sel')) return;
+      var lado = t.getAttribute('data-mesnav');
+      S.sel = t.getAttribute('data-sel'); S.more = 12; hideTip(); render();
+      /* o foco volta para a mesma seta (se ainda ativa), para andar vários meses pelo teclado; senão, para a outra */
+      if (lado) { var b = $('[data-mesnav="' + lado + '"]'), o = $('[data-mesnav="' + (lado === 'ant' ? 'prox' : 'ant') + '"]'); if (b && !b.disabled) b.focus(); else if (o) o.focus(); }
+      return;
+    }
     if (t.hasAttribute('data-all')) { S.sel = S.sel === 'all' ? (M.complete.length ? M.complete[M.complete.length - 1] : M.keys[M.keys.length - 1]) : 'all'; S.more = 12; render(); return; }
     if (t.hasAttribute('data-f')) {
       var f = t.getAttribute('data-f'), ix = S.f.indexOf(f), op = t.classList.contains('fopt');

@@ -17,7 +17,7 @@ const csv = readFileSync(new URL('../exemplo/extrato-exemplo.csv', import.meta.u
 
 // carrega o núcleo sozinho; o titular entra como parâmetro de classify/buildModel
 function load() {
-  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, resumoBackup, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos, erroCod };')();
+  return new Function(core + '; return { parseCSV, extractTx, moedasNoExtrato, cents, classify, buildModel, migrate, lerSalvo, resumoDados, sugerirMetas, detectarRecorrentes, sugerirAluguel, preverMes, CATS, PAISES_COM_REGRAS, moedaTravada, montarCats, slotsLivres, criarCategoria, listaMetasPoupanca, migrarAteV3, paraV3, compor, decompor, novaCarteira, editarCarteira, excluirCarteira, escolherCarteira, temLeitor, BANCOS, tamanhoSalvo, ESPACO_AVISO, decodificar, detectarSeparador, detectarCabecalho, sugerirColunas, perguntasImportacao, interpretarCSV, prepararImportacao, lembrarMapa, assinatura, txKey, fechamentos, conferirSaldos, trocarMoedaPrincipal, paraPrincipal, moedasSemPrincipal, diasDesde, juntarPeriodos, cobreMes, resumir, mesResumo, previsaoResumo, passaMesmo, resumoBackup, sugerirTransferencias, transferenciasConfirmadas, confirmarTransferencia, desfazerTransferencia, dispensarSugestao, contarTransferencias, juntarMovimentos, erroCod, taxaDoMes, alertaCategoria };')();
 }
 function months(api) {
   const m = {};
@@ -851,7 +851,7 @@ test('sem coluna de saldo o modelo marca semSaldo e não inventa saldo', () => {
 test('a página carrega as regras de cada país e os leitores de banco antes do app.js, do próprio projeto', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const ordem = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(ordem, ['prefs.js', 'i18n/pt-BR.js', 'i18n/en-GB.js', 'i18n.js', 'formato.js', 'rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
+  assert.deepEqual(ordem, ['prefs.js', 'i18n/pt-BR.js', 'i18n/en-GB.js', 'i18n.js', 'formato.js', 'painel-calculos.js', 'rules/ie.js', 'rules/br.js', 'parsers/revolut.js', 'parsers/btg.js', 'parsers/itau.js', 'app.js']);
 });
 
 test('fontes sem preload com crossorigin (dá erro de CORS ao abrir o index.html do disco)', () => {
@@ -2131,4 +2131,54 @@ test('erroCod: um Error com a frase pt-BR de sempre, mais o código e as variáv
   assert.equal(e.codigo, 'mesRuim');
   assert.deepEqual(e.vars, { m: 'setembro' });
   assert.deepEqual(api.erroCod('x', undefined, 'y').vars, {});
+});
+
+// P1 do painel (D1, D2): preverMes devolve meta, livre, dias restantes e cota em centavos, pelo NORA_PAINEL_CALCULOS
+test('P1: cota diária no exemplo é a mesma conta de antes ((meta − gasto − fixas por cair) / dias que faltam)', () => {
+  const api = load();
+  const M = api.buildModel(months(api), {}, 'Maria Silva');
+  const sug = api.sugerirMetas(M), P = api.preverMes(M, id => sug.cats[id]);
+  const left = Math.max(1, P.dim - P.day), porDiaAntes = (P.metaTotal - P.gasto - P.falFix) / left;
+  assert.equal(P.cota.diasRestantes, P.dim - P.day);
+  assert.equal(P.cota.livreCents, Math.round((P.metaTotal - P.gasto - P.falFix) * 100));
+  assert.equal(P.cota.estado, 'dentro');
+  assert.equal(Math.round(P.cota.cotaCents / 100), Math.round(porDiaAntes), 'o número que a tela mostra não muda');
+});
+test('P1: meses de 28, 29, 30 e 31 dias, estouro e sem meta', () => {
+  const api = load();
+  const um = (d, meta) => { const M = api.buildModel(meses([['2026-08-10', 'Lidl', -3000], [d, 'Tesco', -1000]]), {}, ''); return api.preverMes(M, id => (id === 'mercado' ? meta : 0)); };
+  for (const [d, dim] of [['2027-02-27', 28], ['2028-02-28', 29], ['2026-09-29', 30], ['2026-10-30', 31]]) {
+    const P = um(d, 100); assert.equal(P.dim, dim, d); assert.equal(P.cota.diasRestantes, 1, d); assert.equal(P.cota.cotaCents, 9000, d);
+  }
+  // extrato até o último dia: o mês está completo, sem previsão nem cota (o último dia com cota = livre está em painel-calculos.test.mjs)
+  assert.equal(um('2026-10-31', 100), null);
+  const estouro = um('2026-10-20', 5);
+  assert.equal(estouro.cota.estado, 'fora'); assert.equal(estouro.cota.livreCents, -500); assert.equal(estouro.cota.cotaCents, null);
+  const sem = um('2026-10-20', 0);
+  assert.equal(sem.cota.estado, 'sem-meta'); assert.equal(sem.cota.cotaCents, null);
+});
+test('P1: dias restantes não dependem do fuso (Dublin, São Paulo, Auckland)', () => {
+  const script = "const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const html=fs.readFileSync('index.html','utf8');" +
+    "const antes=[...html.matchAll(/<script src=\"([^\"]+)\"/g)].map(m=>m[1]).filter(f=>f!=='app.js'&&f!=='prefs.js');" +
+    "const core=antes.map(f=>fs.readFileSync(f,'utf8')).join('\\n')+app.slice(app.indexOf('/*CORE-START*/'),app.indexOf('/*CORE-END*/'));" +
+    "const api=new Function(core+';return {buildModel,preverMes};')();" +
+    "const M=api.buildModel({'2026-08':[['2026-08-10','Lidl','Merchant',-3000,0]],'2026-10':[['2026-10-30','Tesco','Merchant',-1000,0]]},{},'');" +
+    "const P=api.preverMes(M,id=>id==='mercado'?100:0);process.stdout.write(JSON.stringify([P.dim,P.day,P.cota.diasRestantes,P.cota.cotaCents]));";
+  const raiz = fileURLToPath(new URL('..', import.meta.url));
+  for (const TZ of ['Europe/Dublin', 'America/Sao_Paulo', 'Pacific/Auckland'])
+    assert.equal(execFileSync(process.execPath, ['-e', script], { cwd: raiz, env: { ...process.env, TZ } }).toString(), '[31,30,1,9000]', TZ);
+});
+test('P2: taxa de poupança em pontos-base inteiros; retirada no lugar de percentual negativo; sem entrada, sem taxa', () => {
+  const api = load();
+  assert.deepEqual({ ...api.taxaDoMes({ entrou: 2000, saved: 360 }) }, { tipo: 'taxa', pontosBase: 1800, retiradaCents: 0 });
+  assert.deepEqual({ ...api.taxaDoMes({ entrou: 2000, saved: -220 }) }, { tipo: 'retirada', pontosBase: 0, retiradaCents: 22000 });
+  assert.equal(api.taxaDoMes({ entrou: 0, saved: 50 }).tipo, 'sem-entrada');
+  assert.equal(api.taxaDoMes({ entrou: 3, saved: 1 }).pontosBase, 3333);
+});
+test('P3: alerta de meta em inteiros: 80% atenção, 100% exato no limite, acima de 100% estouro', () => {
+  const api = load();
+  const n = (g, m) => api.alertaCategoria(g, m).nivel;
+  assert.equal(n(159.99, 200), 'ok'); assert.equal(n(160, 200), 'atencao'); assert.equal(n(200, 200), 'limite'); assert.equal(n(200.01, 200), 'estouro');
+  assert.equal(n(50, 0), 'sem-meta');
+  assert.equal(api.alertaCategoria(240, 200).acimaCents, 4000);
 });
