@@ -10,7 +10,12 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path bda6v
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path lc8ir0 1cw4jb2 1cw4jb2
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l 1bkbh5l 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm n9tzk3 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1kj6gnu 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn 1coz7p5 onl410 onl410
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg 1x3j4qe bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg>path b08m2d bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg>circle 13g4nkq bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>span 106wwn9 1b0zbjm 1b0zbjm
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.primario z78tfl cjuxk0 cjuxk0
 body>main.wrap>section#fin-app.view.fin>section#fin-imp.sec 13qrtdm 1yytz64 1yytz64

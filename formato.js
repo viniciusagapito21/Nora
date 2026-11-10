@@ -285,9 +285,25 @@ var NORA_FORMATO = (function () {
     function fP0(valor, codigo) { return f0(valor, codigo); }
     function fW(valor, codigo) { return f0(valor, codigo); }
 
+    /* número digitado pela pessoa (saldo do banco, metas, câmbio, valores): com vírgula e ponto juntos, o último é o
+       decimal (1.234,56 e 1,234.56 nos dois idiomas); com um só, o idioma decide quando ele pode ser separador de milhar:
+       em pt-BR "1.234" é mil duzentos e trinta e quatro e "12,5" é doze e meio; em en-GB "1,234" é mil duzentos e trinta e
+       quatro e "12.5" é doze e meio. Sem número: NaN */
+    function lerNumero(texto) {
+      var s = String(texto == null ? '' : texto).replace(/\u2212/g, '-').replace(/[^\d,.\-]/g, '');
+      if (!/\d/.test(s)) return NaN;
+      var v = s.lastIndexOf(','), p = s.lastIndexOf('.'), milharPt = /^-?\d{1,3}(\.\d{3})+$/, milharEn = /^-?\d{1,3}(,\d{3})+$/;
+      if (v >= 0 && p >= 0) s = v > p ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+      else if (v >= 0) s = local !== 'pt-BR' && milharEn.test(s) ? s.replace(/,/g, '') : s.replace(/,/g, '.');
+      else if (p >= 0 && local === 'pt-BR' && milharPt.test(s)) s = s.replace(/\./g, '');
+      if ((s.match(/\./g) || []).length > 1) return NaN;
+      return parseFloat(s);
+    }
+
     return {
       idioma: local,
       neutro: NEUTRO,
+      lerNumero: lerNumero,
       dinheiroCentavos: dinheiroCentavos,
       dinheiroCentavosSemSimbolo: dinheiroCentavosSemSimbolo,
       dinheiro: moeda,

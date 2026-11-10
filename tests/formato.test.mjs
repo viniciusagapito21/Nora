@@ -158,3 +158,19 @@ test('Kosovo/XK tem nome fixo e valores inválidos retornam o neutro', () => {
   assert.ok(invalidos.every(texto => texto === pt.neutro));
   assert.doesNotMatch(invalidos.join(' '), /NaN|undefined/);
 });
+
+test('lerNumero: o último sinal é o decimal; com um só, o idioma decide o separador de milhar', () => {
+  const pt = contexto.NORA_FORMATO.para('pt-BR'), en = contexto.NORA_FORMATO.para('en-GB');
+  for (const f of [pt, en]) {
+    assert.equal(f.lerNumero('1.234,56'), 1234.56); assert.equal(f.lerNumero('1,234.56'), 1234.56);
+    assert.equal(f.lerNumero('€ 20,630.00'), 20630); assert.equal(f.lerNumero('R$ 20.630,00'), 20630);
+    assert.equal(f.lerNumero('−50,25'), -50.25); assert.equal(f.lerNumero('-1,234.5'), -1234.5);
+    assert.ok(Number.isNaN(f.lerNumero(''))); assert.ok(Number.isNaN(f.lerNumero('abc'))); assert.ok(Number.isNaN(f.lerNumero('1.2.3,4.5')));
+    assert.equal(f.lerNumero('0,86'), 0.86); assert.equal(f.lerNumero('12'), 12);
+  }
+  // pt-BR: igual ao parseNum antigo do app.js
+  assert.equal(pt.lerNumero('1.234'), 1234); assert.equal(pt.lerNumero('12.5'), 12.5); assert.equal(pt.lerNumero('1,234'), 1.234);
+  // en-GB
+  assert.equal(en.lerNumero('1,234'), 1234); assert.equal(en.lerNumero('1.234'), 1.234); assert.equal(en.lerNumero('12,5'), 12.5);
+  assert.equal(en.lerNumero('1,234,567'), 1234567);
+});

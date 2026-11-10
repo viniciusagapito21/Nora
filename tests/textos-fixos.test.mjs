@@ -26,7 +26,7 @@ const AREAS_FEITAS = {
     'recorrentes', 'vbars', 'enviosBrasil', 'taxaPoup', 'statusPrevisao', 'pendNum', 'pendFrase', 'pendBotao'],
   'configurações: carteiras, países, moedas e câmbio': ['camposCambio', 'lerCambios', 'resumoCambio', 'opcoesPais', 'notaRegrasPais', 'configurado', 'temRegras', 'suportado',
     'nomePais', 'avisoSuporte', 'opcoes', 'opcoesMoeda', 'carteirasCampos', 'lerCarteira', 'telaExcluirCarteira', 'bancosTela'],
-  'configurações: formulário, categorias e seus dados': ['setup', 'preferenciasCampos', 'mudarPreferencia', 'descExibida', 'corDaBarra', 'seguirSistema', 'logo', 'icone', 'cotaCard', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
+  'configurações: formulário, categorias e seus dados': ['setup', 'preferenciasCampos', 'mudarPreferencia', 'descExibida', 'corDaBarra', 'seguirSistema', 'logo', 'icone', 'cotaCard', 'privado', 'oculto', 'nv', 'real', 'olho', 'botaoPrivado', 'faixaPrivado', 'metasCamposReal', 'categoriasCampos', 'lerCategorias', 'baixar', 'baixarBackup', 'baixarCopiaIlegivel', 'lerBackup', 'resumoTxt',
     'temDados', 'secaoDados', 'telaRestaurar', 'telaApagar', 'telaBloqueio'],
   'importação: prévia e resultado': ['previaSaldo', 'textoBotao', 'confirmarImportacao'],
   'importação: leitura, erros e avisos': ['handleFiles', 'mudarImportacao', 'abrirGenerico', 'comLeitor', 'linhasDoArquivo', 'abrirPdf', 'carregarPdfjs', 'confSaldo', 'avisoLeitor'],

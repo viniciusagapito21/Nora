@@ -138,3 +138,9 @@ test('tema automático segue o sistema; o escolhido vence o sistema', () => {
   const { P } = abrir({ escuro: true });
   assert.equal(P.temaEfetivo({ tema: 'auto' }), 'escuro'); assert.equal(P.temaEfetivo({ tema: 'claro' }), 'claro');
 });
+
+test('privado: só true liga e só então é gravado; qualquer outro valor some', () => {
+  const { P } = abrir();
+  assert.deepEqual({ ...P.limpar({ idioma: 'en-GB', tema: 'escuro', privado: true }) }, { idioma: 'en-GB', tema: 'escuro', privado: true });
+  for (const v of [false, 'true', 1, null, undefined]) assert.deepEqual({ ...P.limpar({ privado: v }) }, { idioma: null, tema: 'auto' }, String(v));
+});

@@ -1,4 +1,4 @@
-/* Preferências do Nora (idioma e tema), na chave nora.prefs: { idioma: null | 'pt-BR' | 'en-GB', tema: 'auto' | 'claro' | 'escuro' }.
+/* Preferências do Nora (idioma, tema e modo privacidade), na chave nora.prefs: { idioma: null | 'pt-BR' | 'en-GB', tema: 'auto' | 'claro' | 'escuro', privado?: true }.
    Separada dos dados: fica fora do backup e "Apagar meus dados" não a apaga (só apaga cortex-financas.*).
    Carregado no <head>, síncrono, antes do styles.css: põe lang e data-tema no <html> antes da primeira pintura.
    idioma null = automático (primeiro idioma do navegador começando com "pt" → pt-BR, senão en-GB); tema 'auto' segue o
@@ -11,7 +11,10 @@ var NORA_PREFS = (function () {
   /* qualquer coisa → preferências válidas; campo inválido vira o automático, campo por campo */
   function limpar(x) {
     var o = x && typeof x === 'object' && !Array.isArray(x) ? x : {};
-    return { idioma: IDIOMAS.indexOf(o.idioma) >= 0 ? o.idioma : null, tema: TEMAS.indexOf(o.tema) >= 0 ? o.tema : 'auto' };
+    var p = { idioma: IDIOMAS.indexOf(o.idioma) >= 0 ? o.idioma : null, tema: TEMAS.indexOf(o.tema) >= 0 ? o.tema : 'auto' };
+    /* modo privacidade (P5 do painel): só true liga; desligado, o campo nem é gravado */
+    if (o.privado === true) p.privado = true;
+    return p;
   }
   function ler() {
     try { return limpar(JSON.parse(localStorage.getItem(CHAVE))); } catch (e) { return limpar(null); }

@@ -1,7 +1,7 @@
-body h8bpta 1ln8j76 1ln8j76
-body>main.wrap 1uozw89 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin h86sdv 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>div.view-top 7rmyat 1yytz64 1yytz64
+body neyv56 1ln8j76 1ln8j76
+body>main.wrap 1brv1ad 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin 6dgcev 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top 1dugzhj 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div 1bm8dqa 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca b0kupf 1af5xs7 1af5xs7
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg 1g4go5u 1af5xs7 1af5xs7
@@ -10,7 +10,12 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path fecjv
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path 1yyizld 75rfgb 75rfgb
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l 14gjmxp 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm cbmg8b 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo alvofp 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn 1coz7p5 onl410 onl410
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg 1x3j4qe bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg>path b08m2d bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg>circle 13g4nkq bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>span 106wwn9 1b0zbjm 1b0zbjm
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.primario z78tfl cjuxk0 cjuxk0
 body>main.wrap>section#fin-app.view.fin>nav.abas 5dc4e7 1yytz64 1yytz64
@@ -389,6 +394,6 @@ body>main.wrap>section#fin-app.view.fin>section.sec>details#fin-rcamb.metas>form
 body>div#toast.toast.erro 1xqqop6 1yytz64 1yytz64
 body>div#toast.toast.erro>span.dot 1lv62jz 1ln8j76 1ln8j76
 body>div#toast.toast.erro>span#toast-txt 26f8ly 1ln8j76 1ln8j76
-body>input#fin-csv.vh 4u958m 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh 4u958m 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh cmai88 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh cmai88 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug

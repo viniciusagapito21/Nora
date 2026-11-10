@@ -1533,8 +1533,17 @@
   function descExibida(d) { return d === SEM_DESCRICAO ? tt('mov.semDescricao') : d; }
   /* nn, n2, n1, nr: números sem moeda (com .format, como os Intl.NumberFormat de antes) */
   var nn = { format: function (v) { return F().nn(v); } }, n2 = { format: function (v) { return F().n2(v); } };
-  function f2(v) { return F().f2(v, moeda()); }
-  function f0(v) { return F().f0(v, moeda()); }
+  /* P5, modo privacidade: o ponto único do dinheiro na tela. Com MASC ligado, todo valor vira "€ ••••" (o sinal fica);
+     formulários, Configurações e a prévia da importação mostram o real (render desliga MASC nessas telas; real() nos
+     formulários do painel). Porcentagens e contagens não mudam */
+  var MASC = false;
+  function privado() { return NORA_PREFS.ler().privado === true; }
+  function oculto(v, cod) { return (v < 0 ? '−' : '') + F().simbolo(cod || moeda()) + ' ••••'; }
+  /* dinheiro sem símbolo (tabela mês a mês, eixo e média dos gráficos) */
+  function nv(v) { return MASC ? '••••' : nn.format(v); }
+  function real(fn) { var m = MASC; MASC = false; try { return fn(); } finally { MASC = m; } }
+  function f2(v) { return MASC ? oculto(v) : F().f2(v, moeda()); }
+  function f0(v) { return MASC ? oculto(v) : F().f0(v, moeda()); }
   function sgn(v, fn) { return F().sgn(v, fn || f0); }
   function mLabel(k) { return F().mLabel(k); }
   function mNome(k) { return F().mNome(k); }
@@ -1562,7 +1571,8 @@
   function metaCampo(id, rotulo, v, sug) {
     return '<label>' + esc(rotulo) + '<input id="' + id + '" type="number" min="0" step="5" inputmode="decimal" value="' + (v != null ? v : '') + '" placeholder="' + (sug != null ? tth('metas.sugestao', { valor: sug }) : tth('painel.semMeta')) + '"></label>';
   }
-  function metasCampos(pre) {
+  function metasCampos(pre) { return real(function () { return metasCamposReal(pre); }); }
+  function metasCamposReal(pre) {
     var h = '';
     CATSV.forEach(function (c) { h += metaCampo('fin-' + pre + '-' + c.id, (c.id === 'brasil' && enviosMovidos() ? tt('metas.rotuloMovido', { nome: catNome(c) }) : catNome(c)), metaDefinida(c.id), SUG ? SUG.cats[c.id] : null); });
     return h + metaCampo('fin-' + pre + '-poupar', tt('metas.guardarPorMes'), pouparDefinido(), SUG ? SUG.poupar : null);
@@ -1760,9 +1770,21 @@
     if (M.keys.length) st = origem() + ' · ' + st;
     if (emResumo() && RES) st = tt('casca.resumoTopo', { n: S.dados.carteiras.length, moeda: nomeMoeda(moedaP()) }) + (RES.ref ? ' · ' + tt('casca.dadosAte', { data: dFull(RES.ref) }) : '');
     return '<div class="view-top"><div><h1 class="marca">' + logo() + '</h1><span class="vt-l"><span class="mono sm">' + esc(st) + '</span></span></div>' +
-      (configurado() ? '<div class="grupo"><button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">' + tth('comum.configuracoes') + '</button><button class="pill primario" type="button" data-fin-add>' + tth('comum.adicionarExtrato') + '</button></div>' : '') + '</div>' +
+      (configurado() ? '<div class="grupo">' + botaoPrivado() + '<button class="pill" type="button" data-fin-setup aria-pressed="' + S.setupOpen + '">' + tth('comum.configuracoes') + '</button><button class="pill primario" type="button" data-fin-add>' + tth('comum.adicionarExtrato') + '</button></div>' : '') + '</div>' +
       avisoEspaco() +
       (configurado() && !suportado() && !S.setupOpen && !RES ? '<p class="aviso">' + avisoSuporte() + '</p>' : '');
+  }
+  /* P5: o botão do modo privacidade (aria-pressed) e a faixa que diz que está ligado */
+  var OLHO = '<path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z"/><circle cx="10" cy="10" r="2.4"/>';
+  var OLHO_FECHADO = '<path d="M3 3l14 14"/><path d="M8.3 4.8A8.5 8.5 0 0 1 10 4.5c5 0 8 5.5 8 5.5a14.4 14.4 0 0 1-2.6 3.3"/><path d="M5.4 6.2A14.2 14.2 0 0 0 2 10s3 5.5 8 5.5c1.3 0 2.5-.4 3.5-1"/><path d="M8.3 8.3a2.4 2.4 0 0 0 3.4 3.4"/>';
+  function olho(fechado) { return '<svg class="painel-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (fechado ? OLHO_FECHADO : OLHO) + '</svg>'; }
+  function botaoPrivado() {
+    var p = privado();
+    return '<button class="btn painel-priv-btn" type="button" data-fin-priv aria-pressed="' + p + '">' + olho(p) + '<span>' + tth(p ? 'privado.mostrar' : 'privado.ocultar') + '</span></button>';
+  }
+  function faixaPrivado() {
+    if (!MASC) return '';
+    return '<div class="painel-priv-faixa" role="status">' + olho(true) + '<div>' + tth('privado.faixa', { titulo: cru('<strong>' + tth('privado.ativo') + '</strong>') }) + '</div></div>';
   }
   /* acima de 4 MB (somando a v3 guardada e a v4), sugere backup; se a gravação falhou, avisa como erro */
   function avisoEspaco() {
@@ -1784,7 +1806,7 @@
   function variasCarteiras() { return !!(S.dados && S.dados.carteiras.length > 1); }
   /* moeda principal: a de Em observação, das metas de poupança e do Resumo; com uma carteira, a dela */
   function moedaP() { return variasCarteiras() ? S.dados.config.moedaPrincipal : moeda(); }
-  function fP0(v) { return F().f0(v, moedaP()); }
+  function fP0(v) { return MASC ? oculto(v, moedaP()) : F().f0(v, moedaP()); }
   /* campos de câmbio "1 € = [ ] £", com o inverso e a data; taxa com mais de 30 dias em âmbar */
   function camposCambio(moedas, attr) {
     var mp = moedaP(), C = divState().cambios, hoje = todayIso();
@@ -1827,7 +1849,7 @@
   }
   /* ---------- Resumo ---------- */
   /* valor na moeda de uma carteira (sem casas) */
-  function fW(v, cod) { return F().f0(v, cod); }
+  function fW(v, cod) { return MASC ? oculto(v, cod) : F().f0(v, cod); }
   function trecho(f) { return f.de === f.ate ? dFull(f.de) : tt('comum.periodo', { de: f.de.slice(0, 7) === f.ate.slice(0, 7) ? +f.de.slice(8) : dFull(f.de), ate: dFull(f.ate) }); }
   /* as moedas das carteiras com extrato que entram nas somas por câmbio */
   function moedasConvertidas(R) { var o = {}; R.ws.forEach(function (w) { if (w.temDados && w.moeda !== R.mp) o[w.moeda] = 1; }); return Object.keys(o).sort(); }
@@ -1893,7 +1915,7 @@
       return tt('resumo.foraParte', { nome: p.w.nome, n: it.n, valores: v });
     });
     var lista = '';
-    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(descExibida(r.desc)) + ': ' + (r.a > 0 ? '+' : '−') + esc(F().dinheiro(Math.abs(r.a), p.w.moeda, 2)) + '</li>'; }); });
+    Q.por.forEach(function (p) { p.w.M.rows.forEach(function (r) { if (r.m === Q.m && r.kind === 'interno') lista += '<li>' + esc(dFmt(r.date)) + ' · ' + esc(p.w.nome) + ' · ' + esc(descExibida(r.desc)) + ': ' + (r.a > 0 ? '+' : '−') + esc(MASC ? oculto(1, p.w.moeda) : F().dinheiro(Math.abs(r.a), p.w.moeda, 2)) + '</li>'; }); });
     /* as partes ligadas por "e" uma a uma, como antes (com três carteiras: "A e B e C") */
     return '<div class="rfora"><p class="passo">' + tth('resumo.foraTexto', { n: n, mes: nm, partes: partes.reduce(function (a, b) { return tt('resumo.foraPartesE', { a: a, b: b }); }) }) + '</p>' +
       '<details class="metas" id="fin-rfd"' + (S.rFora ? ' open' : '') + '><summary>' + tth('resumo.verQuais') + '</summary><ul class="imp-ign">' + lista + '</ul><p class="passo">' + tth('resumo.foraAjuda') + '</p></details></div>';
@@ -1997,7 +2019,7 @@
     return h + avisoCambioResumo(R) + transfSecao() + saldoCarteiras(R) + mesResumoTela(R) + previsaoResumoTela(R) + dividas() + metasPoup() + cambioResumo(R);
   }
   /* ---------- transferências entre carteiras (Resumo e Revisar categorias) ---------- */
-  function valorMov(r, cod) { return F().valorMov(r, cod); }
+  function valorMov(r, cod) { return MASC ? (r.a < 0 ? '−' : '+') + oculto(1, cod) : F().valorMov(r, cod); }
   var n1 = { format: function (v) { return F().n1(v); } };
   function difPar(p) {
     var d = p.dias === 0 ? tt('transf.mesmoDia') : tt('transf.diasDif', { n: p.dias }), v;
@@ -2210,7 +2232,7 @@
   function podeSalvar(I) { var p = I.previa; return !!(p && (p.novos || p.ancora != null || p.saldoNovo)); }
   function previaSaldo(I, r) {
     var ks = Object.keys(r.saldos);
-    return '<div id="fin-i-conf">' + confSaldo(I, r) + '</div><div class="mgrid"><label>' + tth('importar.saldoBanco', { data: dFull(r.ate) }) + '<input id="fin-i-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="' + tth('comum.exemplo', { exemplo: '1.234,56' }) + '" value="' + esc(I.ancoraTxt || '') + '">' +
+    return '<div id="fin-i-conf">' + confSaldo(I, r) + '</div><div class="mgrid"><label>' + tth('importar.saldoBanco', { data: dFull(r.ate) }) + '<input id="fin-i-ancora" type="text" inputmode="decimal" autocomplete="off" placeholder="' + tth('comum.exemplo', { exemplo: n2.format(1234.56) }) + '" value="' + esc(I.ancoraTxt || '') + '">' +
       '<small>' + tth(ks.length ? 'importar.saldoConferir' : 'importar.saldoEstimar') + '</small></label></div>';
   }
   /* o saldo digitado só refaz esta parte e o botão (refazer a tela inteira faria perder o clique em Importar) */
@@ -2641,7 +2663,7 @@
     ks.forEach(function (k) { mx = Math.max(mx, M.by[k].gasto, M.by[k].entrou); });
     var step = niceStep(mx || 100), top = step * 4, i, yl = '', gl = '', cols = '';
     for (i = 0; i <= 4; i++) {
-      yl += '<span class="yl num" style="bottom:' + i * 25 + '%">' + nn.format(step * i) + '</span>';
+      yl += '<span class="yl num" style="bottom:' + i * 25 + '%">' + (i ? nv(step * i) : nn.format(0)) + '</span>';
       gl += '<i style="bottom:' + i * 25 + '%"></i>';
     }
     ks.forEach(function (k, idx) {
@@ -2735,14 +2757,14 @@
       if (!vals.some(function (v) { return Math.abs(v) >= .5; })) return;
       var avg = 0; comp.forEach(function (k) { avg += M.by[k].spend[c.id] || 0; });
       h += '<tr><td><span class="rowsw"><i class="sw" style="background:' + colorOf(c) + '"></i>' + esc(catNome(c)) + '</span></td>';
-      ks.forEach(function (k, i) { h += '<td class="h' + (S.sel === k ? ' selc' : '') + '" style="--i:' + Math.max(0, vals[i] / mxv).toFixed(2) + '">' + (Math.abs(vals[i]) < .5 ? '–' : nn.format(vals[i])) + '</td>'; });
-      h += '<td class="avg">' + nn.format(avg / n) + '</td></tr>';
+      ks.forEach(function (k, i) { h += '<td class="h' + (S.sel === k ? ' selc' : '') + '" style="--i:' + Math.max(0, vals[i] / mxv).toFixed(2) + '">' + (Math.abs(vals[i]) < .5 ? '–' : nv(vals[i])) + '</td>'; });
+      h += '<td class="avg">' + nv(avg / n) + '</td></tr>';
     });
     function line(lbl, fn, cls, id) {
       var a = 0; comp.forEach(function (k) { a += fn(M.by[k]); });
       var r = '<tr class="tot' + (cls || '') + '"' + (id ? ' data-linha="' + id + '"' : '') + '><td>' + lbl + '</td>';
-      ks.forEach(function (k) { r += '<td class="' + (S.sel === k ? 'selc' : '') + '">' + nn.format(fn(M.by[k])) + '</td>'; });
-      return r + '<td class="avg">' + nn.format(a / n) + '</td></tr>';
+      ks.forEach(function (k) { r += '<td class="' + (S.sel === k ? 'selc' : '') + '">' + nv(fn(M.by[k])) + '</td>'; });
+      return r + '<td class="avg">' + nv(a / n) + '</td></tr>';
     }
     h += line(tth('comum.gastou'), function (g) { return g.gasto; });
     if (ks.some(function (k) { return (M.by[k].spend.brasil || 0) >= 0.5; })) h += line(tth('painel.dosQuais', { nome: nomeEnvios() }), function (g) { return g.spend.brasil || 0; }, ' sub', 'envios');
@@ -2946,16 +2968,11 @@
     var n = diasAte(iso);
     return n === 0 ? tt('obs.venceHoje') : n === 1 ? tt('obs.venceAmanha') : n > 1 ? tt('obs.venceEm', { n: n }) : n === -1 ? tt('obs.venceuOntem') : tt('obs.venceuHa', { n: -n });
   }
-  function parseNum(s) {
-    s = String(s == null ? '' : s).replace(/[^\d,.\-]/g, '');
-    if (!s) return NaN;
-    if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
-    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
-    return parseFloat(s);
-  }
+  /* número digitado: pelo idioma da tela (formato.js, lerNumero), não pelo formato do arquivo importado */
+  function parseNum(s) { return F().lerNumero(s); }
   /* pagamentos em observação: cada um na sua moeda; o câmbio para a moeda da configuração é sempre digitado
      pela pessoa (rate = unidades da moeda por 1 da moeda da configuração) */
-  function fMoeda(v, cod) { var s = F().fMoeda(v, cod); return s !== F().neutro ? s : cod + ' ' + n2.format(v); }
+  function fMoeda(v, cod) { if (MASC) return (v < 0 ? '−' : '') + cod + ' ••••'; var s = F().fMoeda(v, cod); return s !== F().neutro ? s : cod + ' ' + n2.format(v); }
   function divState() {
     var d = S.div || {};
     return { items: Array.isArray(d.items) ? d.items : [], cambios: d.cambios || {}, margem: d.margem != null && !isNaN(d.margem) ? +d.margem : 2 };
@@ -3003,7 +3020,7 @@
         '<label>' + tth('obs.margem') + '<input id="fin-c-mg" type="text" inputmode="decimal" value="' + esc(String(mg).replace('.', ',')) + '"></label></div><button class="btn sm pri" type="submit">' + tth('obs.atualizarCambio') + '</button></form></details>';
     }
     h += '<details class="metas" id="fin-dadd"' + (S.dAdd ? ' open' : '') + '><summary>' + tth('obs.adicionarPagamento') + '</summary><form id="fin-fdiv"><div class="mgrid"><label>' + tth('comum.nome') + '<input id="fin-d-nome" type="text" placeholder="' + tth('obs.exNome') + '" autocomplete="off"></label>' +
-      '<label>' + tth('comum.valor') + '<input id="fin-d-valor" type="text" inputmode="decimal" placeholder="3.700,00" autocomplete="off"></label>' +
+      '<label>' + tth('comum.valor') + '<input id="fin-d-valor" type="text" inputmode="decimal" placeholder="' + esc(n2.format(3700)) + '" autocomplete="off"></label>' +
       '<label>' + tth('comum.moeda') + '<select id="fin-d-cur">' + opcoes(moedas(), BASE) + '<option value="outra">' + tth('obs.outraMoeda') + '</option></select></label>' +
       '<label id="fin-d-outra-l" hidden>' + tth('obs.codigoMoeda') + '<input id="fin-d-outra" type="text" maxlength="3" placeholder="' + tth('obs.exCodigo') + '" autocomplete="off" autocapitalize="characters"></label>' +
       '<label>' + tth('obs.vencimentoOpcional') + '<input id="fin-d-venc" type="date"></label>' +
@@ -3035,7 +3052,7 @@
     el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + tth(S.summary ? 'saldo.graficoTotal' : 'saldo.graficoConta', { de: dFull(pts[0].d), ate: dFull(lastp.d), media: f0(avg), atual: f0(lastp.b) }) + '">' +
       '<path d="' + area + '" fill="var(--accent)" fill-opacity=".13"/><path d="' + dd + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round"/>' +
       '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + ya + '" y2="' + ya + '" stroke="var(--muted)" stroke-dasharray="4 4"/>' +
-      '<text x="' + (W - R - 2) + '" y="' + (+ya - 6) + '" text-anchor="end" class="a">' + tth('saldo.mediaGrafico', { valor: nn.format(avg) }) + '</text>' +
+      '<text x="' + (W - R - 2) + '" y="' + (+ya - 6) + '" text-anchor="end" class="a">' + tth('saldo.mediaGrafico', { valor: nv(avg) }) + '</text>' +
       '<circle cx="' + X(lastp.d).toFixed(1) + '" cy="' + Y(lastp.b).toFixed(1) + '" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>' +
       '<line id="fin-xh" y1="' + Tp + '" y2="' + (Tp + ih) + '" stroke="var(--muted)" visibility="hidden"/><circle id="fin-xd" r="4" fill="var(--fg)" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>' +
       '<rect id="fin-xr" x="' + L + '" y="0" width="' + iw + '" height="' + H + '" fill="transparent"/></svg>';
@@ -3247,6 +3264,7 @@
     if (!root) return;
     rotularArquivos();
     RES = null;
+    MASC = false;
     if (!S.ready) { root.innerHTML = header() + '<p class="passo">' + tth('casca.carregandoDados') + '</p>'; return; }
     if (S.restaurar) { root.innerHTML = header() + telaRestaurar(); return; }
     if (S.apagar) { root.innerHTML = header() + telaApagar(); return; }
@@ -3255,6 +3273,7 @@
     if (S.bloqueado) { root.innerHTML = header() + telaBloqueio(); return; }
     if (!configurado() || S.setupOpen) { root.innerHTML = header() + setup(); return; }
     TR = null;
+    MASC = privado();
     if (variasCarteiras() && configurado() && !S.setupOpen) {
       var RT = resumir(dadosAtuais());
       TR = { R: RT, S: sugerirTransferencias(RT, S.dados), C: transferenciasConfirmadas(RT) };
@@ -3262,11 +3281,11 @@
     if (emResumo()) {
       RES = TR.R;
       if (RES.meses.indexOf(S.rMes) < 0) S.rMes = RES.completos.length ? RES.completos[RES.completos.length - 1] : RES.meses[RES.meses.length - 1] || null;
-      root.innerHTML = header() + abas() + telaResumo(RES); return;
+      root.innerHTML = header() + faixaPrivado() + abas() + telaResumo(RES); return;
     }
     if (!M.keys.length) { root.innerHTML = header() + abas() + emptyState(); return; }
     var uma = !variasCarteiras();
-    root.innerHTML = header() + abas() + perguntaAluguel() + perguntaEnvios() + cotaCard() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
+    root.innerHTML = header() + faixaPrivado() + abas() + perguntaAluguel() + perguntaEnvios() + cotaCard() + cashSummary() + (uma ? dividas() : notaResumo()) + kpis() + previsao() + (uma ? metasPoup() : '') + chart() +
       '<section class="sec"><div class="detail' + (S.movOpen ? '' : ' solo') + '">' + catPanel() + movPanel() + '</div></section>' + recorrentes() +
       (CPOR.brasil.oculta ? taxaPoup() : '<div class="two">' + enviosBrasil() + taxaPoup() + '</div>') + table() + review() +
       '<p class="passo">' + tth(bancoAtual() === 'revolut' ? 'casca.fimMesRevolut' : bancoAtual() === 'itau' ? 'casca.fimMesPdf' : 'casca.fimMesPlanilha', { origem: origem() }) + '</p>' + cashBridge();
@@ -3301,8 +3320,13 @@
   document.addEventListener('click', function (e) {
     var fechou = false;
     if (S.fOpen && !(e.target.closest && e.target.closest('.fmenu'))) { S.fOpen = false; fechou = true; }
-    var t = e.target.closest && e.target.closest('[data-envios],[data-pixtit-marcar],[data-pixtit-aplicar],[data-pixtit-desfazer],[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
+    var t = e.target.closest && e.target.closest('[data-fin-priv],[data-envios],[data-pixtit-marcar],[data-pixtit-aplicar],[data-pixtit-desfazer],[data-irtransf],[data-tconf],[data-tdisp],[data-tdesf],[data-rmes],[data-rcamb],[data-escolher],[data-sel],[data-f],[data-fopen],[data-fclear],[data-more],[data-all],[data-movtoggle],[data-fin-add],[data-fin-setup],[data-aluguel],[data-backup],[data-restaurar],[data-apagar],[data-dpay],[data-ddel],[data-carteira],[data-wexcluir],[data-excluir],[data-imp],[data-saldo]');
     if (!t || !t.closest('#fin-app')) { if (fechou) render(); return; }
+    if (t.hasAttribute('data-fin-priv')) {
+      NORA_PREFS.gravar(Object.assign(NORA_PREFS.ler(), { privado: !privado() })); hideTip(); render();
+      var pb = $('[data-fin-priv]'); if (pb) pb.focus();
+      return;
+    }
     if (t.hasAttribute('data-fin-add')) {
       if (emResumo()) { S.escolher = {}; render(); var ec = $('#fin-escolher input:checked'); if (ec) ec.focus(); window.scrollTo(0, 0); return; }
       $('#fin-csv').click(); return;
@@ -3540,7 +3564,7 @@
     if (fid === 'fin-frcamb') {
       e.preventDefault();
       var lr = lerCambios('cambr');
-      if (lr.ruim) { toast(tt('msg.informeCambio', { moeda: lr.ruim, principal: nomeMoeda(moedaP(), 1), exemplo: '0,86' }), true); return; }
+      if (lr.ruim) { toast(tt('msg.informeCambio', { moeda: lr.ruim, principal: nomeMoeda(moedaP(), 1), exemplo: n2.format(0.86) }), true); return; }
       S.rCamb = false;
       divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, lr.novos); }).then(function () { toast(tt(Object.keys(lr.novos).length ? 'msg.cambioSalvo' : 'msg.cambioNadaMudou')); });
       return;
@@ -3548,7 +3572,7 @@
     if (fid === 'fin-fcamb') {
       e.preventDefault();
       var mg = parseNum($('#fin-c-mg').value), lc = lerCambios('camb'), novos = lc.novos;
-      if (lc.ruim) { toast(tt('msg.informeCambio', { moeda: lc.ruim, principal: nomeMoeda(moedaP(), 1), exemplo: '1,08' }), true); return; }
+      if (lc.ruim) { toast(tt('msg.informeCambio', { moeda: lc.ruim, principal: nomeMoeda(moedaP(), 1), exemplo: n2.format(1.08) }), true); return; }
       if (isNaN(mg) || mg < 0 || mg > 20) mg = 2;
       S.dCamb = false;
       divMut(function (d) { d.cambios = Object.assign({}, d.cambios || {}, novos); d.margem = mg; }).then(function () { toast(tt('msg.cambioAtualizado')); });
@@ -3566,7 +3590,7 @@
       if (mpSel && mpSel.value !== x.config.moedaPrincipal) { x = trocarMoedaPrincipal(x, mpSel.value); trocouMP = true; }
       else if (mpSel) {
         var lc = lerCambios('cambc');
-        if (lc.ruim) erros.push(tt('msg.cambioInvalido', { moeda: lc.ruim, principal: x.config.moedaPrincipal, exemplo: '0,86' }));
+        if (lc.ruim) erros.push(tt('msg.cambioInvalido', { moeda: lc.ruim, principal: x.config.moedaPrincipal, exemplo: n2.format(0.86) }));
         else if (Object.keys(lc.novos).length) x = Object.assign({}, x, { cambios: Object.assign({}, x.cambios, lc.novos) });
       }
       var mudouPrincipal = x.config.moedaPrincipal !== mp0;

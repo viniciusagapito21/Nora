@@ -408,6 +408,9 @@ for (const w of [1280, 390]) {
   t('64-resumo-gasto-e-movido', { storage: comItau(true, { movido: true }) });
   // aviso dos envios: carteira com envios para a titular passando de 50% do Gastou
   t('65-aviso-envios', { storage: comItau(true, { aviso: true }), viewport: true, prepara: aba('c2') });
+  // P5: modo privacidade ligado (nora.prefs); a conferência procura dinheiro no texto e nos aria-label fora dos formulários
+  t('66-privacidade-painel', { storage: { ...D, 'nora.prefs': JSON.stringify({ idioma: null, tema: 'auto', privado: true }) }, privado: true });
+  t('67-privacidade-resumo', { storage: { ...CARTEIRAS, 'nora.prefs': JSON.stringify({ idioma: null, tema: 'auto', privado: true }) }, privado: true });
   t('51-planilha-com-senha', { storage: comGenerica(false), viewport: true, toast: true, prepara: async pg => { await pg.setInputFiles('#fin-csv', COM_SENHA); await pg.waitForSelector('#toast:not([hidden])'); } });
   if (w > 600) t('14-dica-grafico', { storage: D, viewport: true, hover: async pg => {
     const b = await pg.locator('.mcol').nth(1).boundingBox(); await pg.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
@@ -431,7 +434,7 @@ for (const s of TELAS) {
   pg.on('request', r => { if (!pedidoPermitido(r)) problemas.push(`${arq}: pedido fora do permitido: ${r.resourceType()} ${r.url()}`); });
   pg.on('console', m => { if (m.type() === 'error') erros.push(arq + ': ' + m.text()); });
   await pg.goto(s.disco ? URL_DISCO : URL_PAGINA);
-  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, prefs ? { ...(s.storage || {}), 'nora.prefs': JSON.stringify(prefs) } : s.storage || {});
+  await pg.evaluate(st => { localStorage.clear(); for (const k in st) localStorage.setItem(k, st[k]); }, prefs ? { ...(s.storage || {}), 'nora.prefs': JSON.stringify({ ...JSON.parse((s.storage || {})['nora.prefs'] || '{}'), ...prefs }) } : s.storage || {});
   await pg.reload(); await pg.waitForTimeout(150);
   if (s.prepara) await s.prepara(pg);
   await pg.evaluate(() => document.fonts.ready);
@@ -450,6 +453,20 @@ for (const s of TELAS) {
   c.contraste.forEach(x => problemas.push(`${arq}: contraste ${x}`));
   c.cortados.forEach(x => problemas.push(`${arq}: texto cortado ${x}`));
   c.sobrepostos.slice(0, 5).forEach(x => problemas.push(`${arq}: controles sobrepostos ${x}`));
+  if (s.privado) {
+    const vazou = await pg.evaluate(() => {
+      const fora = el => el.closest('form, input, select, textarea, #fin-imp');
+      const textos = [], dinheiro = /(€|£|R\$|US\$|\$)\s?[−-]?\d|\d\s?(€|£)/;
+      const w = document.createTreeWalker(document.getElementById('fin-app'), NodeFilter.SHOW_TEXT);
+      while (w.nextNode()) if (!fora(w.currentNode.parentElement) && dinheiro.test(w.currentNode.textContent)) textos.push('texto');
+      // dinheiro sem símbolo: a tabela mês a mês, o eixo do gráfico de gastos e os textos do gráfico de saldo (só dígitos)
+      document.querySelectorAll('#fin-app .tw td, #fin-app .yl, #fin-app svg text').forEach(el => { if (!fora(el) && /\d/.test(el.textContent) && !/%/.test(el.textContent) && el.textContent.trim() !== '0') textos.push('número sem símbolo'); });
+      document.querySelectorAll('#fin-app [aria-label], #fin-app [data-tip]').forEach(el => { if (!fora(el) && dinheiro.test(el.getAttribute('aria-label') || '')) textos.push('aria-label'); });
+      return { n: textos.length, onde: [...new Set(textos)], botao: document.querySelector('[data-fin-priv]')?.getAttribute('aria-pressed') };
+    });
+    if (vazou.n) problemas.push(`${arq}: modo privacidade, ${vazou.n} valor(es) em dinheiro à mostra (${vazou.onde.join(', ')})`);
+    if (vazou.botao !== 'true') problemas.push(`${arq}: modo privacidade sem o botão com aria-pressed="true"`);
+  }
   await ctx.close();
 }
 }

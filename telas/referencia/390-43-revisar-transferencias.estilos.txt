@@ -1,7 +1,7 @@
-body sh5m9x 1ln8j76 1ln8j76
-body>main.wrap 1n1msb2 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin 15xutsm 1yytz64 1yytz64
-body>main.wrap>section#fin-app.view.fin>div.view-top 1m7ax9p 1yytz64 1yytz64
+body 1liaqkr 1ln8j76 1ln8j76
+body>main.wrap grwh0s 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin h6oflu 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top 1ds1uwr 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div nla6m4 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca cpev7d 1af5xs7 1af5xs7
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg 1g4go5u 1af5xs7 1af5xs7
@@ -10,7 +10,12 @@ body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path fecjv
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>h1.marca>svg>path 1yyizld 75rfgb 75rfgb
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l 1t5j81j 1yytz64 1yytz64
 body>main.wrap>section#fin-app.view.fin>div.view-top>div>span.vt-l>span.mono.sm 1dr6qmz 1uqub23 1uqub23
-body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo 1gcvzn9 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo alvofp 1yytz64 1yytz64
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn 1coz7p5 onl410 onl410
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg 1x3j4qe bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg>path b08m2d bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>svg>circle 13g4nkq bsq8c0 bsq8c0
+body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.btn.painel-priv-btn>span 106wwn9 1b0zbjm 1b0zbjm
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill 1prgoc 7k9go8 7k9go8
 body>main.wrap>section#fin-app.view.fin>div.view-top>div.grupo>button.pill.primario z78tfl cjuxk0 cjuxk0
 body>main.wrap>section#fin-app.view.fin>nav.abas 1qb5697 1yytz64 1yytz64
@@ -60,7 +65,7 @@ body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergu
 body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>p 1fudahh bsyljp bsyljp
 body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>p>b 10bhv40 e1332s e1332s
 body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>div.grupo 1buw94a 1gej12z 1gej12z
-body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>div.grupo>label.vh 13hygxv swloz2 swloz2
+body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>div.grupo>label.vh yelwmh swloz2 swloz2
 body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>div.grupo>input#fin-ancora 1tv5p4g 1do620i 1do620i up2eub
 body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>div.grupo>button.btn.sm.pri 1bv9je0 pbreky pbreky
 body>main.wrap>section#fin-app.view.fin>section.sec>form#fin-fancora.aviso.pergunta>div.grupo>button.btn.sm 1xw7dds 30cwau 30cwau
@@ -546,7 +551,7 @@ body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>di
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div#fin-transf.rtransf>div.tlist>div.tpar>div.grupo>button.btn.sm 1rqh4i6 30cwau 30cwau
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>p.passo pxwuhh 4eerhl 4eerhl
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca 6tmb2c 1ln8j76 1ln8j76
-body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca>label.vh lxlow0 fr2hbx fr2hbx
+body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca>label.vh 1brzxsc fr2hbx fr2hbx
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div.fbusca>input#fin-q ptncps qc0uyc qc0uyc qe9nl7
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div#fin-revlist.card kozthp 1ln8j76 1ln8j76
 body>main.wrap>section#fin-app.view.fin>section.sec.rev>details#fin-revd.revd>div.rv-c>div#fin-revlist.card>h3.rvt 1aqcuy7 1k5jjl7 1k5jjl7
@@ -667,6 +672,6 @@ body>main.wrap>section#fin-app.view.fin>section.sec>div.card.cfb>details#fin-cfd
 body>div#toast.toast 14ixo05 1ln8j76 1ln8j76
 body>div#toast.toast>span.dot 1tniisv 1ln8j76 1ln8j76
 body>div#toast.toast>span#toast-txt 1ivsh6u 1ln8j76 1ln8j76
-body>input#fin-csv.vh f4wru 1oe9ydw 1oe9ydw 1q1z96j
-body>input#fin-json.vh f4wru 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-csv.vh gcirqc 1oe9ydw 1oe9ydw 1q1z96j
+body>input#fin-json.vh gcirqc 1oe9ydw 1oe9ydw 1q1z96j
 body>div#fin-tip.fin-tip 15auzrg kiu4ug kiu4ug
