@@ -462,9 +462,17 @@ for (const s of TELAS) {
       // dinheiro sem símbolo: a tabela mês a mês, o eixo do gráfico de gastos e os textos do gráfico de saldo (só dígitos)
       document.querySelectorAll('#fin-app .tw td, #fin-app .yl, #fin-app svg text').forEach(el => { if (!fora(el) && /\d/.test(el.textContent) && !/%/.test(el.textContent) && el.textContent.trim() !== '0') textos.push('número sem símbolo'); });
       document.querySelectorAll('#fin-app [aria-label], #fin-app [data-tip]').forEach(el => { if (!fora(el) && dinheiro.test(el.getAttribute('aria-label') || '')) textos.push('aria-label'); });
-      return { n: textos.length, onde: [...new Set(textos)], botao: document.querySelector('[data-fin-priv]')?.getAttribute('aria-pressed') };
+      // rótulos de voz: nenhum com o caractere da máscara (o leitor de tela diria "valor oculto", não os pontos)
+      let mascaraVoz = 0, ocultos = 0;
+      const rotulos = [...document.querySelectorAll('#fin-app [aria-label], #fin-app [title], #fin-app [aria-description]')]
+        .flatMap(el => ['aria-label', 'title', 'aria-description'].map(a => el.getAttribute(a)).filter(Boolean))
+        .concat([...document.querySelectorAll('#fin-app svg title')].map(el => el.textContent), [document.title]);
+      rotulos.forEach(r => { if (r.includes('•')) mascaraVoz++; if (r.includes(NORA_I18N.t('privado.valorOculto'))) ocultos++; });
+      return { n: textos.length, onde: [...new Set(textos)], botao: document.querySelector('[data-fin-priv]')?.getAttribute('aria-pressed'), mascaraVoz, ocultos };
     });
     if (vazou.n) problemas.push(`${arq}: modo privacidade, ${vazou.n} valor(es) em dinheiro à mostra (${vazou.onde.join(', ')})`);
+    if (vazou.mascaraVoz) problemas.push(`${arq}: modo privacidade, ${vazou.mascaraVoz} rótulo(s) de voz com "•" (devia dizer "valor oculto")`);
+    if (!vazou.ocultos) problemas.push(`${arq}: modo privacidade, nenhum rótulo de voz diz "valor oculto"`);
     if (vazou.botao !== 'true') problemas.push(`${arq}: modo privacidade sem o botão com aria-pressed="true"`);
   }
   await ctx.close();

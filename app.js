@@ -1542,6 +1542,14 @@
   /* dinheiro sem símbolo (tabela mês a mês, eixo e média dos gráficos) */
   function nv(v) { return MASC ? '••••' : nn.format(v); }
   function real(fn) { var m = MASC; MASC = false; try { return fn(); } finally { MASC = m; } }
+  /* rótulos de voz (aria-label): com MASC, todo valor mascarado vira "valor oculto" em vez de "€ ••••" (o leitor de tela
+     leria os pontos); o texto na tela continua "€ ••••". Recebe as variáveis do tth e devolve uma cópia */
+  function voz(vars) {
+    if (!MASC) return vars;
+    var o = {};
+    Object.keys(vars).forEach(function (k) { o[k] = typeof vars[k] === 'string' && vars[k].indexOf('••••') >= 0 ? tt('privado.valorOculto') : vars[k]; });
+    return o;
+  }
   function f2(v) { return MASC ? oculto(v) : F().f2(v, moeda()); }
   function f0(v) { return MASC ? oculto(v) : F().f0(v, moeda()); }
   function sgn(v, fn) { return F().sgn(v, fn || f0); }
@@ -1977,7 +1985,7 @@
     var cedo = P.por.filter(function (q) { return q.cedo; });
     return h + '<span class="hint">' + tth('resumo.ate', { data: dFull(R.ref) }) + ' · ' + tth('resumo.somaPrevisoes') + '</span></div><div class="card prv">' +
       '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + ap + fP0(P.gasto) + '</p>' + notaEnvios(envResumo(R), fp) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: mNome(R.partial) }) + '</p><p class="v num">' + ap + fP0(P.proj) + '</p>' + pendNum(P.pend, fp) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + ap + fP0(P.meta) + '</p></div></div>' +
-      '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', { gasto: fP0(P.gasto), proj: fP0(P.proj), meta: fP0(P.meta) }) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+      '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', voz({ gasto: fP0(P.gasto), proj: fP0(P.proj), meta: fP0(P.meta) })) + '"><i class="pj' + (over ? ' over' : '') + '" style="width:' + (P.proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (P.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (P.meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
       '<p class="s">' + st + pendFrase(P.pend, P.nPend, fp) + '. ' + P.por.map(function (q) { var a = q.w.moeda === R.mp ? '' : '≈ '; return tth('resumo.previsaoCarteira', { nome: q.w.nome, proj: a + fP0(q.proj), meta: a + fP0(q.meta) }); }).join(' · ') + '.</p>' + pendBotao(P.pend) +
       (cedo.length ? '<p class="aviso">' + tth('resumo.cedo', { n: cedo.length, lista: cru(cedo.map(function (q) { return tth('resumo.cedoItem', { nome: cru('<b>' + esc(q.w.nome) + '</b>'), data: dFull(q.w.ate || q.w.M.lastDate) }); }).join('; ')) }) + '</p>' : '') +
@@ -2036,7 +2044,7 @@
       : '<span class="td">' + tth('transf.movSumiu') + '</span>') + '</div>';
   }
   function parTela(p) {
-    var nome = tth('transf.parAria', { nomeSaida: p.s.w.nome, dataSaida: dFmt(p.s.r.date), valorSaida: valorMov(p.s.r, p.s.w.moeda), nomeEntrada: p.e.w.nome, dataEntrada: dFmt(p.e.r.date), valorEntrada: valorMov(p.e.r, p.e.w.moeda) });
+    var nome = tth('transf.parAria', voz({ nomeSaida: p.s.w.nome, dataSaida: dFmt(p.s.r.date), valorSaida: valorMov(p.s.r, p.s.w.moeda), nomeEntrada: p.e.w.nome, dataEntrada: dFmt(p.e.r.date), valorEntrada: valorMov(p.e.r, p.e.w.moeda) }));
     var ja = p.ja === 's' ? tth('transf.jaSaida', { nome: p.s.w.nome })
       : p.ja === 'e' ? tth('transf.jaEntrada', { nome: p.e.w.nome }) : '';
     return '<div class="tpar" role="group" aria-label="' + nome + '">' + ladoPar('transf.saiu', p.s.w, p.s.r) + '<span class="tseta" aria-hidden="true">→</span>' + ladoPar('transf.entrou', p.e.w, p.e.r) +
@@ -2673,7 +2681,7 @@
         if (v > top * .003) { tot += v; segs += '<i style="flex:' + v.toFixed(2) + ' 0 0;background:' + colorOf(c) + '"></i>'; }
       });
       var yr = k.slice(0, 4), showYr = idx === 0 || ks[idx - 1].slice(0, 4) !== yr;
-      cols += '<button type="button" class="mcol' + (M.partial === k ? ' parc' : '') + '" data-sel="' + k + '" data-tip="' + k + '" aria-pressed="' + (S.sel === k) + '" aria-label="' + tth(M.partial === k ? 'painel.barraAriaParcial' : 'painel.barraAria', { mes: mLabel(k), gasto: f0(g.gasto), entrou: f0(g.entrou) }) + '">' +
+      cols += '<button type="button" class="mcol' + (M.partial === k ? ' parc' : '') + '" data-sel="' + k + '" data-tip="' + k + '" aria-pressed="' + (S.sel === k) + '" aria-label="' + tth(M.partial === k ? 'painel.barraAriaParcial' : 'painel.barraAria', voz({ mes: mLabel(k), gasto: f0(g.gasto), entrou: f0(g.entrou) })) + '">' +
         '<span class="bars"><span class="stack" style="height:' + (tot / top * 100).toFixed(2) + '%">' + segs + '</span>' +
         (g.entrou > 0 ? '<b class="inc" style="bottom:' + Math.min(100, g.entrou / top * 100).toFixed(2) + '%"></b>' : '') + '</span>' +
         '<span class="xl"><b>' + mShort(k) + (M.partial === k ? '*' : '') + '</b>' + (showYr ? '<span>' + yr + '</span>' : '') + '</span></button>';
@@ -3049,7 +3057,7 @@
     for (i = 1; i < pts.length; i++) dd += ' L' + X(pts[i].d).toFixed(1) + ' ' + Y(pts[i - 1].b).toFixed(1) + ' L' + X(pts[i].d).toFixed(1) + ' ' + Y(pts[i].b).toFixed(1);
     var yb = Y(0).toFixed(1), area = dd + ' L' + X(pts[pts.length - 1].d).toFixed(1) + ' ' + yb + ' L' + X(pts[0].d).toFixed(1) + ' ' + yb + ' Z';
     var lastp = pts[pts.length - 1], ya = Y(avg).toFixed(1);
-    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + tth(S.summary ? 'saldo.graficoTotal' : 'saldo.graficoConta', { de: dFull(pts[0].d), ate: dFull(lastp.d), media: f0(avg), atual: f0(lastp.b) }) + '">' +
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + tth(S.summary ? 'saldo.graficoTotal' : 'saldo.graficoConta', voz({ de: dFull(pts[0].d), ate: dFull(lastp.d), media: f0(avg), atual: f0(lastp.b) })) + '">' +
       '<path d="' + area + '" fill="var(--accent)" fill-opacity=".13"/><path d="' + dd + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round"/>' +
       '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + ya + '" y2="' + ya + '" stroke="var(--muted)" stroke-dasharray="4 4"/>' +
       '<text x="' + (W - R - 2) + '" y="' + (+ya - 6) + '" text-anchor="end" class="a">' + tth('saldo.mediaGrafico', { valor: nv(avg) }) + '</text>' +
@@ -3154,7 +3162,7 @@
     var st = statusPrevisao(dif, pend, f0);
     return h + '<span class="hint">' + tth('previsao.dica', { dia: day, dim: dim, n: left }) + '</span></div><div class="card prv">' +
       '<div class="prv-n"><div><p class="l mono">' + tth('previsao.gastoAteAgora') + '</p><p class="v num">' + f0(g.gasto) + '</p>' + notaEnvios(g.spend.brasil || 0, f0) + '</div><div><p class="l mono">' + tth('previsao.previsaoPara', { mes: mNome(cur) }) + '</p><p class="v num">' + f0(proj) + '</p>' + pendNum(pend, f0) + '</div><div><p class="l mono">' + tth('previsao.metaGasto') + '</p><p class="v num">' + f0(meta) + '</p></div></div>' +
-      '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', { gasto: f0(g.gasto), proj: f0(proj), meta: f0(meta) }) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
+      '<div class="ptrack" role="img" aria-label="' + tth('previsao.trackAria', voz({ gasto: f0(g.gasto), proj: f0(proj), meta: f0(meta) })) + '"><i class="pj' + (passaMesmo(dif, pend) ? ' over' : '') + '" style="width:' + (proj / mx * 100).toFixed(1) + '%"></i><i class="sp" style="width:' + (g.gasto / mx * 100).toFixed(1) + '%"></i><b style="left:calc(' + (meta / mx * 100).toFixed(1) + '% - 1px)"></b></div>' +
       '<div class="legend"><span><i class="sw" style="background:var(--accent)"></i>' + tth('previsao.legGasto') + '</span><span><i class="sw" style="background:color-mix(in srgb, var(--accent) 35%, var(--raised))"></i>' + tth('previsao.legPrevisao') + '</span><span><i class="sw line"></i>' + tth('previsao.legMeta') + '</span></div>' +
       '<p class="s">' + st + pendFrase(pend, rs.length, f0) + '. ' + (porDia > 0 ? tth(falFix > 0.5 ? 'previsao.cabeDiaFixas' : 'previsao.cabeDia', { destaque: cru('<b>' + tth('previsao.porDiaValor', { valor: f0(porDia) }) + '</b>'), fixas: f0(falFix) }) :
         tth(falFix > 0.5 ? 'previsao.metaUsadaFixas' : 'previsao.metaUsada', { fixas: f0(falFix) })) +
@@ -3175,7 +3183,7 @@
       '<p class="painel-cota-resumo">' + (C.diasRestantes ? tth('cota.semCota', { dias: cru('<strong>' + dias + '</strong>'), valor: cru('<strong>' + esc(cents(C.comprometidoCents)) + '</strong>') }) : tth('cota.comprometido', { valor: cru('<strong>' + esc(cents(C.comprometidoCents)) + '</strong>') })) + '</p>';
     else h += '<p class="painel-cota-valor">' + esc(cents(C.cotaCents)) + ' <small>' + tth('cota.porDia') + '</small></p>' +
       '<p class="painel-cota-resumo"><strong>' + tth('cota.livres', { valor: cents(C.livreCents) }) + '</strong> · ' + dias + '</p>';
-    h += '</div><div class="painel-cota-trilha" role="img" aria-label="' + tth(fora ? 'cota.trilhaAriaFora' : 'cota.trilhaAria', { meta: cents(mc), gasto: cents(gc), fixas: cents(fc), livre: cents(Math.abs(C.livreCents)) }) + '">' +
+    h += '</div><div class="painel-cota-trilha" role="img" aria-label="' + tth(fora ? 'cota.trilhaAriaFora' : 'cota.trilhaAria', voz({ meta: cents(mc), gasto: cents(gc), fixas: cents(fc), livre: cents(Math.abs(C.livreCents)) })) + '">' +
       '<i class="painel-cota-seg ' + (fora ? 'gasto-acima' : 'gasto-ok') + '" style="width:' + pc(gc) + '"></i>' +
       (fc > 0 ? '<i class="painel-cota-seg ' + (fora ? 'fixas-acima' : 'fixas-ok') + '" style="left:' + pc(gc) + ';width:' + pc(fc) + '"></i>' : '') +
       '<b class="painel-cota-meta' + (mc >= gc + fc ? ' no-fim' : '') + '"' + (mc >= gc + fc ? '' : ' style="left:calc(' + pc(mc) + ' - 1px)"') + '></b></div>' +

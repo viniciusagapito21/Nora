@@ -41,6 +41,7 @@ NORA_DICIONARIOS['en-GB'] = {
   'privado.ocultar': 'Hide amounts',
   'privado.mostrar': 'Show amounts',
   'privado.ativo': 'Privacy mode on',
+  'privado.valorOculto': 'value hidden',
   'privado.faixa': '{titulo} · money amounts are hidden on the dashboard and in screen reader labels. Percentages stay visible.',
   'mesnav.grupo': 'Month navigation',
   'mesnav.anterior': 'Previous month: {mes}',

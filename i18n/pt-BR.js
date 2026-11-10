@@ -42,6 +42,7 @@ NORA_DICIONARIOS['pt-BR'] = {
   'privado.ocultar': 'Ocultar valores',
   'privado.mostrar': 'Mostrar valores',
   'privado.ativo': 'Modo privacidade ativo',
+  'privado.valorOculto': 'valor oculto',
   'privado.faixa': '{titulo} · valores em dinheiro ocultos no painel e nos rótulos de voz. Porcentagens continuam visíveis.',
   'mesnav.grupo': 'Navegação por mês',
   'mesnav.anterior': 'Mês anterior: {mes}',
