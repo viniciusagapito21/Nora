@@ -25,8 +25,8 @@ Tudo roda no navegador: não há servidor, login, analytics nem API. Os dados fi
 ## Capabilities and Constraints
 - Site estático (HTML, CSS e JS sem build); abre direto do arquivo ou por servidor estático.
 - Nenhum dado financeiro sai do navegador; nenhuma fonte, script ou imagem vem de servidor externo.
-- Interface em português do Brasil até a fase de idiomas (português e inglês) ficar pronta.
-- Só lê extratos do Revolut em euro; outros bancos estão no plano (`CLAUDE.md`).
+- Interface em português do Brasil e em inglês britânico.
+- Lê extratos do Revolut, do BTG Pactual e do Itaú; outros bancos entram pela escolha de colunas.
 - Exemplos sempre com dados inventados.
 - As chaves salvas continuam `cortex-financas.*`; mudar exige migração.
 

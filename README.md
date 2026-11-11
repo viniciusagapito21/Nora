@@ -51,7 +51,7 @@ npm run telas            # compara as telas com as referências aprovadas
 npm run telas:completo   # as mesmas telas em pt-BR/en-GB × claro/escuro, só as conferências
 ```
 
-O guia completo do código e o plano de trabalho estão em `CLAUDE.md`; o produto e a marca, em `PRODUCT.md`.
+O produto e a marca estão descritos em `PRODUCT.md`.
 
 As fontes Manrope e Inter ficam em `fonts/` (licença SIL Open Font License, nos arquivos `OFL-*.txt`),
 para a página não depender de nenhum servidor externo.

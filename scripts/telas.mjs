@@ -785,7 +785,7 @@ await browser.close();
 // Em cada um: o painel abre, uma planilha é lida (o SheetJS carrega), o backup é baixado, sem nenhuma violação.
 // Depois a prova da isca: um segundo servidor, em outra porta, conta toda conexão que recebe; a página tenta
 // alcançá-lo de 12 jeitos e tem que dar zero. Navegação (location, window.open, links, envio de formulário) não é
-// tentada: a CSP em <meta> não a restringe, e isso é coberto por um teste estático (veja o CLAUDE.md).
+// tentada: a CSP em <meta> não a restringe, e isso é coberto por um teste estático (tests/csp-cabecalho.test.mjs).
 {
   let conexoes = 0;
   const isca = createServer((req, res) => res.end('isca'));
@@ -873,7 +873,7 @@ console.log(erros.length ? 'erros no console:\n  ' + erros.join('\n  ') : 'conso
 console.log(problemas.length ? `conferência: ${problemas.length} problema(s)\n  ` + problemas.join('\n  ') : 'conferência: nada além da borda, nada cortado, nenhum controle sobreposto, contraste AA em todo texto');
 const falhouConferencia = erros.length || problemas.length;
 if (naoVerificados.length) console.log('\n' + '!'.repeat(78) + '\n!! CSP NÃO VERIFICADA em ' + naoVerificados.length + ' motor(es); o resto da conferência vale:\n' +
-  naoVerificados.map(x => '!!   ' + x).join('\n') + '\n!! Veja "Segurança de conteúdo (CSP)" no CLAUDE.md para voltar a testar.\n' + '!'.repeat(78));
+  naoVerificados.map(x => '!!   ' + x).join('\n') + '\n' + '!'.repeat(78));
 
 if (aprovar) {
   if (falhouConferencia) { console.log('\nreferências NÃO trocadas: resolva os problemas acima primeiro'); process.exit(1); }

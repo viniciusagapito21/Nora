@@ -18,7 +18,7 @@ test('dist publica _headers e index.html na raiz', () => {
 });
 
 test('dist não inclui arquivos de desenvolvimento nem dados locais', () => {
-  const proibidos = ['tests', 'scripts', 'docs', 'CLAUDE.md', 'AGENTS.md', 'node_modules', 'capturas', 'telas', 'exemplo'];
+  const proibidos = ['tests', 'scripts', 'docs', 'node_modules', 'capturas', 'telas', 'exemplo'];
   for (const item of proibidos) assert.ok(!existsSync(join(dist, item)), `${item} não deve estar em dist/`);
 
   const esperados = ['_headers', 'app.js', 'fonts', 'icon.svg', 'index.html', 'logo.svg', 'parsers', 'privacidade.css', 'privacidade.html', 'rules', 'styles.css', 'vendor'];
